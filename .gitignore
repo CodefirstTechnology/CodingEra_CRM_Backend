@@ -1,0 +1,9 @@
+# Visual Studio / MSBuild solution user options
+.vs/
+
+# Build outputs (regenerate on every build)
+[Bb]in/
+[Oo]bj/
+
+# Per-user IDE / project overrides
+*.user
