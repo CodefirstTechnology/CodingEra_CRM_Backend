@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260512051844_AddNotesTable")]
+    partial class AddNotesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -60,7 +63,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("CallId");
 
-                    b.ToTable("CallLogs", (string)null);
+                    b.ToTable("CallLogs");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -85,17 +88,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("NoteText")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("note");
-
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -117,19 +109,13 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("text")
                         .HasColumnName("tags");
 
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("title");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
 
-                    b.ToTable("notes", (string)null);
+                    b.ToTable("notes");
                 });
 
             modelBuilder.Entity("CRM.models.TaskTable", b =>
@@ -165,7 +151,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("TaskId");
 
-                    b.ToTable("Tasks", (string)null);
+                    b.ToTable("Tasks");
                 });
 #pragma warning restore 612, 618
         }

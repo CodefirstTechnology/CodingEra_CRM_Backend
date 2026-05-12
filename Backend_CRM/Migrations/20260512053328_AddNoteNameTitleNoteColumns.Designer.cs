@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260512053328_AddNoteNameTitleNoteColumns")]
+    partial class AddNoteNameTitleNoteColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -60,7 +63,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("CallId");
 
-                    b.ToTable("CallLogs", (string)null);
+                    b.ToTable("CallLogs");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -129,7 +132,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("notes", (string)null);
+                    b.ToTable("notes");
                 });
 
             modelBuilder.Entity("CRM.models.TaskTable", b =>
@@ -165,7 +168,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("TaskId");
 
-                    b.ToTable("Tasks", (string)null);
+                    b.ToTable("Tasks");
                 });
 #pragma warning restore 612, 618
         }
