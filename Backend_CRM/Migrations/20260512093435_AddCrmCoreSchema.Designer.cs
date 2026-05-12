@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260512093435_AddCrmCoreSchema")]
+    partial class AddCrmCoreSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -76,12 +79,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("CallId");
-
-                    b.HasIndex("ContactId");
-
-                    b.HasIndex("RelatedDealId");
-
-                    b.HasIndex("RelatedLeadId");
 
                     b.ToTable("CallLogs");
                 });
@@ -151,8 +148,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnName("salutation");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
 
                     b.ToTable("contacts");
                 });
@@ -286,18 +281,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnName("website");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AssignedToUserId");
-
-                    b.HasIndex("ContactId");
-
-                    b.HasIndex("DealOwnerId");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("RelatedContactId");
-
-                    b.HasIndex("RelatedOrganizationId");
 
                     b.ToTable("deals");
                 });
@@ -483,10 +466,6 @@ namespace Backend_CRM.Migrations
                         .IsUnique()
                         .HasFilter("\"external_ref\" IS NOT NULL AND \"external_ref\" <> ''");
 
-                    b.HasIndex("LeadOwnerId");
-
-                    b.HasIndex("OrganizationId");
-
                     b.ToTable("leads");
                 });
 
@@ -504,7 +483,7 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("text")
                         .HasColumnName("attachments");
 
-                    b.Property<int?>("AuthorId")
+                    b.Property<int>("AuthorId")
                         .HasColumnType("integer")
                         .HasColumnName("author_id");
 
@@ -594,16 +573,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnName("visibility");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AuthorId");
-
-                    b.HasIndex("RelatedContactId");
-
-                    b.HasIndex("RelatedDealId");
-
-                    b.HasIndex("RelatedLeadId");
-
-                    b.HasIndex("RelatedOrganizationId");
 
                     b.ToTable("notes");
                 });
@@ -710,12 +679,6 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("TaskId");
 
-                    b.HasIndex("AssigneeUserId");
-
-                    b.HasIndex("RelatedDealId");
-
-                    b.HasIndex("RelatedLeadId");
-
                     b.ToTable("Tasks");
                 });
 
@@ -768,124 +731,6 @@ namespace Backend_CRM.Migrations
                         .IsUnique();
 
                     b.ToTable("users");
-                });
-
-            modelBuilder.Entity("CRM.models.CallLog", b =>
-                {
-                    b.HasOne("CRM.models.Contact", null)
-                        .WithMany()
-                        .HasForeignKey("ContactId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Deal", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedDealId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedLeadId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.Contact", b =>
-                {
-                    b.HasOne("CRM.models.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.Deal", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedToUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Contact", null)
-                        .WithMany()
-                        .HasForeignKey("ContactId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("DealOwnerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Contact", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedContactId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedOrganizationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.Lead", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("LeadOwnerId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.Note", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Contact", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedContactId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Deal", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedDealId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedLeadId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedOrganizationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.TaskTable", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("AssigneeUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Deal", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedDealId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Lead", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedLeadId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 #pragma warning restore 612, 618
         }
