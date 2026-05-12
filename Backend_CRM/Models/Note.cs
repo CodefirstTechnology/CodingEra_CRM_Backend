@@ -20,7 +20,7 @@ namespace CRM.models
 
         /// <summary>Logged-in user who created or owns the note.</summary>
         [Column("author_id")]
-        public int AuthorId { get; set; }
+        public int? AuthorId { get; set; }
 
         /// <summary>Display name for the note.</summary>
         [Column("name")]
@@ -34,8 +34,37 @@ namespace CRM.models
 
         /// <summary>Main note text / body.</summary>
         [Column("note")]
-        [JsonPropertyName("note")]
+        [JsonPropertyName("body")]
         public string NoteText { get; set; } = string.Empty;
+
+        /// <summary>lead | deal | contact | organization</summary>
+        [Column("related_type")]
+        [MaxLength(32)]
+        public string RelatedType { get; set; } = "lead";
+
+        [Column("related_id")]
+        public int? RelatedEntityId { get; set; }
+
+        [Column("related_name")]
+        [MaxLength(512)]
+        public string RelatedName { get; set; } = string.Empty;
+
+        /// <summary>team | private</summary>
+        [Column("visibility")]
+        [MaxLength(32)]
+        public string Visibility { get; set; } = "team";
+
+        [Column("related_lead_id")]
+        public int? RelatedLeadId { get; set; }
+
+        [Column("related_deal_id")]
+        public int? RelatedDealId { get; set; }
+
+        [Column("related_contact_id")]
+        public int? RelatedContactId { get; set; }
+
+        [Column("related_organization_id")]
+        public int? RelatedOrganizationId { get; set; }
 
         /// <summary>One of: active, archived, deleted.</summary>
         [Column("status")]
