@@ -1,4 +1,4 @@
-﻿using CRM.DATA;
+using CRM.DATA;
 using CRM.models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +27,9 @@ namespace CRM.Controllers
             {
                 return BadRequest("Task cannot be null");
             }
+
+            task.TaskId = 0;
+            task.LastModified = DateTime.UtcNow;
 
             await _context.Tasks.AddAsync(task);
             await _context.SaveChangesAsync();
@@ -74,7 +77,14 @@ namespace CRM.Controllers
             }
             existingTask.TaskTitle = updatedTask.TaskTitle;
             existingTask.TaskDescription = updatedTask.TaskDescription;
+            existingTask.TaskStatus = updatedTask.TaskStatus;
+            existingTask.TaskAssignee = updatedTask.TaskAssignee;
             existingTask.TaskDueDate = updatedTask.TaskDueDate;
+            existingTask.TaskPriority = updatedTask.TaskPriority;
+            existingTask.AssigneeUserId = updatedTask.AssigneeUserId;
+            existingTask.RelatedLeadId = updatedTask.RelatedLeadId;
+            existingTask.RelatedDealId = updatedTask.RelatedDealId;
+            existingTask.LastModified = DateTime.UtcNow;
             _context.Tasks.Update(existingTask);
             await _context.SaveChangesAsync();
             return Ok(existingTask);

@@ -1,11 +1,12 @@
-﻿using CRM.DATA;
+using CRM.DATA;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/CallLog")]
+    [Route("api/callLogs")]
     [ApiController]
     public class CallLogController : ControllerBase
     {
@@ -24,6 +25,9 @@ namespace CRM.Controllers
             {
                 return BadRequest();
             }
+
+            call.CallId = 0;
+            call.LastModified = DateTime.UtcNow;
 
             await _context.CallLogs.AddAsync(call);
             await _context.SaveChangesAsync();
@@ -56,6 +60,7 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            existingCall.ContactName = updatedCall.ContactName;
             existingCall.Direction = updatedCall.Direction;
             existingCall.PhoneNumber = updatedCall.PhoneNumber;
             existingCall.ContactCompany = updatedCall.ContactCompany;
@@ -64,6 +69,10 @@ namespace CRM.Controllers
             existingCall.DurationSeconds = updatedCall.DurationSeconds;
             existingCall.Outcome = updatedCall.Outcome;
             existingCall.CallSummary = updatedCall.CallSummary;
+            existingCall.ContactId = updatedCall.ContactId;
+            existingCall.RelatedLeadId = updatedCall.RelatedLeadId;
+            existingCall.RelatedDealId = updatedCall.RelatedDealId;
+            existingCall.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 

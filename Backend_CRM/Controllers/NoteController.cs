@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/notes")]
     [ApiController]
     public class NoteController : ControllerBase
     {
@@ -28,6 +28,7 @@ namespace CRM.Controllers
             note.Id = 0;
             note.CreatedAt = now;
             note.UpdatedAt = now;
+            SyncNoteRecordId(note);
 
             await _context.Notes.AddAsync(note);
             await _context.SaveChangesAsync();
@@ -85,11 +86,20 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            existing.RecordId = updated.RecordId;
             existing.AuthorId = updated.AuthorId;
             existing.Name = updated.Name;
             existing.Title = updated.Title;
             existing.NoteText = updated.NoteText;
+            existing.RelatedType = updated.RelatedType;
+            existing.RelatedEntityId = updated.RelatedEntityId;
+            existing.RelatedName = updated.RelatedName;
+            existing.Visibility = updated.Visibility;
+            existing.RelatedLeadId = updated.RelatedLeadId;
+            existing.RelatedDealId = updated.RelatedDealId;
+            existing.RelatedContactId = updated.RelatedContactId;
+            existing.RelatedOrganizationId = updated.RelatedOrganizationId;
+            existing.RecordId = updated.RecordId;
+            SyncNoteRecordId(existing);
             existing.Status = updated.Status;
             existing.Priority = updated.Priority;
             existing.Tags = updated.Tags;
@@ -113,6 +123,23 @@ namespace CRM.Controllers
             await _context.SaveChangesAsync();
 
             return Ok("Deleted Successfully");
+        }
+
+        /// <summary>Keeps legacy <see cref="Note.RecordId"/> in sync with typed FKs for lead/deal.</summary>
+        private static void SyncNoteRecordId(Note note)
+        {
+            if (note.RelatedLeadId is > 0)
+            {
+                note.RecordId = note.RelatedLeadId.Value;
+            }
+            else if (note.RelatedDealId is > 0)
+            {
+                note.RecordId = note.RelatedDealId.Value;
+            }
+            else if (note.RelatedEntityId is > 0)
+            {
+                note.RecordId = note.RelatedEntityId.Value;
+            }
         }
     }
 }
