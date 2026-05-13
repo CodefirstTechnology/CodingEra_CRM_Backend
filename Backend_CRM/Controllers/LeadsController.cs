@@ -2,6 +2,7 @@ using CRM.DATA;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace CRM.Controllers
 {
@@ -68,6 +69,29 @@ namespace CRM.Controllers
             }
 
             entity.Id = 0;
+            if (string.IsNullOrWhiteSpace(entity.ExternalRef))
+            {
+                entity.ExternalRef = null;
+            }
+            else
+            {
+                entity.ExternalRef = entity.ExternalRef.Trim();
+                var existingByRef = await _context.Leads
+                    .FirstOrDefaultAsync(l => l.ExternalRef == entity.ExternalRef);
+                if (existingByRef != null)
+                {
+                    ApplyLeadScalars(entity, existingByRef);
+                    if (entity.CreatedAt.HasValue)
+                    {
+                        existingByRef.CreatedAt = entity.CreatedAt;
+                    }
+
+                    existingByRef.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    return Ok(existingByRef);
+                }
+            }
+
             var now = DateTime.UtcNow;
             entity.UpdatedAt = now;
             if (entity.CreatedAt == null && string.Equals(entity.LeadSource, "IndiaMART", StringComparison.OrdinalIgnoreCase))
@@ -76,16 +100,48 @@ namespace CRM.Controllers
             }
 
             await _context.Leads.AddAsync(entity);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg
+                                                 && pg.SqlState == PostgresErrorCodes.UniqueViolation
+                                                 && string.Equals(pg.ConstraintName, "IX_leads_external_ref", StringComparison.Ordinal)
+                                                 && !string.IsNullOrWhiteSpace(entity.ExternalRef))
+            {
+                _context.Entry(entity).State = EntityState.Detached;
+                var recover = await _context.Leads
+                    .FirstOrDefaultAsync(l => l.ExternalRef == entity.ExternalRef);
+                if (recover == null)
+                {
+                    throw;
+                }
+
+                ApplyLeadScalars(entity, recover);
+                if (entity.CreatedAt.HasValue)
+                {
+                    recover.CreatedAt = entity.CreatedAt;
+                }
+
+                recover.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                return Ok(recover);
+            }
+
             return Ok(entity);
         }
 
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] Lead updated)
         {
-            if (updated == null || id != updated.Id)
+            if (updated == null)
             {
                 return BadRequest();
+            }
+
+            if (updated.Id != 0 && updated.Id != id)
+            {
+                return BadRequest("Route id and body id must match when the body includes an id.");
             }
 
             var existing = await _context.Leads.FindAsync(id);
@@ -94,40 +150,46 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            existing.Name = updated.Name;
-            existing.FirstName = updated.FirstName;
-            existing.LastName = updated.LastName;
-            existing.Salutation = updated.Salutation;
-            existing.Gender = updated.Gender;
-            existing.Mobile = updated.Mobile;
-            existing.Email = updated.Email;
-            existing.Organization = updated.Organization;
-            existing.OrganizationId = updated.OrganizationId;
-            existing.Employees = updated.Employees;
-            existing.AnnualRevenue = updated.AnnualRevenue;
-            existing.Website = updated.Website;
-            existing.Territory = updated.Territory;
-            existing.Industry = updated.Industry;
-            existing.JobTitle = updated.JobTitle;
-            existing.Status = updated.Status;
-            existing.RequestType = updated.RequestType;
-            existing.Notes = updated.Notes;
-            existing.Source = updated.Source;
-            existing.LeadOwnerName = updated.LeadOwnerName;
-            existing.Owner = updated.Owner;
-            existing.LeadOwnerId = updated.LeadOwnerId;
-            existing.LeadSource = updated.LeadSource;
-            existing.SortTimestamp = updated.SortTimestamp;
-            existing.ExternalRef = updated.ExternalRef;
-            existing.Product = updated.Product;
-            existing.Quantity = updated.Quantity;
-            existing.Message = updated.Message;
-            existing.City = updated.City;
+            ApplyLeadScalars(updated, existing);
             existing.CreatedAt = updated.CreatedAt;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return Ok(existing);
+        }
+
+        /// <summary>Copies mutable fields from <paramref name="from"/> onto <paramref name="to"/> (does not set timestamps or <c>CreatedAt</c>).</summary>
+        private static void ApplyLeadScalars(Lead from, Lead to)
+        {
+            to.Name = from.Name;
+            to.FirstName = from.FirstName;
+            to.LastName = from.LastName;
+            to.Salutation = from.Salutation;
+            to.Gender = from.Gender;
+            to.Mobile = from.Mobile;
+            to.Email = from.Email;
+            to.Organization = from.Organization;
+            to.OrganizationId = from.OrganizationId;
+            to.Employees = from.Employees;
+            to.AnnualRevenue = from.AnnualRevenue;
+            to.Website = from.Website;
+            to.Territory = from.Territory;
+            to.Industry = from.Industry;
+            to.JobTitle = from.JobTitle;
+            to.Status = from.Status;
+            to.RequestType = from.RequestType;
+            to.Notes = from.Notes;
+            to.Source = from.Source;
+            to.LeadOwnerName = from.LeadOwnerName;
+            to.Owner = from.Owner;
+            to.LeadOwnerId = from.LeadOwnerId;
+            to.LeadSource = from.LeadSource;
+            to.SortTimestamp = from.SortTimestamp;
+            to.ExternalRef = from.ExternalRef;
+            to.Product = from.Product;
+            to.Quantity = from.Quantity;
+            to.Message = from.Message;
+            to.City = from.City;
         }
 
         [HttpDelete("{id:int}")]

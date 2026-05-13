@@ -65,6 +65,28 @@ namespace CRM.Controllers
             return Ok(ToSession(user));
         }
 
+        /// <summary>All users for UI lists (password hash is never loaded or returned).</summary>
+        [HttpGet("users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var users = await _context.Users
+                .AsNoTracking()
+                .OrderBy(u => u.FullName)
+                .ThenBy(u => u.Email)
+                .Select(u => new UserListItemDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    Email = u.Email,
+                    Phone = u.Phone,
+                    Role = u.Role,
+                    CreatedAt = u.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
+
         [HttpGet("users/{id:int}")]
         public async Task<IActionResult> GetUser(int id)
         {

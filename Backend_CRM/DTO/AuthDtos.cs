@@ -35,4 +35,20 @@ namespace CRM.DTO
         /// <summary>Opaque session token (replace with JWT when auth middleware is added).</summary>
         public string Token { get; set; } = string.Empty;
     }
+
+    /// <summary>User row for admin/UI lists — no credentials or session token.</summary>
+    public class UserListItemDto
+    {
+        public int Id { get; set; }
+
+        public string FullName { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string Phone { get; set; } = string.Empty;
+
+        public string Role { get; set; } = string.Empty;
+
+        public DateTime CreatedAt { get; set; }
+    }
 }

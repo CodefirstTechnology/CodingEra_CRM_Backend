@@ -52,9 +52,14 @@ namespace CRM.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] Organization updated)
         {
-            if (updated == null || id != updated.Id)
+            if (updated == null)
             {
                 return BadRequest();
+            }
+
+            if (updated.Id != 0 && updated.Id != id)
+            {
+                return BadRequest("Route id and body id must match when the body includes an id.");
             }
 
             var existing = await _context.Organizations.FindAsync(id);

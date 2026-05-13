@@ -17,7 +17,7 @@ namespace CRM.Controllers
         }
 
         [HttpPost("AddNote")]
-        public async Task<IActionResult> AddNote(Note note)
+        public async Task<IActionResult> AddNote([FromBody] Note note)
         {
             if (note == null)
             {
@@ -73,11 +73,16 @@ namespace CRM.Controllers
         }
 
         [HttpPut("UpdateNote/{id}")]
-        public async Task<IActionResult> UpdateNote(int id, Note updated)
+        public async Task<IActionResult> UpdateNote(int id, [FromBody] Note updated)
         {
-            if (id != updated.Id)
+            if (updated == null)
             {
                 return BadRequest();
+            }
+
+            if (updated.Id != 0 && updated.Id != id)
+            {
+                return BadRequest("Route id and body id must match when the body includes an id.");
             }
 
             var existing = await _context.Notes.FindAsync(id);

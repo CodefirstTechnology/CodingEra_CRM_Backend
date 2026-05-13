@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Controllers
 {
-    [Route("api/CallLog")]
     [Route("api/callLogs")]
     [ApiController]
     public class CallLogController : ControllerBase
@@ -19,7 +18,7 @@ namespace CRM.Controllers
 
         // ADD CALL
         [HttpPost("AddCall")]
-        public async Task<IActionResult> AddCall(CallLog call)
+        public async Task<IActionResult> AddCall([FromBody] CallLog call)
         {
             if (call == null)
             {
@@ -46,11 +45,16 @@ namespace CRM.Controllers
 
         // UPDATE CALL
         [HttpPut("UpdateCall/{id}")]
-        public async Task<IActionResult> UpdateCall(int id, CallLog updatedCall)
+        public async Task<IActionResult> UpdateCall(int id, [FromBody] CallLog updatedCall)
         {
-            if (id != updatedCall.CallId)
+            if (updatedCall == null)
             {
                 return BadRequest();
+            }
+
+            if (updatedCall.CallId != 0 && updatedCall.CallId != id)
+            {
+                return BadRequest("Route id and body callId must match when the body includes a call id.");
             }
 
             var existingCall = await _context.CallLogs.FindAsync(id);

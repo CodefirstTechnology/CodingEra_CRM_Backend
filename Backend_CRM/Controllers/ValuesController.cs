@@ -21,7 +21,7 @@ namespace CRM.Controllers
         //add task
 
         [HttpPost("Addtask")]
-        public async Task<IActionResult> AddTask(TaskTable task)
+        public async Task<IActionResult> AddTask([FromBody] TaskTable task)
         {
             if (task == null)
             {
@@ -64,11 +64,16 @@ namespace CRM.Controllers
         //update task
 
         [HttpPut("Updatetask/{id}")]
-        public async Task<IActionResult> Updatetask(int id, TaskTable updatedTask)
+        public async Task<IActionResult> Updatetask(int id, [FromBody] TaskTable updatedTask)
         {
-            if (updatedTask == null || id != updatedTask.TaskId)
+            if (updatedTask == null)
             {
                 return BadRequest("Invalid task data");
+            }
+
+            if (updatedTask.TaskId != 0 && updatedTask.TaskId != id)
+            {
+                return BadRequest("Route id and body taskId must match when the body includes a task id.");
             }
             var existingTask = await _context.Tasks.FindAsync(id);
             if (existingTask == null)

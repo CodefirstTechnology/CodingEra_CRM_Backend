@@ -64,9 +64,14 @@ namespace CRM.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] TaskTable updated)
         {
-            if (updated == null || id != updated.TaskId)
+            if (updated == null)
             {
                 return BadRequest();
+            }
+
+            if (updated.TaskId != 0 && updated.TaskId != id)
+            {
+                return BadRequest("Route id and body taskId must match when the body includes a task id.");
             }
 
             var existing = await _context.Tasks.FindAsync(id);
