@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,13 +19,14 @@ namespace CRM.Controllers
 
         // ADD CALL
         [HttpPost("AddCall")]
-        public async Task<IActionResult> AddCall([FromBody] CallLog call)
+        public async Task<IActionResult> AddCall([FromBody] CallLogUpsertDto dto)
         {
-            if (call == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
+            var call = CrmWriteMappings.ToCallLog(dto, 0);
             call.CallId = 0;
 
             await _context.CallLogs.AddAsync(call);
@@ -44,14 +46,14 @@ namespace CRM.Controllers
 
         // UPDATE CALL
         [HttpPut("UpdateCall/{id}")]
-        public async Task<IActionResult> UpdateCall(int id, [FromBody] CallLog updatedCall)
+        public async Task<IActionResult> UpdateCall(int id, [FromBody] CallLogUpsertDto dto)
         {
-            if (updatedCall == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updatedCall.CallId != 0 && updatedCall.CallId != id)
+            if (dto.CallId != 0 && dto.CallId != id)
             {
                 return BadRequest("Route id and body callId must match when the body includes a call id.");
             }
@@ -63,18 +65,7 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            existingCall.ContactName = updatedCall.ContactName;
-            existingCall.Direction = updatedCall.Direction;
-            existingCall.PhoneNumber = updatedCall.PhoneNumber;
-            existingCall.ContactCompany = updatedCall.ContactCompany;
-            existingCall.CallStarted = updatedCall.CallStarted;
-            existingCall.DurationMinutes = updatedCall.DurationMinutes;
-            existingCall.DurationSeconds = updatedCall.DurationSeconds;
-            existingCall.Outcome = updatedCall.Outcome;
-            existingCall.CallSummary = updatedCall.CallSummary;
-            existingCall.ContactId = updatedCall.ContactId;
-            existingCall.RelatedLeadId = updatedCall.RelatedLeadId;
-            existingCall.RelatedDealId = updatedCall.RelatedDealId;
+            CrmWriteMappings.Apply(existingCall, dto);
 
             await _context.SaveChangesAsync();
 

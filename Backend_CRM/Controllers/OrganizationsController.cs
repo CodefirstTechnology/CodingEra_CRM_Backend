@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -38,15 +39,23 @@ namespace CRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Organization entity)
+        public async Task<IActionResult> Create([FromBody] OrganizationUpsertDto dto)
         {
-            if (entity == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            entity.Id = 0;
-            var err = await ValidateOrganizationMastersAsync(entity);
+            var entity = MapDtoToNewOrganization(dto);
+            if (string.IsNullOrWhiteSpace(entity.Name))
+            {
+                return BadRequest("Name is required.");
+            }
+
+            var err = await ValidateOrganizationMasterIdsAsync(
+                entity.IndustryId,
+                entity.EmployeeCountId,
+                entity.TerritoryId);
             if (err != null)
             {
                 return err;
@@ -58,14 +67,14 @@ namespace CRM.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Organization updated)
+        public async Task<IActionResult> Update(int id, [FromBody] OrganizationUpsertDto dto)
         {
-            if (updated == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updated.Id != 0 && updated.Id != id)
+            if (dto.Id != 0 && dto.Id != id)
             {
                 return BadRequest("Route id and body id must match when the body includes an id.");
             }
@@ -76,37 +85,59 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            var err = await ValidateOrganizationMastersAsync(updated);
+            ApplyDtoToOrganization(dto, existing);
+            if (string.IsNullOrWhiteSpace(existing.Name))
+            {
+                return BadRequest("Name is required.");
+            }
+
+            var err = await ValidateOrganizationMasterIdsAsync(
+                existing.IndustryId,
+                existing.EmployeeCountId,
+                existing.TerritoryId);
             if (err != null)
             {
                 return err;
             }
 
-            existing.Name = updated.Name;
-            existing.Website = updated.Website;
-            existing.AnnualRevenue = updated.AnnualRevenue;
-            existing.IndustryId = updated.IndustryId;
-            existing.EmployeeCountId = updated.EmployeeCountId;
-            existing.TerritoryId = updated.TerritoryId;
             await _context.SaveChangesAsync();
             return Ok(await QueryWithMasters(_context.Organizations.AsNoTracking()).FirstAsync(o => o.Id == id));
         }
 
-        private async Task<IActionResult?> ValidateOrganizationMastersAsync(Organization o)
+        private static Organization MapDtoToNewOrganization(OrganizationUpsertDto dto)
         {
-            if (o.IndustryId is int iid && iid > 0
+            var o = new Organization { Id = 0 };
+            ApplyDtoToOrganization(dto, o);
+            return o;
+        }
+
+        private static void ApplyDtoToOrganization(OrganizationUpsertDto dto, Organization o)
+        {
+            o.Name = (dto.Name ?? string.Empty).Trim();
+            o.Website = (dto.Website ?? string.Empty).Trim();
+            o.AnnualRevenue = dto.AnnualRevenue;
+            o.IndustryId = NormalizeFk(dto.IndustryId);
+            o.EmployeeCountId = NormalizeFk(dto.EmployeeCountId);
+            o.TerritoryId = NormalizeFk(dto.TerritoryId);
+        }
+
+        private static int? NormalizeFk(int? id) => id is > 0 ? id : null;
+
+        private async Task<IActionResult?> ValidateOrganizationMasterIdsAsync(int? industryId, int? employeeCountId, int? territoryId)
+        {
+            if (industryId is int iid
                 && !await _context.Industries.AnyAsync(i => i.Id == iid && i.IsActive))
             {
                 return BadRequest($"Industry id {iid} does not exist or is inactive.");
             }
 
-            if (o.EmployeeCountId is int eid && eid > 0
+            if (employeeCountId is int eid
                 && !await _context.EmployeeCounts.AnyAsync(e => e.Id == eid && e.IsActive))
             {
                 return BadRequest($"Employee count id {eid} does not exist or is inactive.");
             }
 
-            if (o.TerritoryId is int tid && tid > 0
+            if (territoryId is int tid
                 && !await _context.Territories.AnyAsync(t => t.Id == tid && t.IsActive))
             {
                 return BadRequest($"Territory id {tid} does not exist or is inactive.");

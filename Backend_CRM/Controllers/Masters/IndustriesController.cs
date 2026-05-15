@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -37,14 +38,14 @@ namespace CRM.Controllers.Masters
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Industry entity)
+        public async Task<IActionResult> Create([FromBody] MasterDataUpsertDto dto)
         {
-            if (entity == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            var name = (entity.Name ?? string.Empty).Trim();
+            var name = (dto.Name ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(name))
             {
                 return BadRequest("Name is required.");
@@ -55,28 +56,32 @@ namespace CRM.Controllers.Masters
                 return Conflict("An industry with this name already exists.");
             }
 
-            entity.Id = 0;
-            entity.Name = name;
-            entity.Description = entity.Description?.Trim() ?? string.Empty;
+            var entity = new Industry
+            {
+                Id = 0,
+                Name = name,
+                Description = dto.Description?.Trim() ?? string.Empty,
+                IsActive = dto.IsActive,
+            };
             await _context.Industries.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(entity);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Industry updated)
+        public async Task<IActionResult> Update(int id, [FromBody] MasterDataUpsertDto dto)
         {
-            if (updated == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updated.Id != 0 && updated.Id != id)
+            if (dto.Id != 0 && dto.Id != id)
             {
                 return BadRequest("Route id and body id must match when the body includes an id.");
             }
 
-            var name = (updated.Name ?? string.Empty).Trim();
+            var name = (dto.Name ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(name))
             {
                 return BadRequest("Name is required.");
@@ -94,8 +99,8 @@ namespace CRM.Controllers.Masters
             }
 
             existing.Name = name;
-            existing.Description = updated.Description?.Trim() ?? string.Empty;
-            existing.IsActive = updated.IsActive;
+            existing.Description = dto.Description?.Trim() ?? string.Empty;
+            existing.IsActive = dto.IsActive;
             await _context.SaveChangesAsync();
             return Ok(existing);
         }

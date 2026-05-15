@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -46,13 +47,14 @@ namespace CRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] TaskTable entity)
+        public async Task<IActionResult> Create([FromBody] TaskUpsertDto dto)
         {
-            if (entity == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
+            var entity = CrmWriteMappings.ToTask(dto, 0);
             entity.TaskId = 0;
             await _context.Tasks.AddAsync(entity);
             await _context.SaveChangesAsync();
@@ -60,14 +62,14 @@ namespace CRM.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] TaskTable updated)
+        public async Task<IActionResult> Update(int id, [FromBody] TaskUpsertDto dto)
         {
-            if (updated == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updated.TaskId != 0 && updated.TaskId != id)
+            if (dto.TaskId != 0 && dto.TaskId != id)
             {
                 return BadRequest("Route id and body taskId must match when the body includes a task id.");
             }
@@ -78,15 +80,7 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            existing.TaskTitle = updated.TaskTitle;
-            existing.TaskDescription = updated.TaskDescription;
-            existing.TaskStatus = updated.TaskStatus;
-            existing.TaskAssignee = updated.TaskAssignee;
-            existing.TaskDueDate = updated.TaskDueDate;
-            existing.TaskPriority = updated.TaskPriority;
-            existing.AssigneeUserId = updated.AssigneeUserId;
-            existing.RelatedLeadId = updated.RelatedLeadId;
-            existing.RelatedDealId = updated.RelatedDealId;
+            CrmWriteMappings.Apply(existing, dto);
             await _context.SaveChangesAsync();
             return Ok(existing);
         }

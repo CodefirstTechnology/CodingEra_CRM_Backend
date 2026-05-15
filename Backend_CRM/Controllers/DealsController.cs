@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -41,13 +42,14 @@ namespace CRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Deal entity)
+        public async Task<IActionResult> Create([FromBody] DealUpsertDto dto)
         {
-            if (entity == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
+            var entity = CrmWriteMappings.ToDeal(dto, 0);
             entity.Id = 0;
             await _context.Deals.AddAsync(entity);
             await _context.SaveChangesAsync();
@@ -55,14 +57,14 @@ namespace CRM.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Deal updated)
+        public async Task<IActionResult> Update(int id, [FromBody] DealUpsertDto dto)
         {
-            if (updated == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updated.Id != 0 && updated.Id != id)
+            if (dto.Id != 0 && dto.Id != id)
             {
                 return BadRequest("Route id and body id must match when the body includes an id.");
             }
@@ -73,29 +75,7 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            existing.OrganizationId = updated.OrganizationId;
-            existing.ContactId = updated.ContactId;
-            existing.OrganizationName = updated.OrganizationName;
-            existing.Salutation = updated.Salutation;
-            existing.FirstName = updated.FirstName;
-            existing.LastName = updated.LastName;
-            existing.Email = updated.Email;
-            existing.Mobile = updated.Mobile;
-            existing.Gender = updated.Gender;
-            existing.AnnualRevenue = updated.AnnualRevenue;
-            existing.Employees = updated.Employees;
-            existing.Website = updated.Website;
-            existing.Territory = updated.Territory;
-            existing.Industry = updated.Industry;
-            existing.Status = updated.Status;
-            existing.DealOwnerId = updated.DealOwnerId;
-            existing.AssignedToUserId = updated.AssignedToUserId;
-            existing.AssignedInitials = updated.AssignedInitials;
-            existing.RelatedContactId = updated.RelatedContactId;
-            existing.RelatedOrganizationId = updated.RelatedOrganizationId;
-            existing.ProbabilityPercent = updated.ProbabilityPercent;
-            existing.NextStep = updated.NextStep;
-
+            CrmWriteMappings.Apply(existing, dto);
             await _context.SaveChangesAsync();
             return Ok(existing);
         }

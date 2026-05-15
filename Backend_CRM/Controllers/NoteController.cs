@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,13 +18,14 @@ namespace CRM.Controllers
         }
 
         [HttpPost("AddNote")]
-        public async Task<IActionResult> AddNote([FromBody] Note note)
+        public async Task<IActionResult> AddNote([FromBody] NoteUpsertDto dto)
         {
-            if (note == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
+            var note = CrmWriteMappings.ToNote(dto, 0);
             note.Id = 0;
             SyncNoteRecordId(note);
 
@@ -70,14 +72,14 @@ namespace CRM.Controllers
         }
 
         [HttpPut("UpdateNote/{id}")]
-        public async Task<IActionResult> UpdateNote(int id, [FromBody] Note updated)
+        public async Task<IActionResult> UpdateNote(int id, [FromBody] NoteUpsertDto dto)
         {
-            if (updated == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updated.Id != 0 && updated.Id != id)
+            if (dto.Id != 0 && dto.Id != id)
             {
                 return BadRequest("Route id and body id must match when the body includes an id.");
             }
@@ -88,24 +90,8 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            existing.AuthorId = updated.AuthorId;
-            existing.Name = updated.Name;
-            existing.Title = updated.Title;
-            existing.NoteText = updated.NoteText;
-            existing.RelatedType = updated.RelatedType;
-            existing.RelatedEntityId = updated.RelatedEntityId;
-            existing.RelatedName = updated.RelatedName;
-            existing.Visibility = updated.Visibility;
-            existing.RelatedLeadId = updated.RelatedLeadId;
-            existing.RelatedDealId = updated.RelatedDealId;
-            existing.RelatedContactId = updated.RelatedContactId;
-            existing.RelatedOrganizationId = updated.RelatedOrganizationId;
-            existing.RecordId = updated.RecordId;
+            CrmWriteMappings.Apply(existing, dto);
             SyncNoteRecordId(existing);
-            existing.Status = updated.Status;
-            existing.Priority = updated.Priority;
-            existing.Tags = updated.Tags;
-            existing.Attachments = updated.Attachments;
 
             await _context.SaveChangesAsync();
             return Ok(existing);

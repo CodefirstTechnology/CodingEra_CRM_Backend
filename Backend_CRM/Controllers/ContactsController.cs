@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -41,13 +42,14 @@ namespace CRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Contact entity)
+        public async Task<IActionResult> Create([FromBody] ContactUpsertDto dto)
         {
-            if (entity == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
+            var entity = CrmWriteMappings.ToContact(dto, 0);
             entity.Id = 0;
             await _context.Contacts.AddAsync(entity);
             await _context.SaveChangesAsync();
@@ -55,14 +57,14 @@ namespace CRM.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Contact updated)
+        public async Task<IActionResult> Update(int id, [FromBody] ContactUpsertDto dto)
         {
-            if (updated == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updated.Id != 0 && updated.Id != id)
+            if (dto.Id != 0 && dto.Id != id)
             {
                 return BadRequest("Route id and body id must match when the body includes an id.");
             }
@@ -73,15 +75,7 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            existing.Salutation = updated.Salutation;
-            existing.FirstName = updated.FirstName;
-            existing.LastName = updated.LastName;
-            existing.Email = updated.Email;
-            existing.Phone = updated.Phone;
-            existing.Gender = updated.Gender;
-            existing.OrganizationId = updated.OrganizationId;
-            existing.Designation = updated.Designation;
-            existing.Address = updated.Address;
+            CrmWriteMappings.Apply(existing, dto);
             await _context.SaveChangesAsync();
             return Ok(existing);
         }

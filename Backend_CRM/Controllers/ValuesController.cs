@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,13 +22,14 @@ namespace CRM.Controllers
         //add task
 
         [HttpPost("Addtask")]
-        public async Task<IActionResult> AddTask([FromBody] TaskTable task)
+        public async Task<IActionResult> AddTask([FromBody] TaskUpsertDto dto)
         {
-            if (task == null)
+            if (dto == null)
             {
                 return BadRequest("Task cannot be null");
             }
 
+            var task = CrmWriteMappings.ToTask(dto, 0);
             task.TaskId = 0;
 
             await _context.Tasks.AddAsync(task);
@@ -63,14 +65,14 @@ namespace CRM.Controllers
         //update task
 
         [HttpPut("Updatetask/{id}")]
-        public async Task<IActionResult> Updatetask(int id, [FromBody] TaskTable updatedTask)
+        public async Task<IActionResult> Updatetask(int id, [FromBody] TaskUpsertDto dto)
         {
-            if (updatedTask == null)
+            if (dto == null)
             {
                 return BadRequest("Invalid task data");
             }
 
-            if (updatedTask.TaskId != 0 && updatedTask.TaskId != id)
+            if (dto.TaskId != 0 && dto.TaskId != id)
             {
                 return BadRequest("Route id and body taskId must match when the body includes a task id.");
             }
@@ -79,15 +81,7 @@ namespace CRM.Controllers
             {
                 return NotFound("Task not found");
             }
-            existingTask.TaskTitle = updatedTask.TaskTitle;
-            existingTask.TaskDescription = updatedTask.TaskDescription;
-            existingTask.TaskStatus = updatedTask.TaskStatus;
-            existingTask.TaskAssignee = updatedTask.TaskAssignee;
-            existingTask.TaskDueDate = updatedTask.TaskDueDate;
-            existingTask.TaskPriority = updatedTask.TaskPriority;
-            existingTask.AssigneeUserId = updatedTask.AssigneeUserId;
-            existingTask.RelatedLeadId = updatedTask.RelatedLeadId;
-            existingTask.RelatedDealId = updatedTask.RelatedDealId;
+            CrmWriteMappings.Apply(existingTask, dto);
             _context.Tasks.Update(existingTask);
             await _context.SaveChangesAsync();
             return Ok(existingTask);
