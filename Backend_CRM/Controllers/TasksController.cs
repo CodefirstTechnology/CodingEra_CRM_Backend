@@ -54,8 +54,6 @@ namespace CRM.Controllers
             }
 
             entity.TaskId = 0;
-            var now = DateTime.UtcNow;
-            entity.LastModified = now;
             await _context.Tasks.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(entity);
@@ -89,7 +87,6 @@ namespace CRM.Controllers
             existing.AssigneeUserId = updated.AssigneeUserId;
             existing.RelatedLeadId = updated.RelatedLeadId;
             existing.RelatedDealId = updated.RelatedDealId;
-            existing.LastModified = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return Ok(existing);
         }

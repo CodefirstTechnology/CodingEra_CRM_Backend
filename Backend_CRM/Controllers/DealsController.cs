@@ -49,7 +49,6 @@ namespace CRM.Controllers
             }
 
             entity.Id = 0;
-            entity.LastModified = DateTime.UtcNow;
             await _context.Deals.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(entity);
@@ -96,7 +95,6 @@ namespace CRM.Controllers
             existing.RelatedOrganizationId = updated.RelatedOrganizationId;
             existing.ProbabilityPercent = updated.ProbabilityPercent;
             existing.NextStep = updated.NextStep;
-            existing.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return Ok(existing);

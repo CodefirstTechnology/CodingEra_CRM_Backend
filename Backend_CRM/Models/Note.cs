@@ -12,6 +12,7 @@ namespace CRM.models
     {
         [Key]
         [Column("id")]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
         /// <summary>Lead or Deal identifier this note belongs to.</summary>

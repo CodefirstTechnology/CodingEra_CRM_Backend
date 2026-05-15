@@ -29,7 +29,6 @@ namespace CRM.Controllers
             }
 
             task.TaskId = 0;
-            task.LastModified = DateTime.UtcNow;
 
             await _context.Tasks.AddAsync(task);
             await _context.SaveChangesAsync();
@@ -89,7 +88,6 @@ namespace CRM.Controllers
             existingTask.AssigneeUserId = updatedTask.AssigneeUserId;
             existingTask.RelatedLeadId = updatedTask.RelatedLeadId;
             existingTask.RelatedDealId = updatedTask.RelatedDealId;
-            existingTask.LastModified = DateTime.UtcNow;
             _context.Tasks.Update(existingTask);
             await _context.SaveChangesAsync();
             return Ok(existingTask);

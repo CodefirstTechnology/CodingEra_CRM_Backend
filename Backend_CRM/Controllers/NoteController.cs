@@ -24,10 +24,7 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
-            var now = DateTime.UtcNow;
             note.Id = 0;
-            note.CreatedAt = now;
-            note.UpdatedAt = now;
             SyncNoteRecordId(note);
 
             await _context.Notes.AddAsync(note);
@@ -109,7 +106,6 @@ namespace CRM.Controllers
             existing.Priority = updated.Priority;
             existing.Tags = updated.Tags;
             existing.Attachments = updated.Attachments;
-            existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return Ok(existing);

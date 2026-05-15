@@ -26,7 +26,6 @@ namespace CRM.Controllers
             }
 
             call.CallId = 0;
-            call.LastModified = DateTime.UtcNow;
 
             await _context.CallLogs.AddAsync(call);
             await _context.SaveChangesAsync();
@@ -76,7 +75,6 @@ namespace CRM.Controllers
             existingCall.ContactId = updatedCall.ContactId;
             existingCall.RelatedLeadId = updatedCall.RelatedLeadId;
             existingCall.RelatedDealId = updatedCall.RelatedDealId;
-            existingCall.LastModified = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 

@@ -8,6 +8,7 @@ namespace CRM.models
     {
 
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int TaskId { get; set; }
 
         public string TaskTitle { get; set; } = string.Empty;

@@ -105,14 +105,12 @@ namespace CRM.Controllers
                         existingByRef.CreatedAt = dto.CreatedAt;
                     }
 
-                    existingByRef.UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
                     return Ok(await ReloadLeadAsync(existingByRef.Id));
                 }
             }
 
             var now = DateTime.UtcNow;
-            entity.UpdatedAt = now;
             if (entity.CreatedAt == null && string.Equals(entity.LeadSource, "IndiaMART", StringComparison.OrdinalIgnoreCase))
             {
                 entity.CreatedAt = now;
@@ -149,7 +147,6 @@ namespace CRM.Controllers
                     recover.CreatedAt = dto.CreatedAt;
                 }
 
-                recover.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
                 return Ok(await ReloadLeadAsync(recover.Id));
             }
@@ -186,7 +183,6 @@ namespace CRM.Controllers
             }
 
             existing.CreatedAt = dto.CreatedAt;
-            existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return Ok(await ReloadLeadAsync(existing.Id));
@@ -254,7 +250,6 @@ namespace CRM.Controllers
                     Employees = o.Employees?.Trim() ?? string.Empty,
                     Territory = o.Territory?.Trim() ?? string.Empty,
                     Address = o.Address?.Trim() ?? string.Empty,
-                    LastModified = DateTime.UtcNow,
                 };
                 lead.OrganizationId = null;
                 return null;

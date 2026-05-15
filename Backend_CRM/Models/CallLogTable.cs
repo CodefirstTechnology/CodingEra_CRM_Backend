@@ -8,6 +8,7 @@ namespace CRM.models
     public class CallLog
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int CallId { get; set; }
 
         public string Direction { get; set; } = string.Empty;

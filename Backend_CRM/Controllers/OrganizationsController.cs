@@ -43,7 +43,6 @@ namespace CRM.Controllers
             }
 
             entity.Id = 0;
-            entity.LastModified = DateTime.UtcNow;
             await _context.Organizations.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(entity);
@@ -75,7 +74,6 @@ namespace CRM.Controllers
             existing.Employees = updated.Employees;
             existing.Territory = updated.Territory;
             existing.Address = updated.Address;
-            existing.LastModified = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return Ok(existing);
         }

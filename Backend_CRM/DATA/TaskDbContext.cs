@@ -25,10 +25,16 @@ namespace CRM.DATA
 
         public DbSet<Deal> Deals { get; set; }
 
+        public DbSet<Salutation> Salutations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
+                .IsUnique();
+
+            modelBuilder.Entity<Salutation>()
+                .HasIndex(s => s.Name)
                 .IsUnique();
 
             modelBuilder.Entity<Lead>()
@@ -157,6 +163,102 @@ namespace CRM.DATA
                 .WithMany()
                 .HasForeignKey(c => c.RelatedDealId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Integer PKs: PostgreSQL GENERATED ALWAYS AS IDENTITY (values come from the database only).
+            modelBuilder.Entity<Salutation>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Organization>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Contact>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Lead>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Deal>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Note>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<TaskTable>().Property(e => e.TaskId).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<CallLog>().Property(e => e.CallId).UseIdentityAlwaysColumn();
+        }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            StampAuditTimestamps();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            StampAuditTimestamps();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        /// <summary>Sets server-side audit timestamps so APIs do not need to send them.</summary>
+        private void StampAuditTimestamps()
+        {
+            var utc = DateTime.UtcNow;
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        switch (entry.Entity)
+                        {
+                            case Salutation s:
+                                s.LastModified = utc;
+                                break;
+                            case Organization o:
+                                o.LastModified = utc;
+                                break;
+                            case Contact c:
+                                c.LastModified = utc;
+                                break;
+                            case Deal d:
+                                d.LastModified = utc;
+                                break;
+                            case TaskTable t:
+                                t.LastModified = utc;
+                                break;
+                            case CallLog cl:
+                                cl.LastModified = utc;
+                                break;
+                            case Note n:
+                                n.CreatedAt = utc;
+                                n.UpdatedAt = utc;
+                                break;
+                            case Lead l:
+                                l.UpdatedAt = utc;
+                                break;
+                        }
+
+                        break;
+                    case EntityState.Modified:
+                        switch (entry.Entity)
+                        {
+                            case Salutation s:
+                                s.LastModified = utc;
+                                break;
+                            case Organization o:
+                                o.LastModified = utc;
+                                break;
+                            case Contact c:
+                                c.LastModified = utc;
+                                break;
+                            case Deal d:
+                                d.LastModified = utc;
+                                break;
+                            case TaskTable t:
+                                t.LastModified = utc;
+                                break;
+                            case CallLog cl:
+                                cl.LastModified = utc;
+                                break;
+                            case Note n:
+                                n.UpdatedAt = utc;
+                                break;
+                            case Lead l:
+                                l.UpdatedAt = utc;
+                                break;
+                        }
+
+                        break;
+                }
+            }
         }
     }
 }
