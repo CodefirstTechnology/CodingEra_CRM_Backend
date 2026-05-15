@@ -68,6 +68,23 @@ namespace CRM.Controllers
             return Ok(l);
         }
 
+        /// <summary>Prior versions of this lead (newest first). Each row is the full scalar snapshot before an update.</summary>
+        [HttpGet("{id:int}/history")]
+        public async Task<IActionResult> GetHistory(int id)
+        {
+            if (!await _context.Leads.AsNoTracking().AnyAsync(l => l.Id == id))
+            {
+                return NotFound();
+            }
+
+            var rows = await _context.LeadHistories.AsNoTracking()
+                .Where(h => h.LeadId == id)
+                .OrderByDescending(h => h.ArchivedAt)
+                .ThenByDescending(h => h.Id)
+                .ToListAsync();
+            return Ok(rows);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] LeadUpsertDto dto)
         {

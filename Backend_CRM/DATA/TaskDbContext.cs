@@ -23,6 +23,8 @@ namespace CRM.DATA
 
         public DbSet<Lead> Leads { get; set; }
 
+        public DbSet<LeadHistory> LeadHistories { get; set; }
+
         public DbSet<Deal> Deals { get; set; }
 
         public DbSet<Salutation> Salutations { get; set; }
@@ -104,6 +106,15 @@ namespace CRM.DATA
                 .WithMany()
                 .HasForeignKey(l => l.RequestTypeId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<LeadHistory>()
+                .HasOne<Lead>()
+                .WithMany()
+                .HasForeignKey(h => h.LeadId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeadHistory>()
+                .HasIndex(h => h.LeadId);
 
             modelBuilder.Entity<Organization>()
                 .HasOne(o => o.Industry)
@@ -236,6 +247,7 @@ namespace CRM.DATA
             modelBuilder.Entity<Organization>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Contact>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Lead>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadHistory>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Deal>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Note>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<TaskTable>().Property(e => e.TaskId).UseIdentityAlwaysColumn();
@@ -245,13 +257,51 @@ namespace CRM.DATA
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
             StampAuditTimestamps();
+            AppendLeadHistorySnapshots();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
         public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
             StampAuditTimestamps();
+            AppendLeadHistorySnapshots();
             return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        /// <summary>Stores the previous scalar state of each modified <see cref="Lead"/> before updates are persisted.</summary>
+        private void AppendLeadHistorySnapshots()
+        {
+            var utc = DateTime.UtcNow;
+            foreach (var entry in ChangeTracker.Entries<Lead>())
+            {
+                if (entry.State != EntityState.Modified)
+                {
+                    continue;
+                }
+
+                var o = entry.OriginalValues;
+                LeadHistories.Add(new LeadHistory
+                {
+                    LeadId = entry.Entity.Id,
+                    ArchivedAt = utc,
+                    FirstName = (string)o[nameof(Lead.FirstName)]!,
+                    LastName = (string)o[nameof(Lead.LastName)]!,
+                    SalutationId = (int?)o[nameof(Lead.SalutationId)],
+                    Gender = (string)o[nameof(Lead.Gender)]!,
+                    Mobile = (string)o[nameof(Lead.Mobile)]!,
+                    Email = (string)o[nameof(Lead.Email)]!,
+                    OrganizationId = (int?)o[nameof(Lead.OrganizationId)],
+                    LeadStatusId = (int?)o[nameof(Lead.LeadStatusId)],
+                    RequestTypeId = (int?)o[nameof(Lead.RequestTypeId)],
+                    Notes = (string)o[nameof(Lead.Notes)]!,
+                    LeadOwnerName = (string)o[nameof(Lead.LeadOwnerName)]!,
+                    Owner = (string)o[nameof(Lead.Owner)]!,
+                    LeadOwnerId = (int?)o[nameof(Lead.LeadOwnerId)],
+                    LeadSource = (string)o[nameof(Lead.LeadSource)]!,
+                    CreatedAt = (DateTime?)o[nameof(Lead.CreatedAt)],
+                    UpdatedAt = (DateTime)o[nameof(Lead.UpdatedAt)]!,
+                });
+            }
         }
 
         /// <summary>Sets server-side audit timestamps so APIs do not need to send them.</summary>
