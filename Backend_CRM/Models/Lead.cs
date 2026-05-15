@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CRM.models
 {
@@ -39,31 +40,13 @@ namespace CRM.models
         [MaxLength(256)]
         public string Email { get; set; } = string.Empty;
 
-        [Column("organization")]
-        [MaxLength(512)]
-        public string Organization { get; set; } = string.Empty;
-
         [Column("organization_id")]
         public int? OrganizationId { get; set; }
 
-        [Column("employees")]
-        [MaxLength(128)]
-        public string Employees { get; set; } = string.Empty;
-
-        [Column("annual_revenue")]
-        public decimal? AnnualRevenue { get; set; }
-
-        [Column("website")]
-        [MaxLength(512)]
-        public string Website { get; set; } = string.Empty;
-
-        [Column("territory")]
-        [MaxLength(256)]
-        public string Territory { get; set; } = string.Empty;
-
-        [Column("industry")]
-        [MaxLength(256)]
-        public string Industry { get; set; } = string.Empty;
+        /// <summary>Linked company record; use <see cref="OrganizationId"/> for the FK.</summary>
+        [ForeignKey(nameof(OrganizationId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Organization? Organization { get; set; }
 
         [Column("job_title")]
         [MaxLength(256)]

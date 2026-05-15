@@ -45,7 +45,7 @@ namespace CRM.DATA
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Lead>()
-                .HasOne<Organization>()
+                .HasOne(l => l.Organization)
                 .WithMany()
                 .HasForeignKey(l => l.OrganizationId)
                 .OnDelete(DeleteBehavior.SetNull);

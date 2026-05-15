@@ -1,4 +1,5 @@
 using CRM.DATA;
+using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,7 @@ namespace CRM.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] string? leadSource = null, [FromQuery] string? status = null)
         {
-            var q = _context.Leads.AsNoTracking();
+            IQueryable<Lead> q = _context.Leads.AsNoTracking().Include(l => l.Organization);
             if (!string.IsNullOrWhiteSpace(leadSource))
             {
                 q = q.Where(l => l.LeadSource == leadSource);
@@ -31,13 +32,15 @@ namespace CRM.Controllers
                 q = q.Where(l => l.Status == status);
             }
 
-            return Ok(await q.OrderByDescending(l => l.UpdatedAt).ToListAsync());
+            return Ok(await q.OrderByDescending(l => l.UpdatedAt).AsSplitQuery().ToListAsync());
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var l = await _context.Leads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+            var l = await _context.Leads.AsNoTracking()
+                .Include(l => l.Organization)
+                .FirstOrDefaultAsync(x => x.Id == id);
             if (l == null)
             {
                 return NotFound();
@@ -51,6 +54,7 @@ namespace CRM.Controllers
         public async Task<IActionResult> GetByExternalRef(string externalRef)
         {
             var l = await _context.Leads.AsNoTracking()
+                .Include(l => l.Organization)
                 .FirstOrDefaultAsync(x => x.ExternalRef == externalRef);
             if (l == null)
             {
@@ -61,34 +65,49 @@ namespace CRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Lead entity)
+        public async Task<IActionResult> Create([FromBody] LeadUpsertDto dto)
         {
-            if (entity == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
+            var entity = new Lead();
+            ApplyDtoToLeadScalars(dto, entity);
+            var orgError = await ApplyOrganizationFromDtoAsync(dto, entity);
+            if (orgError != null)
+            {
+                return orgError;
+            }
+
             entity.Id = 0;
-            if (string.IsNullOrWhiteSpace(entity.ExternalRef))
+            if (string.IsNullOrWhiteSpace(dto.ExternalRef))
             {
                 entity.ExternalRef = null;
             }
             else
             {
-                entity.ExternalRef = entity.ExternalRef.Trim();
+                entity.ExternalRef = dto.ExternalRef.Trim();
                 var existingByRef = await _context.Leads
+                    .Include(l => l.Organization)
                     .FirstOrDefaultAsync(l => l.ExternalRef == entity.ExternalRef);
                 if (existingByRef != null)
                 {
-                    ApplyLeadScalars(entity, existingByRef);
-                    if (entity.CreatedAt.HasValue)
+                    ApplyDtoToLeadScalars(dto, existingByRef);
+                    var err = await ApplyOrganizationFromDtoAsync(dto, existingByRef);
+                    if (err != null)
                     {
-                        existingByRef.CreatedAt = entity.CreatedAt;
+                        return err;
+                    }
+
+                    if (dto.CreatedAt.HasValue)
+                    {
+                        existingByRef.CreatedAt = dto.CreatedAt;
                     }
 
                     existingByRef.UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
-                    return Ok(existingByRef);
+                    return Ok(await ReloadLeadAsync(existingByRef.Id));
                 }
             }
 
@@ -111,55 +130,74 @@ namespace CRM.Controllers
             {
                 _context.Entry(entity).State = EntityState.Detached;
                 var recover = await _context.Leads
+                    .Include(l => l.Organization)
                     .FirstOrDefaultAsync(l => l.ExternalRef == entity.ExternalRef);
                 if (recover == null)
                 {
                     throw;
                 }
 
-                ApplyLeadScalars(entity, recover);
-                if (entity.CreatedAt.HasValue)
+                ApplyDtoToLeadScalars(dto, recover);
+                var err = await ApplyOrganizationFromDtoAsync(dto, recover);
+                if (err != null)
                 {
-                    recover.CreatedAt = entity.CreatedAt;
+                    return err;
+                }
+
+                if (dto.CreatedAt.HasValue)
+                {
+                    recover.CreatedAt = dto.CreatedAt;
                 }
 
                 recover.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
-                return Ok(recover);
+                return Ok(await ReloadLeadAsync(recover.Id));
             }
 
-            return Ok(entity);
+            return Ok(await ReloadLeadAsync(entity.Id));
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Lead updated)
+        public async Task<IActionResult> Update(int id, [FromBody] LeadUpsertDto dto)
         {
-            if (updated == null)
+            if (dto == null)
             {
                 return BadRequest();
             }
 
-            if (updated.Id != 0 && updated.Id != id)
+            if (dto.Id != 0 && dto.Id != id)
             {
                 return BadRequest("Route id and body id must match when the body includes an id.");
             }
 
-            var existing = await _context.Leads.FindAsync(id);
+            var existing = await _context.Leads
+                .Include(l => l.Organization)
+                .FirstOrDefaultAsync(l => l.Id == id);
             if (existing == null)
             {
                 return NotFound();
             }
 
-            ApplyLeadScalars(updated, existing);
-            existing.CreatedAt = updated.CreatedAt;
+            ApplyDtoToLeadScalars(dto, existing);
+            var orgError = await ApplyOrganizationFromDtoAsync(dto, existing);
+            if (orgError != null)
+            {
+                return orgError;
+            }
+
+            existing.CreatedAt = dto.CreatedAt;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            return Ok(existing);
+            return Ok(await ReloadLeadAsync(existing.Id));
         }
 
-        /// <summary>Copies mutable fields from <paramref name="from"/> onto <paramref name="to"/> (does not set timestamps or <c>CreatedAt</c>).</summary>
-        private static void ApplyLeadScalars(Lead from, Lead to)
+        private async Task<Lead> ReloadLeadAsync(int id) =>
+            await _context.Leads.AsNoTracking()
+                .Include(l => l.Organization)
+                .FirstAsync(l => l.Id == id);
+
+        private static void ApplyDtoToLeadScalars(LeadUpsertDto from, Lead to)
         {
             to.Name = from.Name;
             to.FirstName = from.FirstName;
@@ -168,13 +206,6 @@ namespace CRM.Controllers
             to.Gender = from.Gender;
             to.Mobile = from.Mobile;
             to.Email = from.Email;
-            to.Organization = from.Organization;
-            to.OrganizationId = from.OrganizationId;
-            to.Employees = from.Employees;
-            to.AnnualRevenue = from.AnnualRevenue;
-            to.Website = from.Website;
-            to.Territory = from.Territory;
-            to.Industry = from.Industry;
             to.JobTitle = from.JobTitle;
             to.Status = from.Status;
             to.RequestType = from.RequestType;
@@ -185,11 +216,52 @@ namespace CRM.Controllers
             to.LeadOwnerId = from.LeadOwnerId;
             to.LeadSource = from.LeadSource;
             to.SortTimestamp = from.SortTimestamp;
-            to.ExternalRef = from.ExternalRef;
+            to.ExternalRef = string.IsNullOrWhiteSpace(from.ExternalRef) ? null : from.ExternalRef.Trim();
             to.Product = from.Product;
             to.Quantity = from.Quantity;
             to.Message = from.Message;
             to.City = from.City;
+        }
+
+        /// <summary>Applies <paramref name="dto"/>.<c>Organization</c> / <c>OrganizationId</c> to <paramref name="lead"/>.</summary>
+        /// <returns><c>null</c> if OK, or an <see cref="IActionResult"/> error.</returns>
+        private async Task<IActionResult?> ApplyOrganizationFromDtoAsync(LeadUpsertDto dto, Lead lead)
+        {
+            lead.Organization = null;
+
+            if (dto.Organization != null && dto.Organization.Id is int linkId && linkId > 0)
+            {
+                var exists = await _context.Organizations.AnyAsync(o => o.Id == linkId);
+                if (!exists)
+                {
+                    return BadRequest($"Organization id {linkId} does not exist.");
+                }
+
+                lead.OrganizationId = linkId;
+                return null;
+            }
+
+            if (dto.Organization != null && !string.IsNullOrWhiteSpace(dto.Organization.Name))
+            {
+                var o = dto.Organization;
+                lead.Organization = new Organization
+                {
+                    Id = 0,
+                    Name = o.Name.Trim(),
+                    Website = o.Website?.Trim() ?? string.Empty,
+                    Industry = o.Industry?.Trim() ?? string.Empty,
+                    AnnualRevenue = o.AnnualRevenue,
+                    Employees = o.Employees?.Trim() ?? string.Empty,
+                    Territory = o.Territory?.Trim() ?? string.Empty,
+                    Address = o.Address?.Trim() ?? string.Empty,
+                    LastModified = DateTime.UtcNow,
+                };
+                lead.OrganizationId = null;
+                return null;
+            }
+
+            lead.OrganizationId = dto.OrganizationId;
+            return null;
         }
 
         [HttpDelete("{id:int}")]
