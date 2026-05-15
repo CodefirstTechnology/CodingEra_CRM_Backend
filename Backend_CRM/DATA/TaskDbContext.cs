@@ -67,11 +67,6 @@ namespace CRM.DATA
                 .HasIndex(r => r.Name)
                 .IsUnique();
 
-            modelBuilder.Entity<Lead>()
-                .HasIndex(l => l.ExternalRef)
-                .IsUnique()
-                .HasFilter("\"external_ref\" IS NOT NULL AND \"external_ref\" <> ''");
-
             // --- Foreign keys: optional links use SET NULL on parent delete (safe for CRM workflows) ---
 
             modelBuilder.Entity<Contact>()

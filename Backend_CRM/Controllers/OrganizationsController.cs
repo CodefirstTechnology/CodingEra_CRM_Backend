@@ -85,7 +85,6 @@ namespace CRM.Controllers
             existing.Name = updated.Name;
             existing.Website = updated.Website;
             existing.AnnualRevenue = updated.AnnualRevenue;
-            existing.Address = updated.Address;
             existing.IndustryId = updated.IndustryId;
             existing.EmployeeCountId = updated.EmployeeCountId;
             existing.TerritoryId = updated.TerritoryId;

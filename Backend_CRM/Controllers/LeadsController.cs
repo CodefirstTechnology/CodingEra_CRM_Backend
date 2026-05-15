@@ -3,7 +3,6 @@ using CRM.DTO;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace CRM.Controllers
 {
@@ -69,19 +68,6 @@ namespace CRM.Controllers
             return Ok(l);
         }
 
-        [HttpGet("by-external-ref/{externalRef}")]
-        public async Task<IActionResult> GetByExternalRef(string externalRef)
-        {
-            var l = await QueryWithMasters(_context.Leads.AsNoTracking())
-                .FirstOrDefaultAsync(x => x.ExternalRef == externalRef);
-            if (l == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(l);
-        }
-
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] LeadUpsertDto dto)
         {
@@ -105,40 +91,6 @@ namespace CRM.Controllers
             }
 
             entity.Id = 0;
-            if (string.IsNullOrWhiteSpace(dto.ExternalRef))
-            {
-                entity.ExternalRef = null;
-            }
-            else
-            {
-                entity.ExternalRef = dto.ExternalRef.Trim();
-                var existingByRef = await _context.Leads
-                    .Include(l => l.Organization)
-                    .FirstOrDefaultAsync(l => l.ExternalRef == entity.ExternalRef);
-                if (existingByRef != null)
-                {
-                    ApplyDtoToLeadScalars(dto, existingByRef);
-                    var mErr = await ApplyLeadMastersFromDtoAsync(dto, existingByRef);
-                    if (mErr != null)
-                    {
-                        return mErr;
-                    }
-
-                    var err = await ApplyOrganizationFromDtoAsync(dto, existingByRef);
-                    if (err != null)
-                    {
-                        return err;
-                    }
-
-                    if (dto.CreatedAt.HasValue)
-                    {
-                        existingByRef.CreatedAt = dto.CreatedAt;
-                    }
-
-                    await _context.SaveChangesAsync();
-                    return Ok(await ReloadLeadAsync(existingByRef.Id));
-                }
-            }
 
             var now = DateTime.UtcNow;
             if (entity.CreatedAt == null && string.Equals(entity.LeadSource, "IndiaMART", StringComparison.OrdinalIgnoreCase))
@@ -147,46 +99,7 @@ namespace CRM.Controllers
             }
 
             await _context.Leads.AddAsync(entity);
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException ex) when (ex.InnerException is PostgresException pg
-                                                 && pg.SqlState == PostgresErrorCodes.UniqueViolation
-                                                 && string.Equals(pg.ConstraintName, "IX_leads_external_ref", StringComparison.Ordinal)
-                                                 && !string.IsNullOrWhiteSpace(entity.ExternalRef))
-            {
-                _context.Entry(entity).State = EntityState.Detached;
-                var recover = await _context.Leads
-                    .Include(l => l.Organization)
-                    .FirstOrDefaultAsync(l => l.ExternalRef == entity.ExternalRef);
-                if (recover == null)
-                {
-                    throw;
-                }
-
-                ApplyDtoToLeadScalars(dto, recover);
-                var mErr = await ApplyLeadMastersFromDtoAsync(dto, recover);
-                if (mErr != null)
-                {
-                    return mErr;
-                }
-
-                var err = await ApplyOrganizationFromDtoAsync(dto, recover);
-                if (err != null)
-                {
-                    return err;
-                }
-
-                if (dto.CreatedAt.HasValue)
-                {
-                    recover.CreatedAt = dto.CreatedAt;
-                }
-
-                await _context.SaveChangesAsync();
-                return Ok(await ReloadLeadAsync(recover.Id));
-            }
-
+            await _context.SaveChangesAsync();
             return Ok(await ReloadLeadAsync(entity.Id));
         }
 
@@ -235,28 +148,19 @@ namespace CRM.Controllers
 
         private static void ApplyDtoToLeadScalars(LeadUpsertDto from, Lead to)
         {
-            to.Name = from.Name;
             to.FirstName = from.FirstName;
             to.LastName = from.LastName;
             to.Gender = from.Gender;
             to.Mobile = from.Mobile;
             to.Email = from.Email;
-            to.JobTitle = from.JobTitle;
             to.Notes = from.Notes;
-            to.Source = from.Source;
             to.LeadOwnerName = from.LeadOwnerName;
             to.Owner = from.Owner;
             to.LeadOwnerId = from.LeadOwnerId;
             to.LeadSource = from.LeadSource;
-            to.SortTimestamp = from.SortTimestamp;
-            to.ExternalRef = string.IsNullOrWhiteSpace(from.ExternalRef) ? null : from.ExternalRef.Trim();
-            to.Product = from.Product;
-            to.Quantity = from.Quantity;
-            to.Message = from.Message;
-            to.City = from.City;
+            to.CreatedAt = from.CreatedAt;
         }
 
-        /// <summary>Maps DTO master fields to lead FKs (IDs preferred; legacy names resolved against master tables).</summary>
         private async Task<IActionResult?> ApplyLeadMastersFromDtoAsync(LeadUpsertDto dto, Lead lead)
         {
             lead.Salutation = null;
@@ -333,7 +237,6 @@ namespace CRM.Controllers
                     Name = o.Name.Trim(),
                     Website = o.Website?.Trim() ?? string.Empty,
                     AnnualRevenue = o.AnnualRevenue,
-                    Address = o.Address?.Trim() ?? string.Empty,
                 };
 
                 if (o.IndustryId is int iid && iid > 0)

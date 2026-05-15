@@ -44,9 +44,6 @@ namespace CRM.models
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public Territory? Territory { get; set; }
 
-        [Column("address")]
-        public string Address { get; set; } = string.Empty;
-
         [Column("last_modified")]
         public DateTime LastModified { get; set; }
     }

@@ -13,10 +13,6 @@ namespace CRM.models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
-        [Column("name")]
-        [MaxLength(512)]
-        public string Name { get; set; } = string.Empty;
-
         [Column("first_name")]
         [MaxLength(128)]
         public string FirstName { get; set; } = string.Empty;
@@ -52,9 +48,6 @@ namespace CRM.models
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public Organization? Organization { get; set; }
 
-        [Column("job_title")]
-        [MaxLength(256)]
-        public string JobTitle { get; set; } = string.Empty;
 
         [Column("lead_status_id")]
         public int? LeadStatusId { get; set; }
@@ -73,9 +66,6 @@ namespace CRM.models
         [Column("notes")]
         public string Notes { get; set; } = string.Empty;
 
-        [Column("source")]
-        [MaxLength(256)]
-        public string Source { get; set; } = string.Empty;
 
         [Column("lead_owner_name")]
         [MaxLength(256)]
@@ -88,38 +78,13 @@ namespace CRM.models
         [Column("lead_owner_id")]
         public int? LeadOwnerId { get; set; }
 
-        [Column("updated_at")]
-        public DateTime UpdatedAt { get; set; }
-
-        /// <summary>Manual | IndiaMART</summary>
         [Column("lead_source")]
         [MaxLength(64)]
         public string LeadSource { get; set; } = "Manual";
 
-        [Column("sort_timestamp")]
-        public long? SortTimestamp { get; set; }
-
-        // IndiaMART / import channel (nullable for manual leads)
-
-        [Column("external_ref")]
-        [MaxLength(256)]
-        public string? ExternalRef { get; set; }
-
-        [Column("product")]
-        [MaxLength(512)]
-        public string? Product { get; set; }
-
-        [Column("quantity")]
-        public int? Quantity { get; set; }
-
-        [Column("message")]
-        public string? Message { get; set; }
-
-        [Column("city")]
-        [MaxLength(256)]
-        public string? City { get; set; }
-
         [Column("created_at")]
         public DateTime? CreatedAt { get; set; }
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
     }
 }
