@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260515133443_newone")]
+    partial class newone
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -443,10 +446,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("lead_source");
 
-                    b.Property<int?>("LeadStatusId")
-                        .HasColumnType("integer")
-                        .HasColumnName("lead_status_id");
-
                     b.Property<string>("Message")
                         .HasColumnType("text")
                         .HasColumnName("message");
@@ -487,13 +486,17 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("quantity");
 
-                    b.Property<int?>("RequestTypeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("request_type_id");
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("request_type");
 
-                    b.Property<int?>("SalutationId")
-                        .HasColumnType("integer")
-                        .HasColumnName("salutation_id");
+                    b.Property<string>("Salutation")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("salutation");
 
                     b.Property<long?>("SortTimestamp")
                         .HasColumnType("bigint")
@@ -504,6 +507,12 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -517,13 +526,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasIndex("LeadOwnerId");
 
-                    b.HasIndex("LeadStatusId");
-
                     b.HasIndex("OrganizationId");
-
-                    b.HasIndex("RequestTypeId");
-
-                    b.HasIndex("SalutationId");
 
                     b.ToTable("leads");
                 });
@@ -700,13 +703,17 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("annual_revenue");
 
-                    b.Property<int?>("EmployeeCountId")
-                        .HasColumnType("integer")
-                        .HasColumnName("employee_count_id");
+                    b.Property<string>("Employees")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("employees");
 
-                    b.Property<int?>("IndustryId")
-                        .HasColumnType("integer")
-                        .HasColumnName("industry_id");
+                    b.Property<string>("Industry")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("industry");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone")
@@ -718,9 +725,11 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(512)")
                         .HasColumnName("name");
 
-                    b.Property<int?>("TerritoryId")
-                        .HasColumnType("integer")
-                        .HasColumnName("territory_id");
+                    b.Property<string>("Territory")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("territory");
 
                     b.Property<string>("Website")
                         .IsRequired()
@@ -729,12 +738,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnName("website");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EmployeeCountId");
-
-                    b.HasIndex("IndustryId");
-
-                    b.HasIndex("TerritoryId");
 
                     b.ToTable("organizations");
                 });
@@ -1018,33 +1021,12 @@ namespace Backend_CRM.Migrations
                         .HasForeignKey("LeadOwnerId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.LeadStatus", "LeadStatus")
-                        .WithMany()
-                        .HasForeignKey("LeadStatusId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("CRM.models.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.RequestType", "RequestType")
-                        .WithMany()
-                        .HasForeignKey("RequestTypeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Salutation", "Salutation")
-                        .WithMany()
-                        .HasForeignKey("SalutationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("LeadStatus");
-
                     b.Navigation("Organization");
-
-                    b.Navigation("RequestType");
-
-                    b.Navigation("Salutation");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -1073,30 +1055,6 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("RelatedOrganizationId")
                         .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.Organization", b =>
-                {
-                    b.HasOne("CRM.models.EmployeeCount", "EmployeeCount")
-                        .WithMany()
-                        .HasForeignKey("EmployeeCountId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Industry", "Industry")
-                        .WithMany()
-                        .HasForeignKey("IndustryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Territory", "Territory")
-                        .WithMany()
-                        .HasForeignKey("TerritoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("EmployeeCount");
-
-                    b.Navigation("Industry");
-
-                    b.Navigation("Territory");
                 });
 
             modelBuilder.Entity("CRM.models.TaskTable", b =>

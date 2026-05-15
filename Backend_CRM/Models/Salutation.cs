@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Master salutation option (e.g. Mr., Mrs.) for dropdowns and lead setup.</summary>
     [Table("salutations")]
-    public class Salutation
+    public class Salutation : IMasterDataEntity
     {
         /// <summary>Database-generated primary key (<c>GENERATED ALWAYS AS IDENTITY</c>).</summary>
         [Key]

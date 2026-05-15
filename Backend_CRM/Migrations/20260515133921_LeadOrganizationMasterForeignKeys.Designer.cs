@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260515133921_LeadOrganizationMasterForeignKeys")]
+    partial class LeadOrganizationMasterForeignKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

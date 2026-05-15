@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CRM.models
 {
@@ -19,20 +20,29 @@ namespace CRM.models
         [MaxLength(512)]
         public string Website { get; set; } = string.Empty;
 
-        [Column("industry")]
-        [MaxLength(256)]
-        public string Industry { get; set; } = string.Empty;
+        [Column("industry_id")]
+        public int? IndustryId { get; set; }
+
+        [ForeignKey(nameof(IndustryId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Industry? Industry { get; set; }
 
         [Column("annual_revenue")]
         public decimal? AnnualRevenue { get; set; }
 
-        [Column("employees")]
-        [MaxLength(128)]
-        public string Employees { get; set; } = string.Empty;
+        [Column("employee_count_id")]
+        public int? EmployeeCountId { get; set; }
 
-        [Column("territory")]
-        [MaxLength(256)]
-        public string Territory { get; set; } = string.Empty;
+        [ForeignKey(nameof(EmployeeCountId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public EmployeeCount? EmployeeCount { get; set; }
+
+        [Column("territory_id")]
+        public int? TerritoryId { get; set; }
+
+        [ForeignKey(nameof(TerritoryId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Territory? Territory { get; set; }
 
         [Column("address")]
         public string Address { get; set; } = string.Empty;

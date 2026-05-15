@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260515132909_AddAdditionalMasterDataTables")]
+    partial class AddAdditionalMasterDataTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -302,6 +305,160 @@ namespace Backend_CRM.Migrations
                     b.ToTable("deals");
                 });
 
+            modelBuilder.Entity("CRM.models.Lead", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("City")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("city");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("ExternalRef")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("external_ref");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("first_name");
+
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("gender");
+
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("job_title");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("last_name");
+
+                    b.Property<int?>("LeadOwnerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_owner_id");
+
+                    b.Property<string>("LeadOwnerName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("lead_owner_name");
+
+                    b.Property<string>("LeadSource")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("lead_source");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<string>("Mobile")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("mobile");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<int?>("OrganizationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("owner");
+
+                    b.Property<string>("Product")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("product");
+
+                    b.Property<int?>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("request_type");
+
+                    b.Property<string>("Salutation")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("salutation");
+
+                    b.Property<long?>("SortTimestamp")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sort_timestamp");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalRef")
+                        .IsUnique()
+                        .HasFilter("\"external_ref\" IS NOT NULL AND \"external_ref\" <> ''");
+
+                    b.HasIndex("LeadOwnerId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("leads");
+                });
+
             modelBuilder.Entity("CRM.models.EmployeeCount", b =>
                 {
                     b.Property<int>("Id")
@@ -374,160 +531,6 @@ namespace Backend_CRM.Migrations
                     b.ToTable("industries");
                 });
 
-            modelBuilder.Entity("CRM.models.Lead", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("City")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("city");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("email");
-
-                    b.Property<string>("ExternalRef")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("external_ref");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("first_name");
-
-                    b.Property<string>("Gender")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("gender");
-
-                    b.Property<string>("JobTitle")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("job_title");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("last_name");
-
-                    b.Property<int?>("LeadOwnerId")
-                        .HasColumnType("integer")
-                        .HasColumnName("lead_owner_id");
-
-                    b.Property<string>("LeadOwnerName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("lead_owner_name");
-
-                    b.Property<string>("LeadSource")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("lead_source");
-
-                    b.Property<int?>("LeadStatusId")
-                        .HasColumnType("integer")
-                        .HasColumnName("lead_status_id");
-
-                    b.Property<string>("Message")
-                        .HasColumnType("text")
-                        .HasColumnName("message");
-
-                    b.Property<string>("Mobile")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("mobile");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<int?>("OrganizationId")
-                        .HasColumnType("integer")
-                        .HasColumnName("organization_id");
-
-                    b.Property<string>("Owner")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("owner");
-
-                    b.Property<string>("Product")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("product");
-
-                    b.Property<int?>("Quantity")
-                        .HasColumnType("integer")
-                        .HasColumnName("quantity");
-
-                    b.Property<int?>("RequestTypeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("request_type_id");
-
-                    b.Property<int?>("SalutationId")
-                        .HasColumnType("integer")
-                        .HasColumnName("salutation_id");
-
-                    b.Property<long?>("SortTimestamp")
-                        .HasColumnType("bigint")
-                        .HasColumnName("sort_timestamp");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("source");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExternalRef")
-                        .IsUnique()
-                        .HasFilter("\"external_ref\" IS NOT NULL AND \"external_ref\" <> ''");
-
-                    b.HasIndex("LeadOwnerId");
-
-                    b.HasIndex("LeadStatusId");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.HasIndex("RequestTypeId");
-
-                    b.HasIndex("SalutationId");
-
-                    b.ToTable("leads");
-                });
-
             modelBuilder.Entity("CRM.models.LeadStatus", b =>
                 {
                     b.Property<int>("Id")
@@ -562,6 +565,78 @@ namespace Backend_CRM.Migrations
                         .IsUnique();
 
                     b.ToTable("lead_statuses");
+                });
+
+            modelBuilder.Entity("CRM.models.RequestType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("LastModified")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_modified");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("request_types");
+                });
+
+            modelBuilder.Entity("CRM.models.Territory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("LastModified")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_modified");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("territories");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -700,13 +775,17 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("annual_revenue");
 
-                    b.Property<int?>("EmployeeCountId")
-                        .HasColumnType("integer")
-                        .HasColumnName("employee_count_id");
+                    b.Property<string>("Employees")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("employees");
 
-                    b.Property<int?>("IndustryId")
-                        .HasColumnType("integer")
-                        .HasColumnName("industry_id");
+                    b.Property<string>("Industry")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("industry");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone")
@@ -718,9 +797,11 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(512)")
                         .HasColumnName("name");
 
-                    b.Property<int?>("TerritoryId")
-                        .HasColumnType("integer")
-                        .HasColumnName("territory_id");
+                    b.Property<string>("Territory")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("territory");
 
                     b.Property<string>("Website")
                         .IsRequired()
@@ -730,49 +811,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployeeCountId");
-
-                    b.HasIndex("IndustryId");
-
-                    b.HasIndex("TerritoryId");
-
                     b.ToTable("organizations");
-                });
-
-            modelBuilder.Entity("CRM.models.RequestType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTime>("LastModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_modified");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("name");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("request_types");
                 });
 
             modelBuilder.Entity("CRM.models.Salutation", b =>
@@ -863,42 +902,6 @@ namespace Backend_CRM.Migrations
                     b.HasIndex("RelatedLeadId");
 
                     b.ToTable("Tasks");
-                });
-
-            modelBuilder.Entity("CRM.models.Territory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTime>("LastModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_modified");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("name");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("territories");
                 });
 
             modelBuilder.Entity("CRM.models.User", b =>
@@ -1018,33 +1021,12 @@ namespace Backend_CRM.Migrations
                         .HasForeignKey("LeadOwnerId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.LeadStatus", "LeadStatus")
-                        .WithMany()
-                        .HasForeignKey("LeadStatusId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("CRM.models.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.RequestType", "RequestType")
-                        .WithMany()
-                        .HasForeignKey("RequestTypeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Salutation", "Salutation")
-                        .WithMany()
-                        .HasForeignKey("SalutationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("LeadStatus");
-
                     b.Navigation("Organization");
-
-                    b.Navigation("RequestType");
-
-                    b.Navigation("Salutation");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -1073,30 +1055,6 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("RelatedOrganizationId")
                         .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.Organization", b =>
-                {
-                    b.HasOne("CRM.models.EmployeeCount", "EmployeeCount")
-                        .WithMany()
-                        .HasForeignKey("EmployeeCountId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Industry", "Industry")
-                        .WithMany()
-                        .HasForeignKey("IndustryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Territory", "Territory")
-                        .WithMany()
-                        .HasForeignKey("TerritoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("EmployeeCount");
-
-                    b.Navigation("Industry");
-
-                    b.Navigation("Territory");
                 });
 
             modelBuilder.Entity("CRM.models.TaskTable", b =>

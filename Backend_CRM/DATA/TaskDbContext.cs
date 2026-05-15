@@ -27,6 +27,16 @@ namespace CRM.DATA
 
         public DbSet<Salutation> Salutations { get; set; }
 
+        public DbSet<EmployeeCount> EmployeeCounts { get; set; }
+
+        public DbSet<Territory> Territories { get; set; }
+
+        public DbSet<Industry> Industries { get; set; }
+
+        public DbSet<LeadStatus> LeadStatuses { get; set; }
+
+        public DbSet<RequestType> RequestTypes { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>()
@@ -35,6 +45,26 @@ namespace CRM.DATA
 
             modelBuilder.Entity<Salutation>()
                 .HasIndex(s => s.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<EmployeeCount>()
+                .HasIndex(e => e.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<Territory>()
+                .HasIndex(t => t.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<Industry>()
+                .HasIndex(i => i.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadStatus>()
+                .HasIndex(s => s.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<RequestType>()
+                .HasIndex(r => r.Name)
                 .IsUnique();
 
             modelBuilder.Entity<Lead>()
@@ -60,6 +90,42 @@ namespace CRM.DATA
                 .HasOne<User>()
                 .WithMany()
                 .HasForeignKey(l => l.LeadOwnerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Lead>()
+                .HasOne(l => l.Salutation)
+                .WithMany()
+                .HasForeignKey(l => l.SalutationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Lead>()
+                .HasOne(l => l.LeadStatus)
+                .WithMany()
+                .HasForeignKey(l => l.LeadStatusId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Lead>()
+                .HasOne(l => l.RequestType)
+                .WithMany()
+                .HasForeignKey(l => l.RequestTypeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Organization>()
+                .HasOne(o => o.Industry)
+                .WithMany()
+                .HasForeignKey(o => o.IndustryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Organization>()
+                .HasOne(o => o.EmployeeCount)
+                .WithMany()
+                .HasForeignKey(o => o.EmployeeCountId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Organization>()
+                .HasOne(o => o.Territory)
+                .WithMany()
+                .HasForeignKey(o => o.TerritoryId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Deal>()
@@ -166,6 +232,11 @@ namespace CRM.DATA
 
             // Integer PKs: PostgreSQL GENERATED ALWAYS AS IDENTITY (values come from the database only).
             modelBuilder.Entity<Salutation>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<EmployeeCount>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Territory>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Industry>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<RequestType>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Organization>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Contact>().Property(e => e.Id).UseIdentityAlwaysColumn();
@@ -199,8 +270,8 @@ namespace CRM.DATA
                     case EntityState.Added:
                         switch (entry.Entity)
                         {
-                            case Salutation s:
-                                s.LastModified = utc;
+                            case IMasterDataEntity master:
+                                master.LastModified = utc;
                                 break;
                             case Organization o:
                                 o.LastModified = utc;
@@ -230,8 +301,8 @@ namespace CRM.DATA
                     case EntityState.Modified:
                         switch (entry.Entity)
                         {
-                            case Salutation s:
-                                s.LastModified = utc;
+                            case IMasterDataEntity master:
+                                master.LastModified = utc;
                                 break;
                             case Organization o:
                                 o.LastModified = utc;

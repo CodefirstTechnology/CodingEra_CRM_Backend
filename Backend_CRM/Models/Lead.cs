@@ -25,9 +25,12 @@ namespace CRM.models
         [MaxLength(128)]
         public string LastName { get; set; } = string.Empty;
 
-        [Column("salutation")]
-        [MaxLength(32)]
-        public string Salutation { get; set; } = string.Empty;
+        [Column("salutation_id")]
+        public int? SalutationId { get; set; }
+
+        [ForeignKey(nameof(SalutationId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Salutation? Salutation { get; set; }
 
         [Column("gender")]
         [MaxLength(32)]
@@ -53,14 +56,19 @@ namespace CRM.models
         [MaxLength(256)]
         public string JobTitle { get; set; } = string.Empty;
 
-        /// <summary>New | Contacted | Qualified | Lost | Converted (IndiaMART omits Lost).</summary>
-        [Column("status")]
-        [MaxLength(64)]
-        public string Status { get; set; } = "New";
+        [Column("lead_status_id")]
+        public int? LeadStatusId { get; set; }
 
-        [Column("request_type")]
-        [MaxLength(256)]
-        public string RequestType { get; set; } = string.Empty;
+        [ForeignKey(nameof(LeadStatusId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public LeadStatus? LeadStatus { get; set; }
+
+        [Column("request_type_id")]
+        public int? RequestTypeId { get; set; }
+
+        [ForeignKey(nameof(RequestTypeId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public RequestType? RequestType { get; set; }
 
         [Column("notes")]
         public string Notes { get; set; } = string.Empty;
