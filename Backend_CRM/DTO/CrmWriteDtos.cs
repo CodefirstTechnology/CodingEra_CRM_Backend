@@ -3,7 +3,7 @@ using CRM.models;
 
 namespace CRM.DTO
 {
-    /// <summary>POST/PUT body for master-data endpoints (salutations, industries, etc.). Server sets id and lastModified.</summary>
+    /// <summary>POST/PUT body for master-data endpoints (salutations, industries, roles, etc.). Server sets id and lastModified.</summary>
     public class MasterDataUpsertDto
     {
         /// <summary>Optional on POST; must match route id on PUT when sent.</summary>

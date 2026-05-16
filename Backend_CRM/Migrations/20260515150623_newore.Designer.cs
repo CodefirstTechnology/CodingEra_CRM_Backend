@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260515150623_newore")]
+    partial class newore
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1025,16 +1028,16 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("phone");
 
-                    b.Property<int?>("RoleId")
-                        .HasColumnType("integer")
-                        .HasColumnName("role_id");
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("role");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("RoleId");
 
                     b.ToTable("users");
                 });
@@ -1211,16 +1214,6 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("RelatedLeadId")
                         .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.User", b =>
-                {
-                    b.HasOne("CRM.models.Role", "Role")
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Role");
                 });
 #pragma warning restore 612, 618
         }

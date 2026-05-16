@@ -31,19 +31,26 @@ namespace CRM.Controllers
                 return Conflict("An account with this email already exists.");
             }
 
+            var (roleId, roleErr) = await ResolveRegisterRoleIdAsync(req.RoleId);
+            if (roleErr != null)
+            {
+                return roleErr;
+            }
+
             var user = new User
             {
                 FullName = req.FullName?.Trim() ?? string.Empty,
                 Email = email,
                 Phone = req.Phone?.Trim() ?? string.Empty,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-                Role = string.IsNullOrWhiteSpace(req.Role) ? "user" : req.Role.Trim(),
+                RoleId = roleId,
                 CreatedAt = DateTime.UtcNow
             };
 
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
+            await _context.Entry(user).Reference(u => u.Role).LoadAsync();
             return Ok(ToSession(user));
         }
 
@@ -56,7 +63,9 @@ namespace CRM.Controllers
             }
 
             var email = req.Email.Trim().ToLowerInvariant();
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             {
                 return Unauthorized("Invalid email or password.");
@@ -71,6 +80,7 @@ namespace CRM.Controllers
         {
             var users = await _context.Users
                 .AsNoTracking()
+                .Include(u => u.Role)
                 .OrderBy(u => u.FullName)
                 .ThenBy(u => u.Email)
                 .Select(u => new UserListItemDto
@@ -79,7 +89,8 @@ namespace CRM.Controllers
                     FullName = u.FullName,
                     Email = u.Email,
                     Phone = u.Phone,
-                    Role = u.Role,
+                    RoleId = u.RoleId,
+                    Role = u.Role != null ? u.Role.Name : string.Empty,
                     CreatedAt = u.CreatedAt
                 })
                 .ToListAsync();
@@ -90,13 +101,41 @@ namespace CRM.Controllers
         [HttpGet("users/{id:int}")]
         public async Task<IActionResult> GetUser(int id)
         {
-            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _context.Users
+                .AsNoTracking()
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
             {
                 return NotFound();
             }
 
             return Ok(ToSession(user));
+        }
+
+        private async Task<(int? RoleId, IActionResult? Error)> ResolveRegisterRoleIdAsync(int? requestedRoleId)
+        {
+            if (requestedRoleId is int rid && rid > 0)
+            {
+                if (!await _context.Roles.AnyAsync(r => r.Id == rid && r.IsActive))
+                {
+                    return (null, BadRequest($"Role id {rid} does not exist or is inactive."));
+                }
+
+                return (rid, null);
+            }
+
+            var defaultRoleId = await _context.Roles.AsNoTracking()
+                .Where(r => r.IsActive && r.Name.ToLower() == "user")
+                .Select(r => (int?)r.Id)
+                .FirstOrDefaultAsync();
+            if (defaultRoleId == null)
+            {
+                return (null, BadRequest(
+                    "No active role named 'user' exists. Create it via /api/MasterData/roles or send roleId."));
+            }
+
+            return (defaultRoleId, null);
         }
 
         private static UserSessionDto ToSession(User u)
@@ -107,7 +146,8 @@ namespace CRM.Controllers
                 FullName = u.FullName,
                 Email = u.Email,
                 Phone = u.Phone,
-                Role = u.Role,
+                RoleId = u.RoleId,
+                Role = u.Role?.Name ?? string.Empty,
                 Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray())[..22]
             };
         }

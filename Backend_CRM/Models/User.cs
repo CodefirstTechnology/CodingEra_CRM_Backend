@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CRM.models
 {
@@ -27,9 +28,12 @@ namespace CRM.models
         [MaxLength(256)]
         public string PasswordHash { get; set; } = string.Empty;
 
-        [Column("role")]
-        [MaxLength(64)]
-        public string Role { get; set; } = "user";
+        [Column("role_id")]
+        public int? RoleId { get; set; }
+
+        [ForeignKey(nameof(RoleId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Role? Role { get; set; }
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }

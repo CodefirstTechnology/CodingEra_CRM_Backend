@@ -39,11 +39,22 @@ namespace CRM.DATA
 
         public DbSet<RequestType> RequestTypes { get; set; }
 
+        public DbSet<Role> Roles { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.Role)
+                .WithMany()
+                .HasForeignKey(u => u.RoleId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.RoleId);
 
             modelBuilder.Entity<Salutation>()
                 .HasIndex(s => s.Name)
@@ -66,6 +77,10 @@ namespace CRM.DATA
                 .IsUnique();
 
             modelBuilder.Entity<RequestType>()
+                .HasIndex(r => r.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<Role>()
                 .HasIndex(r => r.Name)
                 .IsUnique();
 
@@ -243,6 +258,7 @@ namespace CRM.DATA
             modelBuilder.Entity<Industry>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<LeadStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<RequestType>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Role>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Organization>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Contact>().Property(e => e.Id).UseIdentityAlwaysColumn();

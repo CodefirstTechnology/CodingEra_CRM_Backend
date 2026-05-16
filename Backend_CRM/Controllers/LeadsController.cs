@@ -171,8 +171,6 @@ namespace CRM.Controllers
             to.Mobile = from.Mobile;
             to.Email = from.Email;
             to.Notes = from.Notes;
-            to.LeadOwnerName = from.LeadOwnerName;
-            to.Owner = from.Owner;
             to.LeadOwnerId = from.LeadOwnerId;
             to.LeadSource = from.LeadSource;
             to.CreatedAt = from.CreatedAt;
@@ -195,7 +193,7 @@ namespace CRM.Controllers
             }
             else
             {
-                lead.SalutationId = await ResolveNameToIdAsync(_context.Salutations, dto.Salutation, requireActive: true);
+                lead.SalutationId = null;
             }
 
             if (dto.LeadStatusId is int lstid && lstid > 0)
@@ -223,7 +221,7 @@ namespace CRM.Controllers
             }
             else
             {
-                lead.RequestTypeId = await ResolveNameToIdAsync(_context.RequestTypes, dto.RequestType, requireActive: true);
+                lead.RequestTypeId = null;
             }
 
             return null;
@@ -233,77 +231,19 @@ namespace CRM.Controllers
         {
             lead.Organization = null;
 
-            if (dto.Organization != null && dto.Organization.Id is int linkId && linkId > 0)
+            if (dto.OrganizationId is int oid && oid > 0)
             {
-                var exists = await _context.Organizations.AnyAsync(o => o.Id == linkId);
+                var exists = await _context.Organizations.AnyAsync(o => o.Id == oid);
                 if (!exists)
                 {
-                    return BadRequest($"Organization id {linkId} does not exist.");
+                    return BadRequest($"Organization id {oid} does not exist.");
                 }
 
-                lead.OrganizationId = linkId;
+                lead.OrganizationId = oid;
                 return null;
             }
 
-            if (dto.Organization != null && !string.IsNullOrWhiteSpace(dto.Organization.Name))
-            {
-                var o = dto.Organization;
-                var org = new Organization
-                {
-                    Id = 0,
-                    Name = o.Name.Trim(),
-                    Website = o.Website?.Trim() ?? string.Empty,
-                    AnnualRevenue = o.AnnualRevenue,
-                };
-
-                if (o.IndustryId is int iid && iid > 0)
-                {
-                    if (!await _context.Industries.AnyAsync(i => i.Id == iid && i.IsActive))
-                    {
-                        return BadRequest($"Industry id {iid} does not exist or is inactive.");
-                    }
-
-                    org.IndustryId = iid;
-                }
-                else
-                {
-                    org.IndustryId = await ResolveNameToIdAsync(_context.Industries, o.Industry, requireActive: true);
-                }
-
-                if (o.EmployeeCountId is int ecid && ecid > 0)
-                {
-                    if (!await _context.EmployeeCounts.AnyAsync(e => e.Id == ecid && e.IsActive))
-                    {
-                        return BadRequest($"Employee count id {ecid} does not exist or is inactive.");
-                    }
-
-                    org.EmployeeCountId = ecid;
-                }
-                else
-                {
-                    org.EmployeeCountId = await ResolveNameToIdAsync(_context.EmployeeCounts, o.Employees, requireActive: true);
-                }
-
-                if (o.TerritoryId is int tid && tid > 0)
-                {
-                    if (!await _context.Territories.AnyAsync(t => t.Id == tid && t.IsActive))
-                    {
-                        return BadRequest($"Territory id {tid} does not exist or is inactive.");
-                    }
-
-                    org.TerritoryId = tid;
-                }
-                else
-                {
-                    org.TerritoryId = await ResolveNameToIdAsync(_context.Territories, o.Territory, requireActive: true);
-                }
-
-                lead.Organization = org;
-                lead.OrganizationId = null;
-                return null;
-            }
-
-            lead.OrganizationId = dto.OrganizationId;
+            lead.OrganizationId = null;
             return null;
         }
 
