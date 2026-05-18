@@ -53,14 +53,6 @@ namespace CRM.models
         [Column("notes")]
         public string Notes { get; set; } = string.Empty;
 
-        [Column("lead_owner_name")]
-        [MaxLength(256)]
-        public string LeadOwnerName { get; set; } = string.Empty;
-
-        [Column("owner")]
-        [MaxLength(256)]
-        public string Owner { get; set; } = string.Empty;
-
         [Column("lead_owner_id")]
         public int? LeadOwnerId { get; set; }
 

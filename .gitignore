@@ -27,6 +27,7 @@ bld/
 [Dd]ist/
 **/AppPackages/
 **/_build*/
+**/_probe_out/
 **/_publish*/
 *.publishproj.user
 *.pubxml.user

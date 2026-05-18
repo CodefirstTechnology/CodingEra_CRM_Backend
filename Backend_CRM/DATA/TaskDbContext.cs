@@ -310,8 +310,6 @@ namespace CRM.DATA
                     LeadStatusId = (int?)o[nameof(Lead.LeadStatusId)],
                     RequestTypeId = (int?)o[nameof(Lead.RequestTypeId)],
                     Notes = (string)o[nameof(Lead.Notes)]!,
-                    LeadOwnerName = (string)o[nameof(Lead.LeadOwnerName)]!,
-                    Owner = (string)o[nameof(Lead.Owner)]!,
                     LeadOwnerId = (int?)o[nameof(Lead.LeadOwnerId)],
                     LeadSource = (string)o[nameof(Lead.LeadSource)]!,
                     CreatedAt = (DateTime?)o[nameof(Lead.CreatedAt)],

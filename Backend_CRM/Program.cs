@@ -29,6 +29,13 @@ builder.Services.AddDbContext<TaskDbcontext>(options =>
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    await using var db = scope.ServiceProvider.GetRequiredService<TaskDbcontext>();
+    await db.Database.MigrateAsync();
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
