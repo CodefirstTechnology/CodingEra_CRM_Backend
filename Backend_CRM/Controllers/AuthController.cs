@@ -1,176 +1,33 @@
-using CRM.DATA;
+using CRM.Business.Services;
 using CRM.DTO;
-using CRM.Helpers;
-using CRM.models;
+using CRM.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace CRM.Controllers
+namespace CRM.Controllers;
+
+[Route("api/auth")]
+[ApiController]
+public class AuthController(IAuthService authService) : ControllerBase
 {
-    [Route("api/auth")]
-    [ApiController]
-    public class AuthController : ControllerBase
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromQuery] int? userId, [FromBody] RegisterRequest req) =>
+        (await authService.RegisterAsync(userId, req)).ToActionResult();
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest req) =>
+        (await authService.LoginAsync(req)).ToActionResult();
+
+    [HttpGet("users")]
+    public async Task<IActionResult> GetAllUsers([FromQuery] int userId)
     {
-        private readonly TaskDbcontext _context;
+        _ = userId;
+        return Ok(await authService.GetAllUsersAsync());
+    }
 
-        public AuthController(TaskDbcontext context)
-        {
-            _context = context;
-        }
-
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromQuery] int? userId, [FromBody] RegisterRequest req)
-        {
-            if (req == null || string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
-            {
-                return BadRequest("Email and password are required.");
-            }
-
-            if (userId is int auditUid && auditUid > 0)
-            {
-                var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, auditUid);
-                if (auditErr != null)
-                {
-                    return auditErr;
-                }
-
-                AuditUserValidation.SetAuditUser(_context, auditUid);
-            }
-
-            var email = req.Email.Trim().ToLowerInvariant();
-            if (await _context.Users.AnyAsync(u => u.Email.ToLower() == email))
-            {
-                return Conflict("An account with this email already exists.");
-            }
-
-            var (roleId, roleErr) = await ResolveRegisterRoleIdAsync(req.RoleId);
-            if (roleErr != null)
-            {
-                return roleErr;
-            }
-
-            var user = new User
-            {
-                FullName = req.FullName?.Trim() ?? string.Empty,
-                Email = email,
-                Phone = req.Phone?.Trim() ?? string.Empty,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-                RoleId = roleId,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-            };
-
-            await _context.Users.AddAsync(user);
-            await _context.SaveChangesAsync();
-
-            await _context.Entry(user).Reference(u => u.Role).LoadAsync();
-            return Ok(ToSession(user));
-        }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest req)
-        {
-            if (req == null || string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
-            {
-                return BadRequest("Email and password are required.");
-            }
-
-            var email = req.Email.Trim().ToLowerInvariant();
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == email);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
-            {
-                return Unauthorized("Invalid email or password.");
-            }
-
-            if (!user.IsActive)
-            {
-                return Unauthorized("Account is inactive.");
-            }
-
-            return Ok(ToSession(user));
-        }
-
-        /// <summary>All users for UI lists (password hash is never loaded or returned).</summary>
-        [HttpGet("users")]
-        public async Task<IActionResult> GetAllUsers([FromQuery] int userId)
-        {
-            _ = userId;
-            var users = await _context.Users
-                .AsNoTracking()
-                .Include(u => u.Role)
-                .OrderBy(u => u.FullName)
-                .ThenBy(u => u.Email)
-                .Select(u => new UserListItemDto
-                {
-                    Id = u.Id,
-                    FullName = u.FullName,
-                    Email = u.Email,
-                    Phone = u.Phone,
-                    RoleId = u.RoleId,
-                    Role = u.Role != null ? u.Role.Name : string.Empty,
-                    CreatedAt = u.CreatedAt
-                })
-                .ToListAsync();
-
-            return Ok(users);
-        }
-
-        [HttpGet("users/{id:int}")]
-        public async Task<IActionResult> GetUser(int id, [FromQuery] int userId)
-        {
-            _ = userId;
-            var user = await _context.Users
-                .AsNoTracking()
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Id == id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(ToSession(user));
-        }
-
-        private async Task<(int? RoleId, IActionResult? Error)> ResolveRegisterRoleIdAsync(int? requestedRoleId)
-        {
-            if (requestedRoleId is int rid && rid > 0)
-            {
-                if (!await _context.Roles.AnyAsync(r => r.Id == rid && r.IsActive))
-                {
-                    return (null, BadRequest($"Role id {rid} does not exist or is inactive."));
-                }
-
-                return (rid, null);
-            }
-
-            var defaultRoleId = await _context.Roles.AsNoTracking()
-                .Where(r => r.IsActive && r.Name.ToLower() == "user")
-                .Select(r => (int?)r.Id)
-                .FirstOrDefaultAsync();
-            if (defaultRoleId == null)
-            {
-                return (null, BadRequest(
-                    "No active role named 'user' exists. Create it via /api/MasterData/roles or send roleId."));
-            }
-
-            return (defaultRoleId, null);
-        }
-
-        private static UserSessionDto ToSession(User u)
-        {
-            return new UserSessionDto
-            {
-                Id = u.Id,
-                FullName = u.FullName,
-                Email = u.Email,
-                Phone = u.Phone,
-                RoleId = u.RoleId,
-                Role = u.Role?.Name ?? string.Empty,
-                Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray())[..22]
-            };
-        }
+    [HttpGet("users/{id:int}")]
+    public async Task<IActionResult> GetUser(int id, [FromQuery] int userId)
+    {
+        _ = userId;
+        return (await authService.GetUserAsync(id)).ToActionResult();
     }
 }

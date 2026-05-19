@@ -3,10 +3,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CRM.models
 {
-    /// <summary>Lead status lookup for dropdowns.</summary>
-    [Table("lead_statuses")]
-    public class LeadStatus : IMasterDataEntity, IAuditableByUser
+    /// <summary>Master salutation option (e.g. Mr., Mrs.) for dropdowns and lead setup.</summary>
+    [Table("salutations")]
+    public class Salutation : INamedMasterEntity, IAuditableByUser
     {
+        /// <summary>Database-generated primary key (<c>GENERATED ALWAYS AS IDENTITY</c>).</summary>
         [Key]
         [Column("id")]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

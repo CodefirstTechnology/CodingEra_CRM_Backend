@@ -1,16 +1,13 @@
-
+using CRM.Business;
+using CRM.Data;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
 
 builder.Services.AddCors(options =>
 {
@@ -23,9 +20,11 @@ builder.Services.AddCors(options =>
         });
 });
 
-builder.Services.AddDbContext<TaskDbcontext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"))); 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddCrmData(connectionString);
+builder.Services.AddCrmBusiness();
 
 var app = builder.Build();
 
@@ -36,7 +35,6 @@ if (app.Environment.IsDevelopment())
     await db.Database.MigrateAsync();
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -44,11 +42,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAngular");
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

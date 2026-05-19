@@ -1,111 +1,36 @@
-using CRM.DATA;
+using CRM.Business.Common;
+using CRM.Business.Services;
 using CRM.DTO;
-using CRM.Helpers;
-using CRM.models;
+using CRM.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace CRM.Controllers
+namespace CRM.Controllers;
+
+[Route("api/callLogs")]
+[ApiController]
+public class CallLogController(ICallLogService callLogService) : ControllerBase
 {
-    [Route("api/callLogs")]
-    [ApiController]
-    public class CallLogController : ControllerBase
+    [HttpPost("AddCall")]
+    public async Task<IActionResult> AddCall([FromQuery] int userId, [FromBody] CallLogUpsertDto dto) =>
+        (await callLogService.AddAsync(userId, dto)).ToActionResult();
+
+    [HttpGet("GetCalls")]
+    public async Task<IActionResult> GetCalls([FromQuery] int userId)
     {
-        private readonly TaskDbcontext _context;
+        _ = userId;
+        return Ok(await callLogService.GetAllAsync());
+    }
 
-        public CallLogController(TaskDbcontext context)
-        {
-            _context = context;
-        }
+    [HttpPut("UpdateCall/{id}")]
+    public async Task<IActionResult> UpdateCall(int id, [FromQuery] int userId, [FromBody] CallLogUpsertDto dto) =>
+        (await callLogService.UpdateAsync(id, userId, dto)).ToActionResult();
 
-        // ADD CALL
-        [HttpPost("AddCall")]
-        public async Task<IActionResult> AddCall([FromQuery] int userId, [FromBody] CallLogUpsertDto dto)
-        {
-            if (dto == null)
-            {
-                return BadRequest();
-            }
-
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
-            {
-                return auditErr;
-            }
-
-            AuditUserValidation.SetAuditUser(_context, userId);
-
-            var call = CrmWriteMappings.ToCallLog(dto, 0);
-            call.CallId = 0;
-
-            await _context.CallLogs.AddAsync(call);
-            await _context.SaveChangesAsync();
-
-            return Ok(call);
-        }
-
-        // GET ALL CALLS
-        [HttpGet("GetCalls")]
-        public async Task<IActionResult> GetCalls([FromQuery] int userId)
-        {
-            _ = userId;
-            var data = await _context.CallLogs.ToListAsync();
-
-            return Ok(data);
-        }
-
-        // UPDATE CALL
-        [HttpPut("UpdateCall/{id}")]
-        public async Task<IActionResult> UpdateCall(int id, [FromQuery] int userId, [FromBody] CallLogUpsertDto dto)
-        {
-            if (dto == null)
-            {
-                return BadRequest();
-            }
-
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
-            {
-                return auditErr;
-            }
-
-            AuditUserValidation.SetAuditUser(_context, userId);
-
-            if (dto.CallId != 0 && dto.CallId != id)
-            {
-                return BadRequest("Route id and body callId must match when the body includes a call id.");
-            }
-
-            var existingCall = await _context.CallLogs.FindAsync(id);
-
-            if (existingCall == null)
-            {
-                return NotFound();
-            }
-
-            CrmWriteMappings.Apply(existingCall, dto);
-
-            await _context.SaveChangesAsync();
-
-            return Ok(existingCall);
-        }
-
-        // DELETE CALL
-        [HttpDelete("DeleteCall/{id}")]
-        public async Task<IActionResult> DeleteCall(int id)
-        {
-            var call = await _context.CallLogs.FindAsync(id);
-
-            if (call == null)
-            {
-                return NotFound();
-            }
-
-            _context.CallLogs.Remove(call);
-
-            await _context.SaveChangesAsync();
-
-            return Ok("Deleted Successfully");
-        }
+    [HttpDelete("DeleteCall/{id}")]
+    public async Task<IActionResult> DeleteCall(int id)
+    {
+        var result = await callLogService.DeleteAsync(id);
+        return result.Status == ServiceStatus.Success
+            ? Ok("Deleted Successfully")
+            : result.ToActionResult();
     }
 }

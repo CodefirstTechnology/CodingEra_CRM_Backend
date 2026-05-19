@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CRM.models
 {
-    /// <summary>Industry lookup for dropdowns.</summary>
-    [Table("industries")]
-    public class Industry : IMasterDataEntity, IAuditableByUser
+    /// <summary>Territory lookup for dropdowns.</summary>
+    [Table("territories")]
+    public class Territory : INamedMasterEntity, IAuditableByUser
     {
         [Key]
         [Column("id")]

@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CRM.models
 {
-    /// <summary>“Number of employees” lookup for dropdowns (e.g. 1–10, 500+).</summary>
-    [Table("employee_counts")]
-    public class EmployeeCount : IMasterDataEntity, IAuditableByUser
+    /// <summary>Request type lookup for dropdowns.</summary>
+    [Table("request_types")]
+    public class RequestType : INamedMasterEntity, IAuditableByUser
     {
         [Key]
         [Column("id")]

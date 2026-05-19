@@ -1,116 +1,38 @@
-using CRM.DATA;
+using CRM.Business.Services;
 using CRM.DTO;
-using CRM.Helpers;
-using CRM.models;
+using CRM.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace CRM.Controllers
+namespace CRM.Controllers;
+
+[Route("api/contacts")]
+[ApiController]
+public class ContactsController(IContactService contactService) : ControllerBase
 {
-    [Route("api/contacts")]
-    [ApiController]
-    public class ContactsController : ControllerBase
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] int? organizationId = null)
     {
-        private readonly TaskDbcontext _context;
-
-        public ContactsController(TaskDbcontext context)
-        {
-            _context = context;
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] int? organizationId = null)
-        {
-            _ = userId;
-            var q = _context.Contacts.AsNoTracking();
-            if (organizationId.HasValue)
-            {
-                q = q.Where(c => c.OrganizationId == organizationId);
-            }
-
-            return Ok(await q.OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync());
-        }
-
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
-        {
-            _ = userId;
-            var c = await _context.Contacts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
-            if (c == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(c);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Create([FromQuery] int userId, [FromBody] ContactUpsertDto dto)
-        {
-            if (dto == null)
-            {
-                return BadRequest();
-            }
-
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
-            {
-                return auditErr;
-            }
-
-            AuditUserValidation.SetAuditUser(_context, userId);
-
-            var entity = CrmWriteMappings.ToContact(dto, 0);
-            entity.Id = 0;
-            await _context.Contacts.AddAsync(entity);
-            await _context.SaveChangesAsync();
-            return Ok(entity);
-        }
-
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromQuery] int userId, [FromBody] ContactUpsertDto dto)
-        {
-            if (dto == null)
-            {
-                return BadRequest();
-            }
-
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
-            {
-                return auditErr;
-            }
-
-            AuditUserValidation.SetAuditUser(_context, userId);
-
-            if (dto.Id != 0 && dto.Id != id)
-            {
-                return BadRequest("Route id and body id must match when the body includes an id.");
-            }
-
-            var existing = await _context.Contacts.FindAsync(id);
-            if (existing == null)
-            {
-                return NotFound();
-            }
-
-            CrmWriteMappings.Apply(existing, dto);
-            await _context.SaveChangesAsync();
-            return Ok(existing);
-        }
-
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var entity = await _context.Contacts.FindAsync(id);
-            if (entity == null)
-            {
-                return NotFound();
-            }
-
-            _context.Contacts.Remove(entity);
-            await _context.SaveChangesAsync();
-            return Ok(new { deleted = true });
-        }
+        _ = userId;
+        return Ok(await contactService.GetAllAsync(organizationId));
     }
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
+    {
+        _ = userId;
+        var contact = await contactService.GetByIdAsync(id);
+        return contact == null ? NotFound() : Ok(contact);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromQuery] int userId, [FromBody] ContactUpsertDto dto) =>
+        (await contactService.CreateAsync(userId, dto)).ToActionResult();
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, [FromQuery] int userId, [FromBody] ContactUpsertDto dto) =>
+        (await contactService.UpdateAsync(id, userId, dto)).ToActionResult();
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id) =>
+        (await contactService.DeleteAsync(id)).ToActionResult(new { deleted = true });
 }

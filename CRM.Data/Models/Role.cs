@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Application role for RBAC (e.g. admin, sales). Linked from <see cref="User.RoleId"/>.</summary>
     [Table("crm_roles")]
-    public class Role : IMasterDataEntity, IAuditableByUser
+    public class Role : INamedMasterEntity, IAuditableByUser
     {
         [Key]
         [Column("id")]

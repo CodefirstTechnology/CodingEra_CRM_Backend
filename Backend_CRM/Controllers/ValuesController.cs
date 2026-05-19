@@ -1,112 +1,30 @@
-using CRM.DATA;
+using CRM.Business.Services;
 using CRM.DTO;
-using CRM.Helpers;
-using CRM.models;
-using Microsoft.AspNetCore.Http;
+using CRM.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace CRM.Controllers
+namespace CRM.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class ValuesController(ITaskService taskService) : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ValuesController : ControllerBase
+    [HttpPost("Addtask")]
+    public async Task<IActionResult> AddTask([FromQuery] int userId, [FromBody] TaskUpsertDto dto) =>
+        (await taskService.CreateAsync(userId, dto)).ToActionResult();
+
+    [HttpGet("Gettask")]
+    public async Task<IActionResult> Gettask([FromQuery] int userId)
     {
-        private readonly TaskDbcontext _context;
-
-        public ValuesController(TaskDbcontext context)
-        {
-            _context = context;
-
-        }
-
-        //add task
-
-        [HttpPost("Addtask")]
-        public async Task<IActionResult> AddTask([FromQuery] int userId, [FromBody] TaskUpsertDto dto)
-        {
-            if (dto == null)
-            {
-                return BadRequest("Task cannot be null");
-            }
-
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
-            {
-                return auditErr;
-            }
-
-            AuditUserValidation.SetAuditUser(_context, userId);
-
-            var task = CrmWriteMappings.ToTask(dto, 0);
-            task.TaskId = 0;
-
-            await _context.Tasks.AddAsync(task);
-            await _context.SaveChangesAsync();
-            return Ok(task);
-        }
-
-        [HttpGet("Gettask")]
-        public async Task<IActionResult> Gettask([FromQuery] int userId)
-        {
-            _ = userId;
-            var task = await _context.Tasks.ToListAsync();
-
-            return Ok(task);
-        }
-
-        //delete task
-
-        [HttpDelete("Deletetask/{id}")]
-        public async Task<IActionResult> Deletetask(int id)
-        {
-            var task = await _context.Tasks.FindAsync(id);
-            if (task == null)
-            {
-                return NotFound("Task not found");
-            }
-            _context.Tasks.Remove(task);
-            await _context.SaveChangesAsync();
-            return Ok("Task deleted successfully");
-
-
-        }
-
-        //update task
-
-        [HttpPut("Updatetask/{id}")]
-        public async Task<IActionResult> Updatetask(int id, [FromQuery] int userId, [FromBody] TaskUpsertDto dto)
-        {
-            if (dto == null)
-            {
-                return BadRequest("Invalid task data");
-            }
-
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
-            {
-                return auditErr;
-            }
-
-            AuditUserValidation.SetAuditUser(_context, userId);
-
-            if (dto.TaskId != 0 && dto.TaskId != id)
-            {
-                return BadRequest("Route id and body taskId must match when the body includes a task id.");
-            }
-            var existingTask = await _context.Tasks.FindAsync(id);
-            if (existingTask == null)
-            {
-                return NotFound("Task not found");
-            }
-            CrmWriteMappings.Apply(existingTask, dto);
-            _context.Tasks.Update(existingTask);
-            await _context.SaveChangesAsync();
-            return Ok(existingTask);
-        }
-
-
-
-
+        _ = userId;
+        return Ok(await taskService.GetAllAsync(null, null));
     }
+
+    [HttpDelete("Deletetask/{id}")]
+    public async Task<IActionResult> Deletetask(int id) =>
+        (await taskService.DeleteAsync(id)).ToActionResult("Task deleted successfully");
+
+    [HttpPut("Updatetask/{id}")]
+    public async Task<IActionResult> Updatetask(int id, [FromQuery] int userId, [FromBody] TaskUpsertDto dto) =>
+        (await taskService.UpdateAsync(id, userId, dto)).ToActionResult();
 }
