@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -22,12 +23,20 @@ namespace CRM.Controllers
         //add task
 
         [HttpPost("Addtask")]
-        public async Task<IActionResult> AddTask([FromBody] TaskUpsertDto dto)
+        public async Task<IActionResult> AddTask([FromQuery] int userId, [FromBody] TaskUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest("Task cannot be null");
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             var task = CrmWriteMappings.ToTask(dto, 0);
             task.TaskId = 0;
@@ -38,8 +47,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet("Gettask")]
-        public async Task<IActionResult> Gettask()
+        public async Task<IActionResult> Gettask([FromQuery] int userId)
         {
+            _ = userId;
             var task = await _context.Tasks.ToListAsync();
 
             return Ok(task);
@@ -65,12 +75,20 @@ namespace CRM.Controllers
         //update task
 
         [HttpPut("Updatetask/{id}")]
-        public async Task<IActionResult> Updatetask(int id, [FromBody] TaskUpsertDto dto)
+        public async Task<IActionResult> Updatetask(int id, [FromQuery] int userId, [FromBody] TaskUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest("Invalid task data");
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             if (dto.TaskId != 0 && dto.TaskId != id)
             {

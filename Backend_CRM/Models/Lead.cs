@@ -6,7 +6,7 @@ namespace CRM.models
 {
     /// <summary>Manual CRM lead or IndiaMART import (<c>lead_source = IndiaMART</c> + optional IndiaMART-only fields).</summary>
     [Table("leads")]
-    public class Lead
+    public class Lead : IAuditableByUser
     {
         [Key]
         [Column("id")]
@@ -73,9 +73,18 @@ namespace CRM.models
         [MaxLength(64)]
         public string LeadSource { get; set; } = "Manual";
 
+        [Column("is_active")]
+        public bool IsActive { get; set; } = true;
+
         [Column("created_at")]
         public DateTime? CreatedAt { get; set; }
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
+
+        [Column("created_by")]
+        public int? CreatedBy { get; set; }
+
+        [Column("updated_by")]
+        public int? UpdatedBy { get; set; }
     }
 }

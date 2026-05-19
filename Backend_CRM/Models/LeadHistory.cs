@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Immutable snapshot of a <see cref="Lead"/> row immediately before an update (same scalars as <c>leads</c> at that point in time).</summary>
     [Table("lead_histories")]
-    public class LeadHistory
+    public class LeadHistory : IAuditableByUser
     {
         [Key]
         [Column("id")]
@@ -60,10 +60,19 @@ namespace CRM.models
         [MaxLength(64)]
         public string LeadSource { get; set; } = string.Empty;
 
+        [Column("is_active")]
+        public bool IsActive { get; set; } = true;
+
         [Column("created_at")]
         public DateTime? CreatedAt { get; set; }
 
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
+
+        [Column("created_by")]
+        public int? CreatedBy { get; set; }
+
+        [Column("updated_by")]
+        public int? UpdatedBy { get; set; }
     }
 }

@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace CRM.models
 {
     [Table("organizations")]
-    public class Organization
+    public class Organization : IAuditableByUser
     {
         [Key]
         [Column("id")]
@@ -46,5 +46,20 @@ namespace CRM.models
 
         [Column("last_modified")]
         public DateTime LastModified { get; set; }
+
+        [Column("is_active")]
+        public bool IsActive { get; set; } = true;
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
+
+        [Column("created_by")]
+        public int? CreatedBy { get; set; }
+
+        [Column("updated_by")]
+        public int? UpdatedBy { get; set; }
     }
 }

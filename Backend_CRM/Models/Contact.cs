@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace CRM.models
 {
     [Table("contacts")]
-    public class Contact
+    public class Contact : IAuditableByUser
     {
         [Key]
         [Column("id")]
@@ -45,7 +45,22 @@ namespace CRM.models
         [Column("address")]
         public string Address { get; set; } = string.Empty;
 
+        [Column("is_active")]
+        public bool IsActive { get; set; } = true;
+
         [Column("last_modified")]
         public DateTime LastModified { get; set; }
+
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [Column("updated_at")]
+        public DateTime UpdatedAt { get; set; }
+
+        [Column("created_by")]
+        public int? CreatedBy { get; set; }
+
+        [Column("updated_by")]
+        public int? UpdatedBy { get; set; }
     }
 }

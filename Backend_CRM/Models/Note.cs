@@ -8,7 +8,7 @@ namespace CRM.models
     /// CRM note linked to a Lead or Deal (<c>record_id</c>), with status, priority, tags, and attachments.
     /// </summary>
     [Table("notes")]
-    public class Note
+    public class Note : IAuditableByUser
     {
         [Key]
         [Column("id")]
@@ -90,5 +90,14 @@ namespace CRM.models
 
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; }
+
+        [Column("is_active")]
+        public bool IsActive { get; set; } = true;
+
+        [Column("created_by")]
+        public int? CreatedBy { get; set; }
+
+        [Column("updated_by")]
+        public int? UpdatedBy { get; set; }
     }
 }

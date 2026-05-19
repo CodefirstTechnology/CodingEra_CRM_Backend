@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,12 +20,20 @@ namespace CRM.Controllers
 
         // ADD CALL
         [HttpPost("AddCall")]
-        public async Task<IActionResult> AddCall([FromBody] CallLogUpsertDto dto)
+        public async Task<IActionResult> AddCall([FromQuery] int userId, [FromBody] CallLogUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             var call = CrmWriteMappings.ToCallLog(dto, 0);
             call.CallId = 0;
@@ -37,8 +46,9 @@ namespace CRM.Controllers
 
         // GET ALL CALLS
         [HttpGet("GetCalls")]
-        public async Task<IActionResult> GetCalls()
+        public async Task<IActionResult> GetCalls([FromQuery] int userId)
         {
+            _ = userId;
             var data = await _context.CallLogs.ToListAsync();
 
             return Ok(data);
@@ -46,12 +56,20 @@ namespace CRM.Controllers
 
         // UPDATE CALL
         [HttpPut("UpdateCall/{id}")]
-        public async Task<IActionResult> UpdateCall(int id, [FromBody] CallLogUpsertDto dto)
+        public async Task<IActionResult> UpdateCall(int id, [FromQuery] int userId, [FromBody] CallLogUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             if (dto.CallId != 0 && dto.CallId != id)
             {

@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,11 +19,22 @@ namespace CRM.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+        public async Task<IActionResult> Register([FromQuery] int? userId, [FromBody] RegisterRequest req)
         {
             if (req == null || string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             {
                 return BadRequest("Email and password are required.");
+            }
+
+            if (userId is int auditUid && auditUid > 0)
+            {
+                var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, auditUid);
+                if (auditErr != null)
+                {
+                    return auditErr;
+                }
+
+                AuditUserValidation.SetAuditUser(_context, auditUid);
             }
 
             var email = req.Email.Trim().ToLowerInvariant();
@@ -44,7 +56,9 @@ namespace CRM.Controllers
                 Phone = req.Phone?.Trim() ?? string.Empty,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
                 RoleId = roleId,
-                CreatedAt = DateTime.UtcNow
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
             };
 
             await _context.Users.AddAsync(user);
@@ -71,13 +85,19 @@ namespace CRM.Controllers
                 return Unauthorized("Invalid email or password.");
             }
 
+            if (!user.IsActive)
+            {
+                return Unauthorized("Account is inactive.");
+            }
+
             return Ok(ToSession(user));
         }
 
         /// <summary>All users for UI lists (password hash is never loaded or returned).</summary>
         [HttpGet("users")]
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers([FromQuery] int userId)
         {
+            _ = userId;
             var users = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.Role)
@@ -99,8 +119,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet("users/{id:int}")]
-        public async Task<IActionResult> GetUser(int id)
+        public async Task<IActionResult> GetUser(int id, [FromQuery] int userId)
         {
+            _ = userId;
             var user = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.Role)

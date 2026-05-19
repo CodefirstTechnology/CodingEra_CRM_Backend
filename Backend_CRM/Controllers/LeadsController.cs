@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -29,8 +30,9 @@ namespace CRM.Controllers
                 .ThenInclude(o => o!.Territory);
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] string? leadSource = null, [FromQuery] string? status = null)
+        public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] string? leadSource = null, [FromQuery] string? status = null)
         {
+            _ = userId;
             IQueryable<Lead> q = QueryWithMasters(_context.Leads.AsNoTracking());
             if (!string.IsNullOrWhiteSpace(leadSource))
             {
@@ -56,8 +58,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
         {
+            _ = userId;
             var l = await QueryWithMasters(_context.Leads.AsNoTracking())
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (l == null)
@@ -70,8 +73,9 @@ namespace CRM.Controllers
 
         /// <summary>Prior versions of this lead (newest first). Each row is the full scalar snapshot before an update.</summary>
         [HttpGet("{id:int}/history")]
-        public async Task<IActionResult> GetHistory(int id)
+        public async Task<IActionResult> GetHistory(int id, [FromQuery] int userId)
         {
+            _ = userId;
             if (!await _context.Leads.AsNoTracking().AnyAsync(l => l.Id == id))
             {
                 return NotFound();
@@ -86,12 +90,20 @@ namespace CRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] LeadUpsertDto dto)
+        public async Task<IActionResult> Create([FromQuery] int userId, [FromBody] LeadUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             var entity = new Lead();
             ApplyDtoToLeadScalars(dto, entity);
@@ -121,12 +133,20 @@ namespace CRM.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] LeadUpsertDto dto)
+        public async Task<IActionResult> Update(int id, [FromQuery] int userId, [FromBody] LeadUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             if (dto.Id != 0 && dto.Id != id)
             {

@@ -9,6 +9,9 @@ namespace CRM.DATA
         {
         }
 
+        /// <summary>Controllers set this before <see cref="SaveChanges()"/> so <see cref="IAuditableByUser"/> rows get created/updated-by stamps.</summary>
+        public int? AuditUserId { get; set; }
+
         public DbSet<TaskTable> Tasks { get; set; }
 
         public DbSet<CallLog> CallLogs { get; set; }
@@ -55,6 +58,18 @@ namespace CRM.DATA
 
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.RoleId);
+
+            modelBuilder.Entity<User>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(u => u.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<User>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(u => u.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Salutation>()
                 .HasIndex(s => s.Name)
@@ -251,6 +266,171 @@ namespace CRM.DATA
                 .HasForeignKey(c => c.RelatedDealId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Organization>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(o => o.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Organization>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(o => o.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Contact>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Contact>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Lead>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(l => l.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Lead>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(l => l.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<LeadHistory>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(h => h.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<LeadHistory>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(h => h.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Deal>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(d => d.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Deal>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(d => d.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Note>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Note>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(n => n.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<TaskTable>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<TaskTable>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CallLog>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<CallLog>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Salutation>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Salutation>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<EmployeeCount>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<EmployeeCount>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Territory>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Territory>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Industry>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(i => i.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Industry>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(i => i.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<LeadStatus>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<LeadStatus>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<RequestType>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(r => r.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<RequestType>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(r => r.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Role>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(r => r.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<Role>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(r => r.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // Integer PKs: PostgreSQL GENERATED ALWAYS AS IDENTITY (values come from the database only).
             modelBuilder.Entity<Salutation>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<EmployeeCount>().Property(e => e.Id).UseIdentityAlwaysColumn();
@@ -272,16 +452,30 @@ namespace CRM.DATA
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
-            StampAuditTimestamps();
-            AppendLeadHistorySnapshots();
-            return base.SaveChanges(acceptAllChangesOnSuccess);
+            try
+            {
+                AppendLeadHistorySnapshots();
+                StampAuditTimestamps();
+                return base.SaveChanges(acceptAllChangesOnSuccess);
+            }
+            finally
+            {
+                AuditUserId = null;
+            }
         }
 
-        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
-            StampAuditTimestamps();
-            AppendLeadHistorySnapshots();
-            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            try
+            {
+                AppendLeadHistorySnapshots();
+                StampAuditTimestamps();
+                return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            }
+            finally
+            {
+                AuditUserId = null;
+            }
         }
 
         /// <summary>Stores the previous scalar state of each modified <see cref="Lead"/> before updates are persisted.</summary>
@@ -312,6 +506,7 @@ namespace CRM.DATA
                     Notes = (string)o[nameof(Lead.Notes)]!,
                     LeadOwnerId = (int?)o[nameof(Lead.LeadOwnerId)],
                     LeadSource = (string)o[nameof(Lead.LeadSource)]!,
+                    IsActive = (bool)o[nameof(Lead.IsActive)]!,
                     CreatedAt = (DateTime?)o[nameof(Lead.CreatedAt)],
                     UpdatedAt = (DateTime)o[nameof(Lead.UpdatedAt)]!,
                 });
@@ -327,24 +522,42 @@ namespace CRM.DATA
                 switch (entry.State)
                 {
                     case EntityState.Added:
+                        if (entry.Entity is IAuditableByUser addedAuditable && AuditUserId.HasValue)
+                        {
+                            addedAuditable.CreatedBy = AuditUserId;
+                            addedAuditable.UpdatedBy = AuditUserId;
+                        }
+
                         switch (entry.Entity)
                         {
                             case IMasterDataEntity master:
+                                master.CreatedAt = utc;
+                                master.UpdatedAt = utc;
                                 master.LastModified = utc;
                                 break;
                             case Organization o:
+                                o.CreatedAt = utc;
+                                o.UpdatedAt = utc;
                                 o.LastModified = utc;
                                 break;
                             case Contact c:
+                                c.CreatedAt = utc;
+                                c.UpdatedAt = utc;
                                 c.LastModified = utc;
                                 break;
                             case Deal d:
+                                d.CreatedAt = utc;
+                                d.UpdatedAt = utc;
                                 d.LastModified = utc;
                                 break;
                             case TaskTable t:
+                                t.CreatedAt = utc;
+                                t.UpdatedAt = utc;
                                 t.LastModified = utc;
                                 break;
                             case CallLog cl:
+                                cl.CreatedAt = utc;
+                                cl.UpdatedAt = utc;
                                 cl.LastModified = utc;
                                 break;
                             case Note n:
@@ -353,29 +566,52 @@ namespace CRM.DATA
                                 break;
                             case Lead l:
                                 l.UpdatedAt = utc;
+                                if (!l.CreatedAt.HasValue)
+                                {
+                                    l.CreatedAt = utc;
+                                }
+
+                                break;
+                            case User u:
+                                if (u.UpdatedAt == default)
+                                {
+                                    u.UpdatedAt = u.CreatedAt != default ? u.CreatedAt : utc;
+                                }
+
                                 break;
                         }
 
                         break;
                     case EntityState.Modified:
+                        if (entry.Entity is IAuditableByUser modifiedAuditable && AuditUserId.HasValue)
+                        {
+                            modifiedAuditable.UpdatedBy = AuditUserId;
+                        }
+
                         switch (entry.Entity)
                         {
                             case IMasterDataEntity master:
+                                master.UpdatedAt = utc;
                                 master.LastModified = utc;
                                 break;
                             case Organization o:
+                                o.UpdatedAt = utc;
                                 o.LastModified = utc;
                                 break;
                             case Contact c:
+                                c.UpdatedAt = utc;
                                 c.LastModified = utc;
                                 break;
                             case Deal d:
+                                d.UpdatedAt = utc;
                                 d.LastModified = utc;
                                 break;
                             case TaskTable t:
+                                t.UpdatedAt = utc;
                                 t.LastModified = utc;
                                 break;
                             case CallLog cl:
+                                cl.UpdatedAt = utc;
                                 cl.LastModified = utc;
                                 break;
                             case Note n:
@@ -383,6 +619,9 @@ namespace CRM.DATA
                                 break;
                             case Lead l:
                                 l.UpdatedAt = utc;
+                                break;
+                            case User u:
+                                u.UpdatedAt = utc;
                                 break;
                         }
 

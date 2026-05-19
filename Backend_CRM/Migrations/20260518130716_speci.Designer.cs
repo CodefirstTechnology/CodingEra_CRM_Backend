@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260518130716_speci")]
+    partial class speci
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,13 +51,8 @@ namespace Backend_CRM.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Direction")
                         .IsRequired()
@@ -65,10 +63,6 @@ namespace Backend_CRM.Migrations
 
                     b.Property<int>("DurationSeconds")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone");
@@ -87,25 +81,20 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("RelatedLeadId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("integer");
 
                     b.HasKey("CallId");
 
                     b.HasIndex("ContactId");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("RelatedDealId");
 
                     b.HasIndex("RelatedLeadId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("CallLogs");
                 });
@@ -124,13 +113,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("text")
                         .HasColumnName("address");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Designation")
                         .IsRequired()
@@ -155,10 +140,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("gender");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone")
@@ -186,21 +167,17 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("salutation");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("OrganizationId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("contacts");
                 });
@@ -232,13 +209,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("contact_id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<int?>("DealOwnerId")
                         .HasColumnType("integer")
@@ -273,10 +246,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("industry");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone")
@@ -339,13 +308,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("territory");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.Property<string>("Website")
                         .IsRequired()
@@ -359,7 +324,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasIndex("ContactId");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("DealOwnerId");
 
@@ -369,7 +334,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasIndex("RelatedOrganizationId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("deals");
                 });
@@ -383,13 +348,9 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -410,22 +371,18 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("employee_counts");
                 });
@@ -439,13 +396,9 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -466,22 +419,18 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("industries");
                 });
@@ -499,9 +448,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -520,10 +469,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("gender");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -572,13 +517,13 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("LeadOwnerId");
 
@@ -590,7 +535,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasIndex("SalutationId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("leads");
                 });
@@ -612,9 +557,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -633,10 +578,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("gender");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -689,17 +630,17 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("LeadId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("lead_histories");
                 });
@@ -713,13 +654,9 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -740,22 +677,18 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("lead_statuses");
                 });
@@ -782,13 +715,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -865,9 +794,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.Property<string>("Visibility")
                         .IsRequired()
@@ -879,7 +808,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasIndex("AuthorId");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("RelatedContactId");
 
@@ -889,7 +818,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasIndex("RelatedOrganizationId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("notes");
                 });
@@ -907,13 +836,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("annual_revenue");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<int?>("EmployeeCountId")
                         .HasColumnType("integer")
@@ -922,10 +847,6 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("IndustryId")
                         .HasColumnType("integer")
                         .HasColumnName("industry_id");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone")
@@ -941,13 +862,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("territory_id");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.Property<string>("Website")
                         .IsRequired()
@@ -957,7 +874,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("EmployeeCountId");
 
@@ -965,7 +882,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasIndex("TerritoryId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("organizations");
                 });
@@ -979,13 +896,9 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -1006,22 +919,18 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("request_types");
                 });
@@ -1035,13 +944,9 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -1062,22 +967,18 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("crm_roles");
                 });
@@ -1091,13 +992,9 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -1118,22 +1015,18 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("salutations");
                 });
@@ -1149,17 +1042,8 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("AssigneeUserId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone");
@@ -1193,25 +1077,20 @@ namespace Backend_CRM.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("integer");
 
                     b.HasKey("TaskId");
 
                     b.HasIndex("AssigneeUserId");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("RelatedDealId");
 
                     b.HasIndex("RelatedLeadId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("Tasks");
                 });
@@ -1225,13 +1104,9 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -1252,22 +1127,18 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("territories");
                 });
@@ -1285,9 +1156,9 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("created_by");
+                        .HasColumnName("created_by_user_id");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -1300,10 +1171,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("full_name");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -1321,24 +1188,20 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("role_id");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
+                    b.Property<int?>("UpdatedByUserId")
                         .HasColumnType("integer")
-                        .HasColumnName("updated_by");
+                        .HasColumnName("updated_by_user_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedBy");
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
                     b.HasIndex("RoleId");
 
-                    b.HasIndex("UpdatedBy");
+                    b.HasIndex("UpdatedByUserId");
 
                     b.ToTable("users");
                 });
@@ -1352,7 +1215,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.Deal", null)
@@ -1367,7 +1230,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1375,7 +1238,7 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.Organization", null)
@@ -1385,7 +1248,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1403,7 +1266,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
@@ -1428,7 +1291,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1436,12 +1299,12 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1449,12 +1312,12 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1462,7 +1325,7 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
@@ -1492,7 +1355,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("LeadStatus");
@@ -1508,7 +1371,7 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.Lead", null)
@@ -1519,7 +1382,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1527,12 +1390,12 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1545,7 +1408,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.Contact", null)
@@ -1570,7 +1433,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1578,7 +1441,7 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.EmployeeCount", "EmployeeCount")
@@ -1598,7 +1461,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("EmployeeCount");
@@ -1612,12 +1475,12 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1625,12 +1488,12 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1638,12 +1501,12 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1656,7 +1519,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.Deal", null)
@@ -1671,7 +1534,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1679,12 +1542,12 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
@@ -1692,7 +1555,7 @@ namespace Backend_CRM.Migrations
                 {
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("CreatedBy")
+                        .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.Role", "Role")
@@ -1702,7 +1565,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()
-                        .HasForeignKey("UpdatedBy")
+                        .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Role");

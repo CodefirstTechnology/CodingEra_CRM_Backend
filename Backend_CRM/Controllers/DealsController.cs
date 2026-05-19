@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +19,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] string? status = null)
+        public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] string? status = null)
         {
+            _ = userId;
             var q = _context.Deals.AsNoTracking();
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -30,8 +32,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id)
+        public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
         {
+            _ = userId;
             var d = await _context.Deals.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
             if (d == null)
             {
@@ -42,12 +45,20 @@ namespace CRM.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] DealUpsertDto dto)
+        public async Task<IActionResult> Create([FromQuery] int userId, [FromBody] DealUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             var entity = CrmWriteMappings.ToDeal(dto, 0);
             entity.Id = 0;
@@ -57,12 +68,20 @@ namespace CRM.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] DealUpsertDto dto)
+        public async Task<IActionResult> Update(int id, [FromQuery] int userId, [FromBody] DealUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             if (dto.Id != 0 && dto.Id != id)
             {

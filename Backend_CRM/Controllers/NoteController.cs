@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,12 +19,20 @@ namespace CRM.Controllers
         }
 
         [HttpPost("AddNote")]
-        public async Task<IActionResult> AddNote([FromBody] NoteUpsertDto dto)
+        public async Task<IActionResult> AddNote([FromQuery] int userId, [FromBody] NoteUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             var note = CrmWriteMappings.ToNote(dto, 0);
             note.Id = 0;
@@ -36,8 +45,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet("GetNotes")]
-        public async Task<IActionResult> GetNotes()
+        public async Task<IActionResult> GetNotes([FromQuery] int userId)
         {
+            _ = userId;
             var data = await _context.Notes
                 .OrderByDescending(n => n.UpdatedAt)
                 .ToListAsync();
@@ -46,8 +56,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet("GetNotesByRecord/{recordId}")]
-        public async Task<IActionResult> GetNotesByRecord(int recordId, [FromQuery] string? status = null)
+        public async Task<IActionResult> GetNotesByRecord(int recordId, [FromQuery] int userId, [FromQuery] string? status = null)
         {
+            _ = userId;
             var query = _context.Notes.AsNoTracking().Where(n => n.RecordId == recordId);
 
             if (!string.IsNullOrWhiteSpace(status))
@@ -60,8 +71,9 @@ namespace CRM.Controllers
         }
 
         [HttpGet("GetNotesByAuthor/{authorId}")]
-        public async Task<IActionResult> GetNotesByAuthor(int authorId)
+        public async Task<IActionResult> GetNotesByAuthor(int authorId, [FromQuery] int userId)
         {
+            _ = userId;
             var data = await _context.Notes
                 .AsNoTracking()
                 .Where(n => n.AuthorId == authorId)
@@ -72,12 +84,20 @@ namespace CRM.Controllers
         }
 
         [HttpPut("UpdateNote/{id}")]
-        public async Task<IActionResult> UpdateNote(int id, [FromBody] NoteUpsertDto dto)
+        public async Task<IActionResult> UpdateNote(int id, [FromQuery] int userId, [FromBody] NoteUpsertDto dto)
         {
             if (dto == null)
             {
                 return BadRequest();
             }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
 
             if (dto.Id != 0 && dto.Id != id)
             {
