@@ -107,7 +107,7 @@ namespace CRM.Controllers
 
             var entity = new Lead();
             ApplyDtoToLeadScalars(dto, entity);
-            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, entity);
+            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, entity, isCreate: true);
             if (masterErr != null)
             {
                 return masterErr;
@@ -162,7 +162,7 @@ namespace CRM.Controllers
             }
 
             ApplyDtoToLeadScalars(dto, existing);
-            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, existing);
+            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, existing, isCreate: false);
             if (masterErr != null)
             {
                 return masterErr;
@@ -196,11 +196,9 @@ namespace CRM.Controllers
             to.CreatedAt = from.CreatedAt;
         }
 
-        private async Task<IActionResult?> ApplyLeadMastersFromDtoAsync(LeadUpsertDto dto, Lead lead)
+        private async Task<IActionResult?> ApplyLeadMastersFromDtoAsync(LeadUpsertDto dto, Lead lead, bool isCreate)
         {
-            lead.Salutation = null;
-            lead.LeadStatus = null;
-            lead.RequestType = null;
+            // Do not null navigations — EF can clear FK columns when the navigation is set to null.
 
             if (dto.SalutationId is int sid && sid > 0)
             {
@@ -211,7 +209,7 @@ namespace CRM.Controllers
 
                 lead.SalutationId = sid;
             }
-            else
+            else if (isCreate)
             {
                 lead.SalutationId = null;
             }
@@ -225,9 +223,13 @@ namespace CRM.Controllers
 
                 lead.LeadStatusId = lstid;
             }
-            else
+            else if (!string.IsNullOrWhiteSpace(dto.Status))
             {
                 lead.LeadStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, dto.Status, requireActive: true);
+            }
+            else if (isCreate)
+            {
+                lead.LeadStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, "New", requireActive: true);
             }
 
             if (dto.RequestTypeId is int rtid && rtid > 0)
@@ -239,7 +241,7 @@ namespace CRM.Controllers
 
                 lead.RequestTypeId = rtid;
             }
-            else
+            else if (isCreate)
             {
                 lead.RequestTypeId = null;
             }
@@ -249,7 +251,8 @@ namespace CRM.Controllers
 
         private async Task<IActionResult?> ApplyOrganizationFromDtoAsync(LeadUpsertDto dto, Lead lead)
         {
-            lead.Organization = null;
+            // Do NOT set lead.Organization = null — EF clears OrganizationId when the navigation is nulled.
+            var existingOrgId = lead.OrganizationId;
 
             if (dto.OrganizationId is int oid && oid > 0)
             {
@@ -263,8 +266,43 @@ namespace CRM.Controllers
                 return null;
             }
 
+            if (!dto.OrganizationId.HasValue)
+            {
+                if (!string.IsNullOrWhiteSpace(dto.OrganizationName))
+                {
+                    var orgId = await ResolveOrganizationIdByNameAsync(dto.OrganizationName);
+                    if (orgId is > 0)
+                    {
+                        lead.OrganizationId = orgId;
+                        return null;
+                    }
+                }
+
+                // Partial PUT omitted organizationId — restore FK (it may have been loaded via Include).
+                lead.OrganizationId = existingOrgId;
+                return null;
+            }
+
+            // Explicit clear (organizationId: 0 in JSON).
             lead.OrganizationId = null;
             return null;
+        }
+
+        private async Task<int?> ResolveOrganizationIdByNameAsync(string name)
+        {
+            var trimmed = name.Trim();
+            if (trimmed.Length == 0)
+            {
+                return null;
+            }
+
+            var tl = trimmed.ToLowerInvariant();
+            return await _context.Organizations
+                .AsNoTracking()
+                .Where(o => o.Name.ToLower() == tl)
+                .OrderBy(o => o.Id)
+                .Select(o => (int?)o.Id)
+                .FirstOrDefaultAsync();
         }
 
         private static async Task<int?> ResolveNameToIdAsync<TEntity>(

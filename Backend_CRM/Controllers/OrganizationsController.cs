@@ -104,7 +104,7 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            ApplyDtoToOrganization(dto, existing);
+            ApplyDtoToOrganizationForUpdate(dto, existing);
             if (string.IsNullOrWhiteSpace(existing.Name))
             {
                 return BadRequest("Name is required.");
@@ -138,6 +138,44 @@ namespace CRM.Controllers
             o.IndustryId = NormalizeFk(dto.IndustryId);
             o.EmployeeCountId = NormalizeFk(dto.EmployeeCountId);
             o.TerritoryId = NormalizeFk(dto.TerritoryId);
+        }
+
+        /// <summary>
+        /// PATCH-style PUT: only overwrites FKs and revenue when the client sent a value (nullable HasValue),
+        /// so partial bodies from lead save do not clear territory/industry/employee-count.
+        /// </summary>
+        private static void ApplyDtoToOrganizationForUpdate(OrganizationUpsertDto dto, Organization o)
+        {
+            var name = (dto.Name ?? string.Empty).Trim();
+            if (name.Length > 0)
+            {
+                o.Name = name;
+            }
+
+            if (dto.Website != null)
+            {
+                o.Website = dto.Website.Trim();
+            }
+
+            if (dto.AnnualRevenue.HasValue)
+            {
+                o.AnnualRevenue = dto.AnnualRevenue;
+            }
+
+            if (dto.IndustryId.HasValue)
+            {
+                o.IndustryId = NormalizeFk(dto.IndustryId);
+            }
+
+            if (dto.EmployeeCountId.HasValue)
+            {
+                o.EmployeeCountId = NormalizeFk(dto.EmployeeCountId);
+            }
+
+            if (dto.TerritoryId.HasValue)
+            {
+                o.TerritoryId = NormalizeFk(dto.TerritoryId);
+            }
         }
 
         private static int? NormalizeFk(int? id) => id is > 0 ? id : null;
