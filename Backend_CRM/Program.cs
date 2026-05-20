@@ -1,5 +1,6 @@
-
+using CRM.Configuration;
 using CRM.DATA;
+using CRM.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,7 +26,10 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddDbContext<TaskDbcontext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"))); 
+        builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
 var app = builder.Build();
 

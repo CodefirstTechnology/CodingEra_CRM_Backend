@@ -1,3 +1,4 @@
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,6 +44,12 @@ namespace CRM.DATA
         public DbSet<RequestType> RequestTypes { get; set; }
 
         public DbSet<Role> Roles { get; set; }
+
+        public DbSet<ActivityLog> ActivityLogs { get; set; }
+
+        public DbSet<Comment> Comments { get; set; }
+
+        public DbSet<Email> Emails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -266,6 +273,51 @@ namespace CRM.DATA
                 .HasForeignKey(c => c.RelatedDealId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Comment>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.AuthorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Comment>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Comment>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(c => c.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Comment>()
+                .HasIndex(c => new { c.EntityType, c.EntityId });
+
+            modelBuilder.Entity<Email>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.SentBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Email>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Email>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(e => e.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Email>()
+                .HasIndex(e => new { e.EntityType, e.EntityId });
+
+            modelBuilder.Entity<ActivityLog>()
+                .HasIndex(a => new { a.EntityType, a.EntityId, a.CreatedAt });
+
             modelBuilder.Entity<Organization>()
                 .HasOne<User>()
                 .WithMany()
@@ -448,6 +500,9 @@ namespace CRM.DATA
             modelBuilder.Entity<Note>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<TaskTable>().Property(e => e.TaskId).UseIdentityAlwaysColumn();
             modelBuilder.Entity<CallLog>().Property(e => e.CallId).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ActivityLog>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Comment>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Email>().Property(e => e.Id).UseIdentityAlwaysColumn();
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -456,7 +511,15 @@ namespace CRM.DATA
             {
                 AppendLeadHistorySnapshots();
                 StampAuditTimestamps();
-                return base.SaveChanges(acceptAllChangesOnSuccess);
+                var activityBatch = ActivityCapture.Capture(this);
+                var result = base.SaveChanges(acceptAllChangesOnSuccess);
+                ActivityCapture.Flush(this, activityBatch);
+                if (ChangeTracker.HasChanges())
+                {
+                    result += base.SaveChanges(acceptAllChangesOnSuccess);
+                }
+
+                return result;
             }
             finally
             {
@@ -470,7 +533,15 @@ namespace CRM.DATA
             {
                 AppendLeadHistorySnapshots();
                 StampAuditTimestamps();
-                return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                var activityBatch = ActivityCapture.Capture(this);
+                var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                ActivityCapture.Flush(this, activityBatch);
+                if (ChangeTracker.HasChanges())
+                {
+                    result += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                }
+
+                return result;
             }
             finally
             {
@@ -579,6 +650,14 @@ namespace CRM.DATA
                                 }
 
                                 break;
+                            case Comment cm:
+                                cm.CreatedAt = utc;
+                                cm.UpdatedAt = utc;
+                                break;
+                            case Email em:
+                                em.CreatedAt = utc;
+                                em.UpdatedAt = utc;
+                                break;
                         }
 
                         break;
@@ -622,6 +701,12 @@ namespace CRM.DATA
                                 break;
                             case User u:
                                 u.UpdatedAt = utc;
+                                break;
+                            case Comment cm:
+                                cm.UpdatedAt = utc;
+                                break;
+                            case Email em:
+                                em.UpdatedAt = utc;
                                 break;
                         }
 
