@@ -18,6 +18,12 @@ namespace CRM.DTO
         /// <summary>FK to <see cref="CRM.models.Organization"/>. Omit or use <c>0</c> for no company.</summary>
         public int? OrganizationId { get; set; }
 
+        /// <summary>
+        /// Display name used to link an existing organization when <see cref="OrganizationId"/> is omitted
+        /// (case-insensitive match on <c>organizations.name</c>).
+        /// </summary>
+        public string? OrganizationName { get; set; }
+
         /// <summary>FK to <see cref="CRM.models.LeadStatus"/>.</summary>
         public int? LeadStatusId { get; set; }
 

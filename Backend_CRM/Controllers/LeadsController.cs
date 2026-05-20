@@ -263,8 +263,54 @@ namespace CRM.Controllers
                 return null;
             }
 
+            if (!dto.OrganizationId.HasValue)
+            {
+                var linkedByName = await TryLinkOrganizationByNameAsync(dto.OrganizationName, lead);
+                if (linkedByName != null)
+                {
+                    return linkedByName;
+                }
+
+                // Partial PUT often omits organizationId; keep the existing FK when no name to resolve.
+                return null;
+            }
+
             lead.OrganizationId = null;
             return null;
+        }
+
+        private async Task<IActionResult?> TryLinkOrganizationByNameAsync(string? organizationName, Lead lead)
+        {
+            if (string.IsNullOrWhiteSpace(organizationName))
+            {
+                return null;
+            }
+
+            var orgId = await ResolveOrganizationIdByNameAsync(organizationName);
+            if (orgId is not > 0)
+            {
+                return null;
+            }
+
+            lead.OrganizationId = orgId;
+            return null;
+        }
+
+        private async Task<int?> ResolveOrganizationIdByNameAsync(string name)
+        {
+            var trimmed = name.Trim();
+            if (trimmed.Length == 0)
+            {
+                return null;
+            }
+
+            var tl = trimmed.ToLowerInvariant();
+            return await _context.Organizations
+                .AsNoTracking()
+                .Where(o => o.Name.ToLower() == tl)
+                .OrderBy(o => o.Id)
+                .Select(o => (int?)o.Id)
+                .FirstOrDefaultAsync();
         }
 
         private static async Task<int?> ResolveNameToIdAsync<TEntity>(
