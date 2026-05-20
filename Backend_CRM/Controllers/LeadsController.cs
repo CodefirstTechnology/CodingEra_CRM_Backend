@@ -249,7 +249,8 @@ namespace CRM.Controllers
 
         private async Task<IActionResult?> ApplyOrganizationFromDtoAsync(LeadUpsertDto dto, Lead lead)
         {
-            lead.Organization = null;
+            // Do NOT set lead.Organization = null — EF clears OrganizationId when the navigation is nulled.
+            var existingOrgId = lead.OrganizationId;
 
             if (dto.OrganizationId is int oid && oid > 0)
             {
@@ -265,34 +266,23 @@ namespace CRM.Controllers
 
             if (!dto.OrganizationId.HasValue)
             {
-                var linkedByName = await TryLinkOrganizationByNameAsync(dto.OrganizationName, lead);
-                if (linkedByName != null)
+                if (!string.IsNullOrWhiteSpace(dto.OrganizationName))
                 {
-                    return linkedByName;
+                    var orgId = await ResolveOrganizationIdByNameAsync(dto.OrganizationName);
+                    if (orgId is > 0)
+                    {
+                        lead.OrganizationId = orgId;
+                        return null;
+                    }
                 }
 
-                // Partial PUT often omits organizationId; keep the existing FK when no name to resolve.
+                // Partial PUT omitted organizationId — restore FK (it may have been loaded via Include).
+                lead.OrganizationId = existingOrgId;
                 return null;
             }
 
+            // Explicit clear (organizationId: 0 in JSON).
             lead.OrganizationId = null;
-            return null;
-        }
-
-        private async Task<IActionResult?> TryLinkOrganizationByNameAsync(string? organizationName, Lead lead)
-        {
-            if (string.IsNullOrWhiteSpace(organizationName))
-            {
-                return null;
-            }
-
-            var orgId = await ResolveOrganizationIdByNameAsync(organizationName);
-            if (orgId is not > 0)
-            {
-                return null;
-            }
-
-            lead.OrganizationId = orgId;
             return null;
         }
 
