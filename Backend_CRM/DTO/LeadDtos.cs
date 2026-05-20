@@ -27,8 +27,8 @@ namespace CRM.DTO
         /// <summary>FK to <see cref="CRM.models.LeadStatus"/>.</summary>
         public int? LeadStatusId { get; set; }
 
-        /// <summary>Resolved to <see cref="LeadStatusId"/> by master name when id is not set (e.g. New, Qualified).</summary>
-        public string Status { get; set; } = "New";
+        /// <summary>Resolved to <see cref="LeadStatusId"/> by master name when id is not set. Omit on PUT to leave status unchanged.</summary>
+        public string? Status { get; set; }
 
         /// <summary>FK to <see cref="CRM.models.RequestType"/>. Omit or <c>0</c> for none; must be active.</summary>
         public int? RequestTypeId { get; set; }

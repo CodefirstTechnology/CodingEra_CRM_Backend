@@ -107,7 +107,7 @@ namespace CRM.Controllers
 
             var entity = new Lead();
             ApplyDtoToLeadScalars(dto, entity);
-            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, entity);
+            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, entity, isCreate: true);
             if (masterErr != null)
             {
                 return masterErr;
@@ -162,7 +162,7 @@ namespace CRM.Controllers
             }
 
             ApplyDtoToLeadScalars(dto, existing);
-            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, existing);
+            var masterErr = await ApplyLeadMastersFromDtoAsync(dto, existing, isCreate: false);
             if (masterErr != null)
             {
                 return masterErr;
@@ -196,11 +196,9 @@ namespace CRM.Controllers
             to.CreatedAt = from.CreatedAt;
         }
 
-        private async Task<IActionResult?> ApplyLeadMastersFromDtoAsync(LeadUpsertDto dto, Lead lead)
+        private async Task<IActionResult?> ApplyLeadMastersFromDtoAsync(LeadUpsertDto dto, Lead lead, bool isCreate)
         {
-            lead.Salutation = null;
-            lead.LeadStatus = null;
-            lead.RequestType = null;
+            // Do not null navigations — EF can clear FK columns when the navigation is set to null.
 
             if (dto.SalutationId is int sid && sid > 0)
             {
@@ -211,7 +209,7 @@ namespace CRM.Controllers
 
                 lead.SalutationId = sid;
             }
-            else
+            else if (isCreate)
             {
                 lead.SalutationId = null;
             }
@@ -225,9 +223,13 @@ namespace CRM.Controllers
 
                 lead.LeadStatusId = lstid;
             }
-            else
+            else if (!string.IsNullOrWhiteSpace(dto.Status))
             {
                 lead.LeadStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, dto.Status, requireActive: true);
+            }
+            else if (isCreate)
+            {
+                lead.LeadStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, "New", requireActive: true);
             }
 
             if (dto.RequestTypeId is int rtid && rtid > 0)
@@ -239,7 +241,7 @@ namespace CRM.Controllers
 
                 lead.RequestTypeId = rtid;
             }
-            else
+            else if (isCreate)
             {
                 lead.RequestTypeId = null;
             }
