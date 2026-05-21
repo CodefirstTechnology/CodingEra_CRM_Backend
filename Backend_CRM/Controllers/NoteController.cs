@@ -34,6 +34,8 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
+            await RelatedRecordOwnership.ApplyNoteAuthorFromRelatedRecordAsync(_context, dto);
+
             var note = CrmWriteMappings.ToNote(dto, 0);
             note.Id = 0;
             SyncNoteRecordId(note);
@@ -98,6 +100,8 @@ namespace CRM.Controllers
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
+
+            await RelatedRecordOwnership.ApplyNoteAuthorFromRelatedRecordAsync(_context, dto);
 
             if (dto.Id != 0 && dto.Id != id)
             {

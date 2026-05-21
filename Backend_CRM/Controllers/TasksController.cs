@@ -65,6 +65,8 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
+            await RelatedRecordOwnership.ApplyTaskAssigneeFromRelatedRecordAsync(_context, dto);
+
             var entity = CrmWriteMappings.ToTask(dto, 0);
             entity.TaskId = 0;
             await _context.Tasks.AddAsync(entity);
@@ -87,6 +89,8 @@ namespace CRM.Controllers
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
+
+            await RelatedRecordOwnership.ApplyTaskAssigneeFromRelatedRecordAsync(_context, dto);
 
             if (dto.TaskId != 0 && dto.TaskId != id)
             {
