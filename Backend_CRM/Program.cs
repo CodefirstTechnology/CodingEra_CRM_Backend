@@ -1,5 +1,6 @@
 using CRM.Configuration;
 using CRM.DATA;
+using CRM.Helpers;
 using CRM.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,16 +30,12 @@ builder.Services.AddDbContext<TaskDbcontext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    using var scope = app.Services.CreateScope();
-    await using var db = scope.ServiceProvider.GetRequiredService<TaskDbcontext>();
-    await db.Database.MigrateAsync();
-}
+await app.ApplyPendingMigrationsAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

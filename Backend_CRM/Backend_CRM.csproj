@@ -6,12 +6,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aa734dd4-4f24-4996-a151-0a25442cdb83</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <!-- Set SkipEfMigrate=true to skip post-build EF migrate (e.g. CI without PostgreSQL). -->
+    <EfAutoMigrateOnBuild Condition="'$(EfAutoMigrateOnBuild)' == ''">true</EfAutoMigrateOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="MailKit" Version="4.16.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -19,5 +25,15 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
+
+  <!-- Debug build: detect model changes, add migration if needed, update PostgreSQL. -->
+  <Target Name="EfAutoMigrateAfterBuild"
+          AfterTargets="Build"
+          Condition="'$(EfAutoMigrateOnBuild)' == 'true' AND '$(Configuration)' == 'Debug' AND '$(SkipEfMigrate)' != 'true'">
+    <Message Importance="high" Text="Running EF Core auto-migration (Scripts\ef-auto-migrate.ps1)..." />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
+          Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)Scripts\ef-auto-migrate.ps1&quot;"
+          IgnoreExitCode="true" />
+  </Target>
 
 </Project>
