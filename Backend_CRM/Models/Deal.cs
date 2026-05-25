@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace CRM.models
 {
@@ -64,7 +65,14 @@ namespace CRM.models
         [MaxLength(256)]
         public string Industry { get; set; } = string.Empty;
 
-        /// <summary>Qualification | Proposal | Negotiation | Closed Won | Closed Lost | Demo/Making</summary>
+        [Column("deal_status_id")]
+        public int? DealStatusId { get; set; }
+
+        [ForeignKey(nameof(DealStatusId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public DealStatus? DealStatus { get; set; }
+
+        /// <summary>Denormalized status label; kept in sync with <see cref="DealStatus"/>.</summary>
         [Column("status")]
         [MaxLength(64)]
         public string Status { get; set; } = "Qualification";

@@ -286,7 +286,8 @@ namespace CRM.Helpers
             {
                 var name = prop.Metadata.Name;
                 if (name is nameof(Deal.UpdatedAt) or nameof(Deal.LastModified)
-                    or nameof(Deal.CreatedBy) or nameof(Deal.UpdatedBy) or nameof(Deal.CreatedAt))
+                    or nameof(Deal.CreatedBy) or nameof(Deal.UpdatedBy) or nameof(Deal.CreatedAt)
+                    or nameof(Deal.Status))
                 {
                     continue;
                 }
@@ -298,8 +299,10 @@ namespace CRM.Helpers
                     continue;
                 }
 
-                if (name == nameof(Deal.Status))
+                if (name == nameof(Deal.DealStatusId))
                 {
+                    var oldName = lookup.DealStatusName(oldRaw as int?);
+                    var newName = lookup.DealStatusName(newRaw as int?);
                     yield return new ActivityLog
                     {
                         EntityType = ActivityEntityTypes.Deal,
@@ -308,9 +311,9 @@ namespace CRM.Helpers
                         ActorUserId = actorId,
                         ActorName = actor,
                         FieldName = "status",
-                        OldValue = oldRaw?.ToString(),
-                        NewValue = newRaw?.ToString(),
-                        Message = $"{display} status moved to {newRaw}",
+                        OldValue = oldName,
+                        NewValue = newName,
+                        Message = $"{display} status moved to {newName ?? newRaw?.ToString()}",
                     };
                     continue;
                 }
@@ -642,6 +645,7 @@ namespace CRM.Helpers
             private readonly Dictionary<int, string> _users = new();
             private readonly Dictionary<int, string> _orgs = new();
             private readonly Dictionary<int, string> _statuses = new();
+            private readonly Dictionary<int, string> _dealStatuses = new();
             private readonly Dictionary<int, string> _industries = new();
             private readonly Dictionary<int, string> _territories = new();
             private readonly Dictionary<int, string> _employeeCounts = new();
@@ -690,6 +694,9 @@ namespace CRM.Helpers
 
             public string? LeadStatusName(int? id) => Resolve(_statuses, id, () =>
                 _db.LeadStatuses.AsNoTracking().Where(s => s.Id == id).Select(s => s.Name).FirstOrDefault());
+
+            public string? DealStatusName(int? id) => Resolve(_dealStatuses, id, () =>
+                _db.DealStatuses.AsNoTracking().Where(s => s.Id == id).Select(s => s.Name).FirstOrDefault());
 
             public string? IndustryName(int? id) => Resolve(_industries, id, () =>
                 _db.Industries.AsNoTracking().Where(i => i.Id == id).Select(i => i.Name).FirstOrDefault());

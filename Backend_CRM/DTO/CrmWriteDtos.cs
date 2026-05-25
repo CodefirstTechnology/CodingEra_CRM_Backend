@@ -47,6 +47,11 @@ namespace CRM.DTO
         public string Website { get; set; } = string.Empty;
         public string Territory { get; set; } = string.Empty;
         public string Industry { get; set; } = string.Empty;
+
+        /// <summary>FK to <see cref="CRM.models.DealStatus"/>.</summary>
+        public int? DealStatusId { get; set; }
+
+        /// <summary>Resolved to <see cref="DealStatusId"/> by master name when id is not set. Omit on PUT to leave status unchanged.</summary>
         public string Status { get; set; } = "Qualification";
         public int? DealOwnerId { get; set; }
         public int? AssignedToUserId { get; set; }
@@ -167,7 +172,6 @@ namespace CRM.DTO
             Website = d.Website ?? string.Empty,
             Territory = d.Territory ?? string.Empty,
             Industry = d.Industry ?? string.Empty,
-            Status = string.IsNullOrWhiteSpace(d.Status) ? "Qualification" : d.Status,
             DealOwnerId = Fk(d.DealOwnerId),
             AssignedToUserId = Fk(d.AssignedToUserId),
             AssignedInitials = d.AssignedInitials ?? string.Empty,
@@ -193,7 +197,6 @@ namespace CRM.DTO
             e.Website = d.Website ?? string.Empty;
             e.Territory = d.Territory ?? string.Empty;
             e.Industry = d.Industry ?? string.Empty;
-            e.Status = string.IsNullOrWhiteSpace(d.Status) ? "Qualification" : d.Status;
             e.DealOwnerId = Fk(d.DealOwnerId);
             e.AssignedToUserId = Fk(d.AssignedToUserId);
             e.AssignedInitials = d.AssignedInitials ?? string.Empty;

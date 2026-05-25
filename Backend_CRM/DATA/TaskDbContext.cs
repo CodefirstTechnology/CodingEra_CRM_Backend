@@ -41,6 +41,8 @@ namespace CRM.DATA
 
         public DbSet<LeadStatus> LeadStatuses { get; set; }
 
+        public DbSet<DealStatus> DealStatuses { get; set; }
+
         public DbSet<RequestType> RequestTypes { get; set; }
 
         public DbSet<Role> Roles { get; set; }
@@ -95,6 +97,10 @@ namespace CRM.DATA
                 .IsUnique();
 
             modelBuilder.Entity<LeadStatus>()
+                .HasIndex(s => s.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<DealStatus>()
                 .HasIndex(s => s.Name)
                 .IsUnique();
 
@@ -170,6 +176,15 @@ namespace CRM.DATA
                 .WithMany()
                 .HasForeignKey(o => o.TerritoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Deal>()
+                .HasOne(d => d.DealStatus)
+                .WithMany()
+                .HasForeignKey(d => d.DealStatusId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Deal>()
+                .HasIndex(d => d.DealStatusId);
 
             modelBuilder.Entity<Deal>()
                 .HasOne<Organization>()
@@ -461,6 +476,17 @@ namespace CRM.DATA
                 .HasForeignKey(s => s.UpdatedBy)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<DealStatus>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<DealStatus>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<RequestType>()
                 .HasOne<User>()
                 .WithMany()
@@ -489,6 +515,7 @@ namespace CRM.DATA
             modelBuilder.Entity<Territory>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Industry>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<LeadStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<DealStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<RequestType>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Role>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();

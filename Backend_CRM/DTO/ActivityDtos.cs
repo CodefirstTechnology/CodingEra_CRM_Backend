@@ -29,6 +29,31 @@ namespace CRM.DTO
         public DateTime CreatedAt { get; set; }
     }
 
+    public class CreateActivityDto
+    {
+        /// <summary>created | updated | status_changed | field_updated | note_added | comment_added | task_added | call_logged | email_sent</summary>
+        public string ActionType { get; set; } = "updated";
+
+        public string Message { get; set; } = string.Empty;
+
+        public string? FieldName { get; set; }
+
+        public string? OldValue { get; set; }
+
+        public string? NewValue { get; set; }
+
+        public string? RelatedRecordType { get; set; }
+
+        public int? RelatedRecordId { get; set; }
+    }
+
+    public class DealStatusUpdateDto
+    {
+        public int? DealStatusId { get; set; }
+
+        public string? Status { get; set; }
+    }
+
     public class CommentUpsertDto
     {
         public int Id { get; set; }
