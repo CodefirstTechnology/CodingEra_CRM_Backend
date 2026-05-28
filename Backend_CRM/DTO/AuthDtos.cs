@@ -21,6 +21,12 @@ namespace CRM.DTO
         public string Password { get; set; } = string.Empty;
     }
 
+    /// <summary>Admin must confirm their own password before deleting another user.</summary>
+    public class DeleteUserRequest
+    {
+        public string Password { get; set; } = string.Empty;
+    }
+
     public class UserSessionDto
     {
         public int Id { get; set; }
