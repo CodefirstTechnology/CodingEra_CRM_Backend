@@ -134,6 +134,75 @@ namespace CRM.Controllers
             return Ok(ToSession(user));
         }
 
+        /// <summary>
+        /// Deletes a CRM user after the acting admin verifies their own password.
+        /// </summary>
+        [HttpDelete("users/{id:int}")]
+        public async Task<IActionResult> DeleteUser(int id, [FromQuery] int userId, [FromBody] DeleteUserRequest req)
+        {
+            if (req == null || string.IsNullOrWhiteSpace(req.Password))
+            {
+                return BadRequest("Password is required to delete a user.");
+            }
+
+            if (userId <= 0)
+            {
+                return BadRequest("A valid acting user id is required.");
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            var actingUser = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+            if (actingUser == null || !actingUser.IsActive)
+            {
+                return Unauthorized("Your session is invalid.");
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(req.Password, actingUser.PasswordHash))
+            {
+                return Unauthorized("Incorrect password.");
+            }
+
+            const int adminRoleId = 2;
+            if (actingUser.RoleId != adminRoleId)
+            {
+                return Forbid();
+            }
+
+            if (id == userId)
+            {
+                return BadRequest("You cannot delete your own account.");
+            }
+
+            var target = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+            if (target == null)
+            {
+                return NotFound();
+            }
+
+            if (target.RoleId == adminRoleId)
+            {
+                var otherActiveAdmins = await _context.Users.CountAsync(u =>
+                    u.Id != id && u.IsActive && u.RoleId == adminRoleId);
+                if (otherActiveAdmins == 0)
+                {
+                    return BadRequest("Cannot delete the last active admin account.");
+                }
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+            _context.Users.Remove(target);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         private async Task<(int? RoleId, IActionResult? Error)> ResolveRegisterRoleIdAsync(int? requestedRoleId)
         {
             if (requestedRoleId is int rid && rid > 0)

@@ -13,6 +13,9 @@ namespace CRM.DATA
         /// <summary>Controllers set this before <see cref="SaveChanges()"/> so <see cref="IAuditableByUser"/> rows get created/updated-by stamps.</summary>
         public int? AuditUserId { get; set; }
 
+        /// <summary>Optional comment for the next deal stage change (cleared after save).</summary>
+        public string? DealStageChangeComment { get; set; }
+
         public DbSet<TaskTable> Tasks { get; set; }
 
         public DbSet<CallLog> CallLogs { get; set; }
@@ -30,6 +33,8 @@ namespace CRM.DATA
         public DbSet<LeadHistory> LeadHistories { get; set; }
 
         public DbSet<Deal> Deals { get; set; }
+
+        public DbSet<DealStageHistory> DealStageHistories { get; set; }
 
         public DbSet<Salutation> Salutations { get; set; }
 
@@ -185,6 +190,21 @@ namespace CRM.DATA
 
             modelBuilder.Entity<Deal>()
                 .HasIndex(d => d.DealStatusId);
+
+            modelBuilder.Entity<DealStageHistory>()
+                .HasIndex(h => new { h.DealId, h.ChangedAt });
+
+            modelBuilder.Entity<DealStageHistory>()
+                .HasOne<Deal>()
+                .WithMany()
+                .HasForeignKey(h => h.DealId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<DealStageHistory>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(h => h.ChangedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Deal>()
                 .HasOne<Organization>()
@@ -524,6 +544,7 @@ namespace CRM.DATA
             modelBuilder.Entity<Lead>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<LeadHistory>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Deal>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<DealStageHistory>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Note>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<TaskTable>().Property(e => e.TaskId).UseIdentityAlwaysColumn();
             modelBuilder.Entity<CallLog>().Property(e => e.CallId).UseIdentityAlwaysColumn();
@@ -537,6 +558,7 @@ namespace CRM.DATA
             try
             {
                 AppendLeadHistorySnapshots();
+                AppendDealStageHistoryRecords();
                 StampAuditTimestamps();
                 var activityBatch = ActivityCapture.Capture(this);
                 var result = base.SaveChanges(acceptAllChangesOnSuccess);
@@ -551,6 +573,7 @@ namespace CRM.DATA
             finally
             {
                 AuditUserId = null;
+                DealStageChangeComment = null;
             }
         }
 
@@ -559,6 +582,7 @@ namespace CRM.DATA
             try
             {
                 AppendLeadHistorySnapshots();
+                AppendDealStageHistoryRecords();
                 StampAuditTimestamps();
                 var activityBatch = ActivityCapture.Capture(this);
                 var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
@@ -573,6 +597,7 @@ namespace CRM.DATA
             finally
             {
                 AuditUserId = null;
+                DealStageChangeComment = null;
             }
         }
 
@@ -607,6 +632,57 @@ namespace CRM.DATA
                     IsActive = (bool)o[nameof(Lead.IsActive)]!,
                     CreatedAt = (DateTime?)o[nameof(Lead.CreatedAt)],
                     UpdatedAt = (DateTime)o[nameof(Lead.UpdatedAt)]!,
+                });
+            }
+        }
+
+        /// <summary>Records deal pipeline stage transitions when <see cref="Deal.DealStatusId"/> changes.</summary>
+        private void AppendDealStageHistoryRecords()
+        {
+            var utc = DateTime.UtcNow;
+            foreach (var entry in ChangeTracker.Entries<Deal>())
+            {
+                if (entry.State != EntityState.Modified)
+                {
+                    continue;
+                }
+
+                var statusProp = entry.Property(d => d.DealStatusId);
+                if (!statusProp.IsModified)
+                {
+                    continue;
+                }
+
+                var oldId = statusProp.OriginalValue;
+                var newId = statusProp.CurrentValue;
+                if (oldId == newId)
+                {
+                    continue;
+                }
+
+                var o = entry.OriginalValues;
+                var previousStage = (string)o[nameof(Deal.Status)]!;
+                if (string.IsNullOrWhiteSpace(previousStage) && oldId is int oldStatusId && oldStatusId > 0)
+                {
+                    previousStage = DealStatuses.Local
+                        .FirstOrDefault(s => s.Id == oldStatusId)?.Name ?? oldStatusId.ToString();
+                }
+
+                var newStage = entry.Entity.Status;
+                if (string.IsNullOrWhiteSpace(newStage) && newId is int newStatusId && newStatusId > 0)
+                {
+                    newStage = DealStatuses.Local
+                        .FirstOrDefault(s => s.Id == newStatusId)?.Name ?? newStatusId.ToString();
+                }
+
+                DealStageHistories.Add(new DealStageHistory
+                {
+                    DealId = entry.Entity.Id,
+                    PreviousStage = previousStage ?? string.Empty,
+                    NewStage = newStage ?? string.Empty,
+                    ChangedByUserId = AuditUserId,
+                    ChangedAt = utc,
+                    Comment = DealStageChangeComment?.Trim() ?? string.Empty,
                 });
             }
         }

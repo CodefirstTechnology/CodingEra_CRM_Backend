@@ -34,6 +34,8 @@ namespace CRM.Helpers
 
                 await db.Database.MigrateAsync();
                 logger.LogInformation("Database schema is up to date.");
+
+                await DealPipelineStageSeed.EnsureAsync(db, logger);
             }
             catch (Exception ex)
             {

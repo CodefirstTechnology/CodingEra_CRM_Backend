@@ -46,7 +46,7 @@ namespace CRM.Helpers
                         AddRange(batch, BuildDealCreated(entry.Entity, actorId, lookup), entry);
                         break;
                     case EntityState.Modified:
-                        AddRange(batch, BuildDealUpdates(entry, actorId, lookup));
+                        AddRange(batch, BuildDealUpdates(entry, actorId, lookup, db));
                         break;
                 }
             }
@@ -276,7 +276,7 @@ namespace CRM.Helpers
         }
 
         private static IEnumerable<ActivityLog> BuildDealUpdates(
-            EntityEntry<Deal> entry, int? actorId, ActivityLookup lookup)
+            EntityEntry<Deal> entry, int? actorId, ActivityLookup lookup, TaskDbcontext db)
         {
             var deal = entry.Entity;
             var actor = lookup.ActorName(actorId);
@@ -303,6 +303,13 @@ namespace CRM.Helpers
                 {
                     var oldName = lookup.DealStatusName(oldRaw as int?);
                     var newName = lookup.DealStatusName(newRaw as int?);
+                    var message = FormatDealStageActivityMessage(newName);
+                    var comment = db.DealStageChangeComment?.Trim();
+                    if (!string.IsNullOrEmpty(comment))
+                    {
+                        message = $"{message} — {comment}";
+                    }
+
                     yield return new ActivityLog
                     {
                         EntityType = ActivityEntityTypes.Deal,
@@ -313,7 +320,7 @@ namespace CRM.Helpers
                         FieldName = "status",
                         OldValue = oldName,
                         NewValue = newName,
-                        Message = $"{display} status moved to {newName ?? newRaw?.ToString()}",
+                        Message = message,
                     };
                     continue;
                 }
@@ -627,6 +634,23 @@ namespace CRM.Helpers
             string.IsNullOrWhiteSpace(d.OrganizationName)
                 ? $"{d.FirstName} {d.LastName}".Trim()
                 : d.OrganizationName;
+
+        private static string FormatDealStageActivityMessage(string? stageName)
+        {
+            if (string.IsNullOrWhiteSpace(stageName))
+            {
+                return "Deal stage updated";
+            }
+
+            return stageName.Trim() switch
+            {
+                "Lead Closed - Won" => "Deal Closed Won",
+                "Lead Closed - Lost" => "Deal Closed Lost",
+                "Site Visit / Meeting Done" => "Site Visit Completed",
+                "Negotiation Stage" => "Negotiation Started",
+                _ => stageName.Trim(),
+            };
+        }
 
         private static string Truncate(string? text, int max)
         {

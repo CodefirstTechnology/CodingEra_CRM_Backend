@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Lead status lookup for dropdowns.</summary>
     [Table("lead_statuses")]
-    public class LeadStatus : IMasterDataEntity, IAuditableByUser
+    public class LeadStatus : IMasterDataRow
     {
         [Key]
         [Column("id")]
