@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>“Number of employees” lookup for dropdowns (e.g. 1–10, 500+).</summary>
     [Table("employee_counts")]
-    public class EmployeeCount : IMasterDataEntity, IAuditableByUser
+    public class EmployeeCount : IMasterDataRow
     {
         [Key]
         [Column("id")]

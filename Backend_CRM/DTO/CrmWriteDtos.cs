@@ -14,6 +14,22 @@ namespace CRM.DTO
         public bool IsActive { get; set; } = true;
     }
 
+    /// <summary>PATCH body for toggling <c>is_active</c> on master-data rows.</summary>
+    public class MasterDataActivePatchDto
+    {
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>Response row for <c>GET /api/master-data/{entity}</c>.</summary>
+    public class MasterDataRowDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public DateTime? CreatedAt { get; set; }
+    }
+
     /// <summary>POST/PUT <c>/api/contacts</c>. Server sets id and lastModified.</summary>
     public class ContactUpsertDto
     {

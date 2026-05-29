@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Deal pipeline status lookup for dropdowns.</summary>
     [Table("deal_statuses")]
-    public class DealStatus : IMasterDataEntity, IAuditableByUser
+    public class DealStatus : IMasterDataRow
     {
         [Key]
         [Column("id")]

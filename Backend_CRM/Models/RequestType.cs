@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Request type lookup for dropdowns.</summary>
     [Table("request_types")]
-    public class RequestType : IMasterDataEntity, IAuditableByUser
+    public class RequestType : IMasterDataRow
     {
         [Key]
         [Column("id")]
