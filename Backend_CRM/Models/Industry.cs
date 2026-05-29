@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Industry lookup for dropdowns.</summary>
     [Table("industries")]
-    public class Industry : IMasterDataEntity, IAuditableByUser
+    public class Industry : IMasterDataRow
     {
         [Key]
         [Column("id")]

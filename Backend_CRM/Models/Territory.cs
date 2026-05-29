@@ -5,7 +5,7 @@ namespace CRM.models
 {
     /// <summary>Territory lookup for dropdowns.</summary>
     [Table("territories")]
-    public class Territory : IMasterDataEntity, IAuditableByUser
+    public class Territory : IMasterDataRow
     {
         [Key]
         [Column("id")]

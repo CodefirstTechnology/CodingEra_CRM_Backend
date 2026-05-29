@@ -32,6 +32,7 @@ builder.Services.AddDbContext<TaskDbcontext>(options =>
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IMasterDataAdminService, MasterDataAdminService>();
 
 var app = builder.Build();
 
