@@ -12,10 +12,12 @@ namespace CRM.Controllers
     public class DealsController : ControllerBase
     {
         private readonly TaskDbcontext _context;
+        private readonly ILogger<DealsController> _logger;
 
-        public DealsController(TaskDbcontext context)
+        public DealsController(TaskDbcontext context, ILogger<DealsController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -72,6 +74,8 @@ namespace CRM.Controllers
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
+
+            await DealPipelineStageSeed.EnsureAsync(_context, _logger);
 
             var entity = CrmWriteMappings.ToDeal(dto, 0);
             entity.Id = 0;
@@ -146,6 +150,11 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
+            if (!string.IsNullOrWhiteSpace(dto.Comment))
+            {
+                _context.DealStageChangeComment = dto.Comment.Trim();
+            }
+
             var existing = await _context.Deals.FindAsync(id);
             if (existing == null)
             {
@@ -184,6 +193,34 @@ namespace CRM.Controllers
             return Ok(new { deleted = true });
         }
 
+        [HttpGet("{id:int}/stage-history")]
+        public async Task<IActionResult> GetStageHistory(int id, [FromQuery] int userId)
+        {
+            _ = userId;
+            var exists = await _context.Deals.AsNoTracking().AnyAsync(d => d.Id == id);
+            if (!exists)
+            {
+                return NotFound();
+            }
+
+            var rows = await _context.DealStageHistories.AsNoTracking()
+                .Where(h => h.DealId == id)
+                .OrderByDescending(h => h.ChangedAt)
+                .Select(h => new DealStageHistoryDto
+                {
+                    Id = h.Id,
+                    DealId = h.DealId,
+                    PreviousStage = h.PreviousStage,
+                    NewStage = h.NewStage,
+                    ChangedByUserId = h.ChangedByUserId,
+                    ChangedAt = h.ChangedAt,
+                    Comment = string.IsNullOrWhiteSpace(h.Comment) ? null : h.Comment,
+                })
+                .ToListAsync();
+
+            return Ok(rows);
+        }
+
         private async Task<IActionResult?> ApplyDealStatusFromDtoAsync(
             DealUpsertDto dto,
             Deal deal,
@@ -192,35 +229,42 @@ namespace CRM.Controllers
         {
             if (dto.DealStatusId is int dsid && dsid > 0)
             {
-                var status = await _context.DealStatuses.AsNoTracking()
+                var statusById = await _context.DealStatuses.AsNoTracking()
                     .FirstOrDefaultAsync(s => s.Id == dsid && s.IsActive);
-                if (status == null)
+                if (statusById != null)
+                {
+                    deal.DealStatusId = dsid;
+                    deal.Status = statusById.Name;
+                    return null;
+                }
+
+                if (!isCreate)
                 {
                     return BadRequest($"Deal status id {dsid} does not exist or is inactive.");
                 }
-
-                deal.DealStatusId = dsid;
-                deal.Status = status.Name;
-                return null;
             }
 
             if (!string.IsNullOrWhiteSpace(dto.Status))
             {
-                var statusId = await ResolveNameToIdAsync(_context.DealStatuses, dto.Status, requireActive: true);
-                if (statusId == null)
+                var normalized = NormalizeDealStatusName(dto.Status);
+                var statusId = await ResolveNameToIdAsync(_context.DealStatuses, normalized, requireActive: true);
+                if (statusId != null)
+                {
+                    deal.DealStatusId = statusId;
+                    deal.Status = normalized;
+                    return null;
+                }
+
+                if (!isCreate)
                 {
                     return BadRequest($"Deal status '{dto.Status.Trim()}' does not exist or is inactive.");
                 }
-
-                deal.DealStatusId = statusId;
-                deal.Status = dto.Status.Trim();
-                return null;
             }
 
             if (isCreate)
             {
                 var defaultStatus = await _context.DealStatuses.AsNoTracking()
-                    .Where(s => s.IsActive && s.Name == "Qualification")
+                    .Where(s => s.IsActive && s.Name == "Quotation Shared")
                     .Select(s => new { s.Id, s.Name })
                     .FirstOrDefaultAsync()
                     ?? await _context.DealStatuses.AsNoTracking()
@@ -245,6 +289,21 @@ namespace CRM.Controllers
             }
 
             return null;
+        }
+
+        private static string NormalizeDealStatusName(string name)
+        {
+            var trimmed = name.Trim();
+            return trimmed switch
+            {
+                "Qualification" => "Quotation Shared",
+                "Proposal" => "Quotation Shared",
+                "Negotiation" => "Negotiation Stage",
+                "Demo/Making" => "Technical Approval",
+                "Closed Won" => "Lead Closed - Won",
+                "Closed Lost" => "Lead Closed - Lost",
+                _ => trimmed,
+            };
         }
 
         private static async Task<int?> ResolveNameToIdAsync<TEntity>(
