@@ -52,6 +52,25 @@ namespace CRM.DTO
         public int? DealStatusId { get; set; }
 
         public string? Status { get; set; }
+
+        public string? Comment { get; set; }
+    }
+
+    public class DealStageHistoryDto
+    {
+        public int Id { get; set; }
+
+        public int DealId { get; set; }
+
+        public string PreviousStage { get; set; } = string.Empty;
+
+        public string NewStage { get; set; } = string.Empty;
+
+        public int? ChangedByUserId { get; set; }
+
+        public DateTime ChangedAt { get; set; }
+
+        public string? Comment { get; set; }
     }
 
     public class CommentUpsertDto

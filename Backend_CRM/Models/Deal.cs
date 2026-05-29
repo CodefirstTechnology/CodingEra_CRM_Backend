@@ -75,7 +75,7 @@ namespace CRM.models
         /// <summary>Denormalized status label; kept in sync with <see cref="DealStatus"/>.</summary>
         [Column("status")]
         [MaxLength(64)]
-        public string Status { get; set; } = "Qualification";
+        public string Status { get; set; } = "Quotation Shared";
 
         [Column("deal_owner_id")]
         public int? DealOwnerId { get; set; }
@@ -98,6 +98,9 @@ namespace CRM.models
 
         [Column("next_step")]
         public string NextStep { get; set; } = string.Empty;
+
+        [Column("next_follow_up_date")]
+        public DateTime? NextFollowUpDate { get; set; }
 
         [Column("is_active")]
         public bool IsActive { get; set; } = true;

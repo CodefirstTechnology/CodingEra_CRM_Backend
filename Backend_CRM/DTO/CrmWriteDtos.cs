@@ -14,6 +14,22 @@ namespace CRM.DTO
         public bool IsActive { get; set; } = true;
     }
 
+    /// <summary>PATCH body for toggling <c>is_active</c> on master-data rows.</summary>
+    public class MasterDataActivePatchDto
+    {
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>Response row for <c>GET /api/master-data/{entity}</c>.</summary>
+    public class MasterDataRowDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public DateTime? CreatedAt { get; set; }
+    }
+
     /// <summary>POST/PUT <c>/api/contacts</c>. Server sets id and lastModified.</summary>
     public class ContactUpsertDto
     {
@@ -52,7 +68,7 @@ namespace CRM.DTO
         public int? DealStatusId { get; set; }
 
         /// <summary>Resolved to <see cref="DealStatusId"/> by master name when id is not set. Omit on PUT to leave status unchanged.</summary>
-        public string Status { get; set; } = "Qualification";
+        public string Status { get; set; } = "Quotation Shared";
         public int? DealOwnerId { get; set; }
         public int? AssignedToUserId { get; set; }
         public string AssignedInitials { get; set; } = string.Empty;
@@ -60,6 +76,7 @@ namespace CRM.DTO
         public int? RelatedOrganizationId { get; set; }
         public int? ProbabilityPercent { get; set; }
         public string NextStep { get; set; } = string.Empty;
+        public DateTime? NextFollowUpDate { get; set; }
     }
 
     /// <summary>POST <c>AddNote</c> / PUT <c>UpdateNote</c>. Server sets id, createdAt, updatedAt.</summary>
@@ -179,6 +196,7 @@ namespace CRM.DTO
             RelatedOrganizationId = Fk(d.RelatedOrganizationId),
             ProbabilityPercent = d.ProbabilityPercent,
             NextStep = d.NextStep ?? string.Empty,
+            NextFollowUpDate = d.NextFollowUpDate,
         };
 
         public static void Apply(Deal e, DealUpsertDto d)
@@ -204,6 +222,7 @@ namespace CRM.DTO
             e.RelatedOrganizationId = Fk(d.RelatedOrganizationId);
             e.ProbabilityPercent = d.ProbabilityPercent;
             e.NextStep = d.NextStep ?? string.Empty;
+            e.NextFollowUpDate = d.NextFollowUpDate;
         }
 
         public static Note ToNote(NoteUpsertDto d, int id = 0) => new()
