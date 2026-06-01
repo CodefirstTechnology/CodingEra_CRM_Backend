@@ -158,11 +158,11 @@ namespace CRM.Services
                 rowIndex++;
                 var rowNumber = row.RowNumber > 0 ? row.RowNumber : rowIndex + 1;
                 var errors = ValidateRowFields(row, masters);
-                var isDuplicate = IsDuplicateRow(row, existingContacts, batchEmails, batchMobiles);
+                var duplicateErrors = CollectDuplicateErrors(row, existingContacts, batchEmails, batchMobiles);
 
-                if (isDuplicate)
+                if (duplicateErrors.Count > 0)
                 {
-                    errors.Add("Duplicate lead: email or mobile already exists in CRM or this upload.");
+                    errors.AddRange(duplicateErrors);
                     classification.DuplicateCount++;
                     classification.ValidationErrors.Add(new LeadImportRowErrorDto
                     {
@@ -457,73 +457,70 @@ namespace CRM.Services
             }
             else if (!masters.Industries.ContainsKey(NormalizeKey(row.Industry)))
             {
-                errors.Add($"Industry '{row.Industry.Trim()}' does not exist or is inactive.");
+                errors.Add("Industry not found");
             }
 
             if (!string.IsNullOrWhiteSpace(row.Salutation) &&
                 !masters.Salutations.ContainsKey(NormalizeKey(row.Salutation)))
             {
-                errors.Add($"Salutation '{row.Salutation.Trim()}' does not exist or is inactive.");
+                errors.Add("Invalid Salutation");
             }
 
             if (!string.IsNullOrWhiteSpace(row.Territory) &&
                 !masters.Territories.ContainsKey(NormalizeKey(row.Territory)))
             {
-                errors.Add($"Territory '{row.Territory.Trim()}' does not exist or is inactive.");
+                errors.Add("Invalid Territory");
             }
 
             if (!string.IsNullOrWhiteSpace(row.Status) &&
                 !masters.LeadStatuses.ContainsKey(NormalizeKey(row.Status)))
             {
-                errors.Add($"Status '{row.Status.Trim()}' does not exist or is inactive.");
+                errors.Add("Invalid Status");
             }
 
             if (!string.IsNullOrWhiteSpace(row.RequestType) &&
                 !masters.RequestTypes.ContainsKey(NormalizeKey(row.RequestType)))
             {
-                errors.Add($"Request Type '{row.RequestType.Trim()}' does not exist or is inactive.");
+                errors.Add("Invalid Request Type");
             }
 
             if (!string.IsNullOrWhiteSpace(row.NoOfEmployees) &&
                 !masters.EmployeeCounts.ContainsKey(NormalizeKey(row.NoOfEmployees)))
             {
-                errors.Add($"No Of Employees '{row.NoOfEmployees.Trim()}' does not exist or is inactive.");
+                errors.Add("Invalid Employee Count");
             }
 
             return errors;
         }
 
-        private static bool IsDuplicateRow(
+        private static List<string> CollectDuplicateErrors(
             LeadImportRowDto row,
             ExistingLeadContacts existing,
             HashSet<string> batchEmails,
             HashSet<string> batchMobiles)
         {
+            var errors = new List<string>();
             var email = row.Email?.Trim() ?? string.Empty;
             var mobile = NormalizeMobile(row.Mobile);
 
             if (email.Length == 0 && mobile.Length == 0)
             {
-                return false;
+                return errors;
             }
 
-            if (email.Length > 0)
+            if (email.Length > 0 &&
+                (existing.Emails.Contains(email) || batchEmails.Contains(email)))
             {
-                if (existing.Emails.Contains(email) || batchEmails.Contains(email))
-                {
-                    return true;
-                }
+                errors.Add("Duplicate Email");
             }
 
-            if (mobile.Length > 0)
+            if (mobile.Length > 0 &&
+                (existing.Mobiles.Contains(mobile) || batchMobiles.Contains(mobile)))
             {
-                if (existing.Mobiles.Contains(mobile) || batchMobiles.Contains(mobile))
-                {
-                    return true;
-                }
+                errors.Add("Duplicate Mobile");
             }
 
-            return false;
+            return errors;
         }
 
         private static void RegisterBatchContacts(
