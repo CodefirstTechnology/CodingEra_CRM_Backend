@@ -2,6 +2,7 @@ using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
 using CRM.models;
+using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace CRM.Controllers
     public class LeadsController : ControllerBase
     {
         private readonly TaskDbcontext _context;
+        private readonly ILeadImportService _leadImportService;
 
-        public LeadsController(TaskDbcontext context)
+        public LeadsController(TaskDbcontext context, ILeadImportService leadImportService)
         {
             _context = context;
+            _leadImportService = leadImportService;
         }
 
         private static IQueryable<Lead> QueryWithMasters(IQueryable<Lead> q) =>
@@ -130,6 +133,20 @@ namespace CRM.Controllers
             await _context.Leads.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(await ReloadLeadAsync(entity.Id));
+        }
+
+        /// <summary>Validates import rows against CRM master data and duplicate rules. Does not persist leads.</summary>
+        [HttpPost("import")]
+        public async Task<IActionResult> ValidateImport([FromQuery] int userId, [FromBody] LeadImportRequestDto dto)
+        {
+            _ = userId;
+            if (dto?.Rows == null || dto.Rows.Count == 0)
+            {
+                return BadRequest("At least one import row is required.");
+            }
+
+            var result = await _leadImportService.ValidateImportAsync(dto.Rows);
+            return Ok(result);
         }
 
         [HttpPut("{id:int}")]
