@@ -21,6 +21,15 @@ x86/
 bld/
 [Bb]uild/
 
+# Alternate local build output (e.g. dotnet build -o bin-build-check)
+**/bin-build-check/
+bin-build-check/
+
+# Compiled binaries (regenerate via dotnet build / publish)
+*.dll
+*.exe
+*.pdb
+
 # dotnet publish / custom output paths
 [Pp]ublish/
 [Oo]ut/

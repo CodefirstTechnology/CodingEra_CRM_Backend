@@ -149,6 +149,25 @@ namespace CRM.Controllers
             return Ok(result);
         }
 
+        /// <summary>Validates and persists valid import rows. Skips duplicate and invalid rows.</summary>
+        [HttpPost("import/commit")]
+        public async Task<IActionResult> CommitImport([FromQuery] int userId, [FromBody] LeadImportRequestDto dto)
+        {
+            if (dto?.Rows == null || dto.Rows.Count == 0)
+            {
+                return BadRequest("At least one import row is required.");
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            var result = await _leadImportService.CommitImportAsync(userId, dto.Rows);
+            return Ok(result);
+        }
+
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromQuery] int userId, [FromBody] LeadUpsertDto dto)
         {

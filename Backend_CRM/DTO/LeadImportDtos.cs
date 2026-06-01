@@ -43,4 +43,13 @@ namespace CRM.DTO
         public int DuplicateRows { get; set; }
         public List<LeadImportRowErrorDto> ValidationErrors { get; set; } = new();
     }
+
+    /// <summary>Result of persisting validated import rows into CRM.</summary>
+    public class LeadImportCommitResultDto
+    {
+        public int ImportedCount { get; set; }
+        public int DuplicateCount { get; set; }
+        public int InvalidCount { get; set; }
+        public List<LeadImportRowErrorDto> ValidationErrors { get; set; } = new();
+    }
 }
