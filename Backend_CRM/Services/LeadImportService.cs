@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
@@ -77,26 +78,35 @@ namespace CRM.Services
             foreach (var entry in classification.ValidRows)
             {
                 var row = entry.Row;
-                var orgName = row.Organization!.Trim();
-                var orgKey = orgName.ToLowerInvariant();
+                var orgName = row.Organization?.Trim() ?? string.Empty;
+                var organizationId = 0;
 
-                if (!orgByName.TryGetValue(orgKey, out var organizationId))
+                if (orgName.Length > 0)
                 {
-                    if (!pendingNewOrgs.TryGetValue(orgKey, out var pendingOrg))
+                    var orgKey = orgName.ToLowerInvariant();
+
+                    if (!orgByName.TryGetValue(orgKey, out organizationId))
                     {
-                        pendingOrg = BuildOrganization(row, orgName, masters);
-                        pendingNewOrgs[orgKey] = pendingOrg;
+                        if (!pendingNewOrgs.TryGetValue(orgKey, out var pendingOrg))
+                        {
+                            pendingOrg = BuildOrganization(row, orgName, masters);
+                            pendingNewOrgs[orgKey] = pendingOrg;
+                        }
+
+                        organizationId = 0;
                     }
 
-                    organizationId = 0;
+                    var leadWithOrg = BuildLead(row, organizationId, masters, userLookups, userId, now);
+                    leadsToInsert.Add(leadWithOrg);
+
+                    if (organizationId == 0 && pendingNewOrgs.TryGetValue(orgKey, out var linkedOrg))
+                    {
+                        leadWithOrg.Organization = linkedOrg;
+                    }
                 }
-
-                var lead = BuildLead(row, organizationId, masters, userLookups, userId, now);
-                leadsToInsert.Add(lead);
-
-                if (organizationId == 0 && pendingNewOrgs.TryGetValue(orgKey, out var linkedOrg))
+                else
                 {
-                    lead.Organization = linkedOrg;
+                    leadsToInsert.Add(BuildLead(row, 0, masters, userLookups, userId, now));
                 }
             }
 
@@ -433,29 +443,24 @@ namespace CRM.Services
 
             if (string.IsNullOrWhiteSpace(row.FirstName))
             {
-                errors.Add("First Name is required.");
+                errors.Add("First Name is required");
             }
 
             if (string.IsNullOrWhiteSpace(row.LastName))
             {
-                errors.Add("Last Name is required.");
+                errors.Add("Last Name is required");
             }
 
             if (string.IsNullOrWhiteSpace(row.Requirement))
             {
-                errors.Add("Requirement is required.");
+                errors.Add("Requirement is required");
             }
 
-            if (string.IsNullOrWhiteSpace(row.Organization))
-            {
-                errors.Add("Organization is required.");
-            }
+            errors.AddRange(ValidateMobileField(row.Mobile));
+            errors.AddRange(ValidateEmailField(row.Email));
 
-            if (string.IsNullOrWhiteSpace(row.Industry))
-            {
-                errors.Add("Industry is required.");
-            }
-            else if (!masters.Industries.ContainsKey(NormalizeKey(row.Industry)))
+            if (!string.IsNullOrWhiteSpace(row.Industry) &&
+                !masters.Industries.ContainsKey(NormalizeKey(row.Industry)))
             {
                 errors.Add("Invalid Industry");
             }
@@ -488,6 +493,42 @@ namespace CRM.Services
                 !masters.EmployeeCounts.ContainsKey(NormalizeKey(row.NoOfEmployees)))
             {
                 errors.Add("Invalid Employee Count");
+            }
+
+            return errors;
+        }
+
+        private static List<string> ValidateMobileField(string? mobile)
+        {
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(mobile))
+            {
+                errors.Add("Mobile is required");
+                return errors;
+            }
+
+            var trimmed = mobile.Trim();
+            if (!Regex.IsMatch(trimmed, @"^\d{10}$"))
+            {
+                errors.Add("Mobile must be exactly 10 digits");
+            }
+
+            return errors;
+        }
+
+        private static List<string> ValidateEmailField(string? email)
+        {
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                errors.Add("Email is required");
+                return errors;
+            }
+
+            var trimmed = email.Trim();
+            if (!Regex.IsMatch(trimmed, @"^[^\s@]+@[^\s@]+\.[^\s@]+$"))
+            {
+                errors.Add("Invalid Email");
             }
 
             return errors;

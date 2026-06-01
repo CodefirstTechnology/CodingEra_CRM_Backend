@@ -131,10 +131,31 @@ namespace CRM.Services
                     continue;
                 }
 
+                if (IsTemplateHintRow(rawRow))
+                {
+                    continue;
+                }
+
                 rows.Add(MapRow(values, columns, i + 1));
             }
 
             return rows;
+        }
+
+        private static bool IsTemplateHintRow(string[] cells)
+        {
+            var tokens = cells
+                .Select(NormalizeCell)
+                .Where(c => c.Length > 0)
+                .Select(c => c.ToLowerInvariant())
+                .ToList();
+
+            if (tokens.Count == 0)
+            {
+                return false;
+            }
+
+            return tokens.All(t => t is "required" or "optional");
         }
 
         private static LeadImportRowDto MapRow(
