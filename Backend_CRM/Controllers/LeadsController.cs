@@ -2,6 +2,7 @@ using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
 using CRM.models;
+using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,17 @@ namespace CRM.Controllers
     public class LeadsController : ControllerBase
     {
         private readonly TaskDbcontext _context;
+        private readonly ILeadImportService _leadImportService;
+        private readonly ILeadImportFileParser _leadImportFileParser;
 
-        public LeadsController(TaskDbcontext context)
+        public LeadsController(
+            TaskDbcontext context,
+            ILeadImportService leadImportService,
+            ILeadImportFileParser leadImportFileParser)
         {
             _context = context;
+            _leadImportService = leadImportService;
+            _leadImportFileParser = leadImportFileParser;
         }
 
         private static IQueryable<Lead> QueryWithMasters(IQueryable<Lead> q) =>
@@ -130,6 +138,88 @@ namespace CRM.Controllers
             await _context.Leads.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(await ReloadLeadAsync(entity.Id));
+        }
+
+        /// <summary>Validates import rows against CRM master data and duplicate rules. Does not persist leads.</summary>
+        [HttpPost("import")]
+        [Consumes("application/json", "multipart/form-data")]
+        [RequestSizeLimit(104_857_600)]
+        public async Task<IActionResult> ValidateImport([FromQuery] int userId)
+        {
+            _ = userId;
+            var resolved = await ResolveImportRowsAsync();
+            if (resolved.Error != null)
+            {
+                return resolved.Error;
+            }
+
+            var result = await _leadImportService.ValidateImportAsync(resolved.Rows!);
+            return Ok(result);
+        }
+
+        /// <summary>Validates and persists valid import rows. Skips duplicate and invalid rows.</summary>
+        [HttpPost("import/commit")]
+        [Consumes("application/json", "multipart/form-data")]
+        [RequestSizeLimit(104_857_600)]
+        public async Task<IActionResult> CommitImport([FromQuery] int userId)
+        {
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            var resolved = await ResolveImportRowsAsync();
+            if (resolved.Error != null)
+            {
+                return resolved.Error;
+            }
+
+            var result = await _leadImportService.CommitImportAsync(userId, resolved.Rows!);
+            return Ok(result);
+        }
+
+        private async Task<(IReadOnlyList<LeadImportRowDto>? Rows, IActionResult? Error)> ResolveImportRowsAsync()
+        {
+            if (Request.HasFormContentType)
+            {
+                var file = Request.Form.Files.GetFile("file") ?? Request.Form.Files.FirstOrDefault();
+                if (file == null || file.Length == 0)
+                {
+                    return (null, BadRequest("Import file is required."));
+                }
+
+                var fileName = file.FileName ?? string.Empty;
+                if (!fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
+                    && !fileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (null, BadRequest("Only .xlsx and .csv files are supported."));
+                }
+
+                try
+                {
+                    await using var stream = file.OpenReadStream();
+                    var rows = await _leadImportFileParser.ParseAsync(stream, fileName, HttpContext.RequestAborted);
+                    if (rows.Count == 0)
+                    {
+                        return (null, BadRequest("At least one import row is required."));
+                    }
+
+                    return (rows, null);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return (null, BadRequest(ex.Message));
+                }
+            }
+
+            var dto = await Request.ReadFromJsonAsync<LeadImportRequestDto>(HttpContext.RequestAborted);
+            if (dto?.Rows == null || dto.Rows.Count == 0)
+            {
+                return (null, BadRequest("At least one import row is required."));
+            }
+
+            return (dto.Rows, null);
         }
 
         [HttpPut("{id:int}")]
