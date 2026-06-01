@@ -11,6 +11,7 @@ namespace CRM.DTO
 
         public string Name { get; set; } = string.Empty;
         public string Website { get; set; } = string.Empty;
+        public string Gst { get; set; } = string.Empty;
         public decimal? AnnualRevenue { get; set; }
 
         /// <summary>FK to master industry; omit or null to clear. <c>0</c> is treated as unset.</summary>

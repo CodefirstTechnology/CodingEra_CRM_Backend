@@ -61,6 +61,7 @@ namespace CRM.DTO
         public decimal? AnnualRevenue { get; set; }
         public string Employees { get; set; } = string.Empty;
         public string Website { get; set; } = string.Empty;
+        public string Gst { get; set; } = string.Empty;
         public string Territory { get; set; } = string.Empty;
         public string Industry { get; set; } = string.Empty;
 
@@ -68,7 +69,7 @@ namespace CRM.DTO
         public int? DealStatusId { get; set; }
 
         /// <summary>Resolved to <see cref="DealStatusId"/> by master name when id is not set. Omit on PUT to leave status unchanged.</summary>
-        public string Status { get; set; } = "Quotation Shared";
+        public string Status { get; set; } = "Follow-Up Ongoing";
         public int? DealOwnerId { get; set; }
         public int? AssignedToUserId { get; set; }
         public string AssignedInitials { get; set; } = string.Empty;
@@ -187,6 +188,7 @@ namespace CRM.DTO
             AnnualRevenue = d.AnnualRevenue,
             Employees = d.Employees ?? string.Empty,
             Website = d.Website ?? string.Empty,
+            Gst = d.Gst ?? string.Empty,
             Territory = d.Territory ?? string.Empty,
             Industry = d.Industry ?? string.Empty,
             DealOwnerId = Fk(d.DealOwnerId),
@@ -213,6 +215,7 @@ namespace CRM.DTO
             e.AnnualRevenue = d.AnnualRevenue;
             e.Employees = d.Employees ?? string.Empty;
             e.Website = d.Website ?? string.Empty;
+            e.Gst = d.Gst ?? string.Empty;
             e.Territory = d.Territory ?? string.Empty;
             e.Industry = d.Industry ?? string.Empty;
             e.DealOwnerId = Fk(d.DealOwnerId);

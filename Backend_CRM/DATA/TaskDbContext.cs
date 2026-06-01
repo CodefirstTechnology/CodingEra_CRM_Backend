@@ -58,8 +58,32 @@ namespace CRM.DATA
 
         public DbSet<Email> Emails { get; set; }
 
+        public DbSet<Quotation> Quotations { get; set; }
+
+        public DbSet<QuotationLineItem> QuotationLineItems { get; set; }
+
+        public DbSet<QuotationSettings> QuotationSettings { get; set; }
+
+        public DbSet<QuotationFiscalSequence> QuotationFiscalSequences { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Quotation>()
+                .HasIndex(q => q.QuotationNumber);
+
+            modelBuilder.Entity<Quotation>()
+                .HasIndex(q => new { q.CompanyCode, q.FiscalYearLabel, q.SequenceNumber });
+
+            modelBuilder.Entity<QuotationFiscalSequence>()
+                .HasIndex(s => new { s.CompanyCode, s.FiscalYearLabel })
+                .IsUnique();
+
+            modelBuilder.Entity<QuotationLineItem>()
+                .HasOne(li => li.Quotation)
+                .WithMany(q => q.LineItems)
+                .HasForeignKey(li => li.QuotationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
@@ -761,6 +785,10 @@ namespace CRM.DATA
                                 em.CreatedAt = utc;
                                 em.UpdatedAt = utc;
                                 break;
+                            case Quotation qt:
+                                qt.CreatedAt = utc;
+                                qt.UpdatedAt = utc;
+                                break;
                         }
 
                         break;
@@ -810,6 +838,9 @@ namespace CRM.DATA
                                 break;
                             case Email em:
                                 em.UpdatedAt = utc;
+                                break;
+                            case Quotation qt:
+                                qt.UpdatedAt = utc;
                                 break;
                         }
 
