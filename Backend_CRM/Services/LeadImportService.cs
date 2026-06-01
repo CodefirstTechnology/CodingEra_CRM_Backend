@@ -457,7 +457,7 @@ namespace CRM.Services
             }
             else if (!masters.Industries.ContainsKey(NormalizeKey(row.Industry)))
             {
-                errors.Add("Industry not found");
+                errors.Add("Invalid Industry");
             }
 
             if (!string.IsNullOrWhiteSpace(row.Salutation) &&
