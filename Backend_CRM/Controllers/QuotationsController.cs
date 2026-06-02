@@ -1,0 +1,442 @@
+using CRM.DATA;
+using CRM.DTO;
+using CRM.Helpers;
+using CRM.models;
+using CRM.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace CRM.Controllers
+{
+    [Route("api/quotations")]
+    [ApiController]
+    public class QuotationsController : ControllerBase
+    {
+        private readonly TaskDbcontext _context;
+        private readonly IQuotationService _quotationService;
+
+        public QuotationsController(TaskDbcontext context, IQuotationService quotationService)
+        {
+            _context = context;
+            _quotationService = quotationService;
+        }
+
+        [HttpGet("settings")]
+        public async Task<IActionResult> GetSettings([FromQuery] int userId)
+        {
+            _ = userId;
+            return Ok(await _quotationService.GetSettingsAsync());
+        }
+
+        [HttpPut("settings")]
+        public async Task<IActionResult> UpdateSettings([FromQuery] int userId, [FromBody] QuotationSettingsDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+            return Ok(await _quotationService.UpdateSettingsAsync(dto));
+        }
+
+        [HttpGet("next-number")]
+        public async Task<IActionResult> GetNextNumber(
+            [FromQuery] int userId,
+            [FromQuery] string? companyCode = null,
+            [FromQuery] DateTime? asOf = null)
+        {
+            _ = userId;
+            return Ok(await _quotationService.PeekNextNumberAsync(companyCode, asOf));
+        }
+
+        [HttpGet("statuses")]
+        public IActionResult GetStatuses([FromQuery] int userId)
+        {
+            _ = userId;
+            return Ok(QuotationStatuses.All);
+        }
+
+        [HttpGet("item-grid/columns")]
+        public async Task<IActionResult> GetItemGridColumns([FromQuery] int userId)
+        {
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            return Ok(await _quotationService.GetGridColumnsForUserAsync(userId));
+        }
+
+        [HttpPut("item-grid/columns")]
+        public async Task<IActionResult> SaveItemGridColumns(
+            [FromQuery] int userId,
+            [FromBody] QuotationGridColumnsDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            return Ok(await _quotationService.SaveUserGridColumnsAsync(userId, dto));
+        }
+
+        [HttpGet("item-grid/defaults")]
+        public async Task<IActionResult> GetItemGridDefaults([FromQuery] int userId)
+        {
+            _ = userId;
+            return Ok(await _quotationService.GetGridDefaultColumnsAsync());
+        }
+
+        [HttpPut("item-grid/defaults")]
+        public async Task<IActionResult> SaveItemGridDefaults(
+            [FromQuery] int userId,
+            [FromBody] QuotationGridColumnsDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            if (adminErr != null)
+            {
+                return adminErr;
+            }
+
+            return Ok(await _quotationService.SaveGridDefaultColumnsAsync(userId, dto));
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int userId,
+            [FromQuery] string? status = null,
+            [FromQuery] int? dealId = null)
+        {
+            _ = userId;
+            IQueryable<Quotation> q = _context.Quotations.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var st = status.Trim();
+                q = q.Where(x => x.Status == st);
+            }
+
+            if (dealId is > 0)
+            {
+                q = q.Where(x => x.DealId == dealId);
+            }
+
+            var list = await q
+                .OrderByDescending(x => x.UpdatedAt)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.DealId,
+                    x.CustomerName,
+                    x.CompanyName,
+                    x.ContactPerson,
+                    x.MobileNumber,
+                    x.EmailAddress,
+                    x.ReferenceNumber,
+                    x.QuotationNumber,
+                    x.QuotationDate,
+                    x.Status,
+                    x.GrandTotal,
+                    x.CreatedAt,
+                    x.UpdatedAt,
+                })
+                .ToListAsync();
+
+            return Ok(list);
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
+        {
+            _ = userId;
+            var q = await LoadQuotationAsync(id);
+            if (q == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(QuotationMappingHelper.ToUpsertDto(q));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([FromQuery] int userId, [FromBody] QuotationUpsertDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var validation = ValidateRequired(dto);
+            if (validation != null)
+            {
+                return validation;
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+
+            var entity = new Quotation { Id = 0 };
+            QuotationMappingHelper.ApplyHeader(entity, dto);
+            if (string.IsNullOrWhiteSpace(entity.Status))
+            {
+                entity.Status = QuotationStatuses.Draft;
+            }
+
+            entity.QuotationDate = dto.QuotationDate.HasValue
+                ? DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value)
+                : DateTime.UtcNow;
+            var lines = QuotationMappingHelper.MapLineItems(0, dto.LineItems);
+            entity.LineItems = lines;
+            QuotationMappingHelper.ApplyTotals(entity, lines);
+
+            var assignNumber = string.IsNullOrWhiteSpace(dto.QuotationNumber);
+            if (assignNumber)
+            {
+                await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
+            }
+            else
+            {
+                if (entity.SequenceNumber <= 0 &&
+                    QuotationNumberHelper.TryParseSequenceFromNumber(entity.QuotationNumber, out var parsed))
+                {
+                    entity.SequenceNumber = parsed;
+                }
+
+                if (string.IsNullOrWhiteSpace(entity.FiscalYearLabel))
+                {
+                    entity.FiscalYearLabel = QuotationNumberHelper.FiscalYearLabelFor(entity.QuotationDate);
+                }
+            }
+
+            await _context.Quotations.AddAsync(entity);
+            await _context.SaveChangesAsync();
+
+            var saved = await LoadQuotationAsync(entity.Id);
+            return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromQuery] int userId, [FromBody] QuotationUpsertDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var validation = ValidateRequired(dto);
+            if (validation != null)
+            {
+                return validation;
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+
+            if (dto.Id != 0 && dto.Id != id)
+            {
+                return BadRequest("Route id and body id must match when the body includes an id.");
+            }
+
+            var existing = await _context.Quotations
+                .Include(x => x.LineItems)
+                .FirstOrDefaultAsync(x => x.Id == id);
+            if (existing == null)
+            {
+                return NotFound();
+            }
+
+            QuotationMappingHelper.ApplyHeader(existing, dto);
+            if (dto.QuotationDate.HasValue)
+            {
+                existing.QuotationDate = DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value);
+            }
+
+            _context.QuotationLineItems.RemoveRange(existing.LineItems);
+            var lines = QuotationMappingHelper.MapLineItems(id, dto.LineItems);
+            foreach (var line in lines)
+            {
+                line.QuotationId = id;
+                await _context.QuotationLineItems.AddAsync(line);
+            }
+
+            existing.LineItems = lines;
+            QuotationMappingHelper.ApplyTotals(existing, lines);
+
+            await _context.SaveChangesAsync();
+
+            var saved = await LoadQuotationAsync(id);
+            return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
+        }
+
+        [HttpPatch("{id:int}/status")]
+        public async Task<IActionResult> PatchStatus(
+            int id,
+            [FromQuery] int userId,
+            [FromBody] QuotationStatusPatchDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Status))
+            {
+                return BadRequest("status is required.");
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+
+            var existing = await _context.Quotations.FindAsync(id);
+            if (existing == null)
+            {
+                return NotFound();
+            }
+
+            var st = dto.Status.Trim();
+            if (!QuotationStatuses.All.Contains(st, StringComparer.OrdinalIgnoreCase))
+            {
+                return BadRequest($"Invalid status. Allowed: {string.Join(", ", QuotationStatuses.All)}");
+            }
+
+            existing.Status = QuotationStatuses.All.First(s =>
+                s.Equals(st, StringComparison.OrdinalIgnoreCase));
+            await _context.SaveChangesAsync();
+
+            var saved = await LoadQuotationAsync(id);
+            return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
+        }
+
+        [HttpPost("{id:int}/duplicate")]
+        public async Task<IActionResult> Duplicate(int id, [FromQuery] int userId)
+        {
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+
+            var source = await LoadQuotationAsync(id);
+            if (source == null)
+            {
+                return NotFound();
+            }
+
+            var dto = QuotationMappingHelper.ToUpsertDto(source);
+            dto.Id = 0;
+            dto.Status = QuotationStatuses.Draft;
+            dto.QuotationNumber = string.Empty;
+            dto.SequenceNumber = 0;
+            dto.QuotationDate = DateTime.UtcNow;
+            dto.FiscalYearLabel = QuotationNumberHelper.FiscalYearLabelFor(dto.QuotationDate.Value);
+            foreach (var line in dto.LineItems)
+            {
+                line.Id = 0;
+            }
+
+            var entity = new Quotation { Id = 0 };
+            QuotationMappingHelper.ApplyHeader(entity, dto);
+            entity.QuotationDate = dto.QuotationDate.HasValue
+                ? DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value)
+                : DateTime.UtcNow;
+            var lines = QuotationMappingHelper.MapLineItems(0, dto.LineItems);
+            entity.LineItems = lines;
+            await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
+
+            await _context.Quotations.AddAsync(entity);
+            await _context.SaveChangesAsync();
+
+            var saved = await LoadQuotationAsync(entity.Id);
+            return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id, [FromQuery] int userId)
+        {
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            var existing = await _context.Quotations
+                .Include(x => x.LineItems)
+                .FirstOrDefaultAsync(x => x.Id == id);
+            if (existing == null)
+            {
+                return NotFound();
+            }
+
+            _context.QuotationLineItems.RemoveRange(existing.LineItems);
+            _context.Quotations.Remove(existing);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Deleted successfully" });
+        }
+
+        private async Task<Quotation?> LoadQuotationAsync(int id) =>
+            await _context.Quotations.AsNoTracking()
+                .Include(x => x.LineItems.OrderBy(l => l.LineIndex))
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+        private static BadRequestObjectResult? ValidateRequired(QuotationUpsertDto dto)
+        {
+            var errors = new List<string>();
+            var hasName =
+                !string.IsNullOrWhiteSpace(dto.FirstName) && !string.IsNullOrWhiteSpace(dto.LastName)
+                || !string.IsNullOrWhiteSpace(dto.CustomerName);
+            if (!hasName)
+            {
+                errors.Add("First name and last name (or customer name) are required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.CompanyName))
+            {
+                errors.Add("Organization / company name is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.EmailAddress))
+            {
+                errors.Add("Email address is required.");
+            }
+
+            if (errors.Count == 0)
+            {
+                return null;
+            }
+
+            return new BadRequestObjectResult(new { message = string.Join(" ", errors), errors });
+        }
+    }
+}

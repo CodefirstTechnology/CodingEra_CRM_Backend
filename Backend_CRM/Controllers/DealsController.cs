@@ -264,7 +264,7 @@ namespace CRM.Controllers
             if (isCreate)
             {
                 var defaultStatus = await _context.DealStatuses.AsNoTracking()
-                    .Where(s => s.IsActive && s.Name == "Quotation Shared")
+                    .Where(s => s.IsActive && s.Name == "Follow-Up Ongoing")
                     .Select(s => new { s.Id, s.Name })
                     .FirstOrDefaultAsync()
                     ?? await _context.DealStatuses.AsNoTracking()
