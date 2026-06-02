@@ -34,6 +34,8 @@ builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(Dat
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IMasterDataAdminService, MasterDataAdminService>();
 builder.Services.AddScoped<IQuotationService, QuotationService>();
+builder.Services.AddScoped<ILeadImportService, LeadImportService>();
+builder.Services.AddScoped<ILeadImportFileParser, LeadImportFileParser>();
 
 var app = builder.Build();
 
