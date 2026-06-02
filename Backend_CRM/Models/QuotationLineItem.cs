@@ -26,6 +26,10 @@ namespace CRM.models
         [MaxLength(64)]
         public string ItemCode { get; set; } = string.Empty;
 
+        [Column("item_name")]
+        [MaxLength(256)]
+        public string ItemName { get; set; } = string.Empty;
+
         [Column("description")]
         public string Description { get; set; } = string.Empty;
 
@@ -36,10 +40,28 @@ namespace CRM.models
         [MaxLength(32)]
         public string Uom { get; set; } = string.Empty;
 
+        [Column("weight")]
+        public decimal Weight { get; set; }
+
+        [Column("unit_weight")]
+        public decimal UnitWeight { get; set; }
+
         [Column("rate")]
         public decimal Rate { get; set; }
 
+        [Column("discount_percent")]
+        public decimal DiscountPercent { get; set; }
+
+        [Column("gst_percent")]
+        public decimal GstPercent { get; set; }
+
         [Column("amount")]
         public decimal Amount { get; set; }
+
+        [Column("tax_amount")]
+        public decimal TaxAmount { get; set; }
+
+        [Column("line_total")]
+        public decimal LineTotal { get; set; }
     }
 }

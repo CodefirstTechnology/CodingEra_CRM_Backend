@@ -130,6 +130,18 @@ namespace CRM.models
         [Column("grand_total")]
         public decimal GrandTotal { get; set; }
 
+        [Column("subtotal")]
+        public decimal Subtotal { get; set; }
+
+        [Column("tax_total")]
+        public decimal TaxTotal { get; set; }
+
+        [Column("total_quantity")]
+        public decimal TotalQuantity { get; set; }
+
+        [Column("total_weight")]
+        public decimal TotalWeight { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 

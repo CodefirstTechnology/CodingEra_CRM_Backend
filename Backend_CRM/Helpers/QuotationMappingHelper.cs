@@ -66,19 +66,32 @@ namespace CRM.Helpers
             foreach (var dto in items.OrderBy(x => x.LineIndex).ThenBy(x => x.Id))
             {
                 var qty = dto.Quantity <= 0 ? 1 : dto.Quantity;
-                var rate = dto.Rate;
-                var amount = dto.Amount > 0 ? dto.Amount : Math.Round(qty * rate, 2, MidpointRounding.AwayFromZero);
+                var rate = dto.Rate < 0 ? 0 : dto.Rate;
+                var weight = dto.Weight < 0 ? 0 : dto.Weight;
+                var unitWeight = dto.UnitWeight < 0 ? 0 : dto.UnitWeight;
+                var disc = dto.DiscountPercent < 0 ? 0 : dto.DiscountPercent;
+                var gst = dto.GstPercent < 0 ? 0 : dto.GstPercent;
+
+                var calc = QuotationLineCalculator.CalculateLine(qty, rate, disc, gst, weight, unitWeight);
+
                 list.Add(new QuotationLineItem
                 {
                     Id = 0,
                     QuotationId = quotationId,
-                    LineIndex = dto.LineIndex > 0 ? dto.LineIndex : idx,
+                    LineIndex = dto.LineIndex >= 0 ? dto.LineIndex : idx,
                     ItemCode = (dto.ItemCode ?? string.Empty).Trim(),
+                    ItemName = (dto.ItemName ?? string.Empty).Trim(),
                     Description = (dto.Description ?? string.Empty).Trim(),
                     Quantity = qty,
                     Uom = (dto.Uom ?? string.Empty).Trim(),
+                    Weight = weight,
+                    UnitWeight = unitWeight,
                     Rate = rate,
-                    Amount = amount,
+                    DiscountPercent = disc,
+                    GstPercent = gst,
+                    Amount = calc.Amount,
+                    TaxAmount = calc.TaxAmount,
+                    LineTotal = calc.LineTotal,
                 });
                 idx++;
             }
@@ -86,11 +99,30 @@ namespace CRM.Helpers
             return list;
         }
 
-        public static decimal ComputeGrandTotal(IEnumerable<QuotationLineItem> lines) =>
-            lines.Sum(l => l.Amount);
+        public static QuotationLineCalculator.QuotationTotals ComputeTotals(IEnumerable<QuotationLineItem> lines)
+        {
+            var rows = lines.Select(l =>
+            {
+                var calc = QuotationLineCalculator.CalculateLine(
+                    l.Quantity, l.Rate, l.DiscountPercent, l.GstPercent, l.Weight, l.UnitWeight);
+                return (l.Quantity, calc);
+            });
+            return QuotationLineCalculator.AggregateLines(rows);
+        }
+
+        public static void ApplyTotals(Quotation entity, IEnumerable<QuotationLineItem> lines)
+        {
+            var totals = ComputeTotals(lines);
+            entity.Subtotal = totals.Subtotal;
+            entity.TaxTotal = totals.TaxTotal;
+            entity.GrandTotal = totals.GrandTotal;
+            entity.TotalQuantity = totals.TotalQuantity;
+            entity.TotalWeight = totals.TotalWeight;
+        }
 
         public static QuotationUpsertDto ToUpsertDto(Quotation q)
         {
+            var totals = ComputeTotals(q.LineItems);
             return new QuotationUpsertDto
             {
                 Id = q.Id,
@@ -122,18 +154,35 @@ namespace CRM.Helpers
                 QuotationDate = q.QuotationDate,
                 Status = q.Status,
                 Remarks = q.Remarks,
+                Subtotal = totals.Subtotal,
+                TaxTotal = totals.TaxTotal,
+                GrandTotal = totals.GrandTotal,
+                TotalQuantity = totals.TotalQuantity,
+                TotalWeight = totals.TotalWeight,
                 LineItems = q.LineItems
                     .OrderBy(l => l.LineIndex)
-                    .Select(l => new QuotationLineItemDto
+                    .Select(l =>
                     {
-                        Id = l.Id,
-                        LineIndex = l.LineIndex,
-                        ItemCode = l.ItemCode,
-                        Description = l.Description,
-                        Quantity = l.Quantity,
-                        Uom = l.Uom,
-                        Rate = l.Rate,
-                        Amount = l.Amount,
+                        var calc = QuotationLineCalculator.CalculateLine(
+                            l.Quantity, l.Rate, l.DiscountPercent, l.GstPercent, l.Weight, l.UnitWeight);
+                        return new QuotationLineItemDto
+                        {
+                            Id = l.Id,
+                            LineIndex = l.LineIndex,
+                            ItemCode = l.ItemCode,
+                            ItemName = l.ItemName,
+                            Description = l.Description,
+                            Quantity = l.Quantity,
+                            Uom = l.Uom,
+                            Weight = l.Weight,
+                            UnitWeight = l.UnitWeight,
+                            Rate = l.Rate,
+                            DiscountPercent = l.DiscountPercent,
+                            GstPercent = l.GstPercent,
+                            Amount = calc.Amount,
+                            TaxAmount = calc.TaxAmount,
+                            LineTotal = calc.LineTotal,
+                        };
                     })
                     .ToList(),
             };

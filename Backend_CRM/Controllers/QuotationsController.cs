@@ -63,6 +63,63 @@ namespace CRM.Controllers
             return Ok(QuotationStatuses.All);
         }
 
+        [HttpGet("item-grid/columns")]
+        public async Task<IActionResult> GetItemGridColumns([FromQuery] int userId)
+        {
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            return Ok(await _quotationService.GetGridColumnsForUserAsync(userId));
+        }
+
+        [HttpPut("item-grid/columns")]
+        public async Task<IActionResult> SaveItemGridColumns(
+            [FromQuery] int userId,
+            [FromBody] QuotationGridColumnsDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            return Ok(await _quotationService.SaveUserGridColumnsAsync(userId, dto));
+        }
+
+        [HttpGet("item-grid/defaults")]
+        public async Task<IActionResult> GetItemGridDefaults([FromQuery] int userId)
+        {
+            _ = userId;
+            return Ok(await _quotationService.GetGridDefaultColumnsAsync());
+        }
+
+        [HttpPut("item-grid/defaults")]
+        public async Task<IActionResult> SaveItemGridDefaults(
+            [FromQuery] int userId,
+            [FromBody] QuotationGridColumnsDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            if (adminErr != null)
+            {
+                return adminErr;
+            }
+
+            return Ok(await _quotationService.SaveGridDefaultColumnsAsync(userId, dto));
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] int userId,
@@ -154,7 +211,7 @@ namespace CRM.Controllers
                 : DateTime.UtcNow;
             var lines = QuotationMappingHelper.MapLineItems(0, dto.LineItems);
             entity.LineItems = lines;
-            entity.GrandTotal = QuotationMappingHelper.ComputeGrandTotal(lines);
+            QuotationMappingHelper.ApplyTotals(entity, lines);
 
             var assignNumber = string.IsNullOrWhiteSpace(dto.QuotationNumber);
             if (assignNumber)
@@ -232,7 +289,7 @@ namespace CRM.Controllers
             }
 
             existing.LineItems = lines;
-            existing.GrandTotal = QuotationMappingHelper.ComputeGrandTotal(lines);
+            QuotationMappingHelper.ApplyTotals(existing, lines);
 
             await _context.SaveChangesAsync();
 

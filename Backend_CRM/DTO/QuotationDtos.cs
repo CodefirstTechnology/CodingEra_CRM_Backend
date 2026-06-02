@@ -21,11 +21,42 @@ namespace CRM.DTO
         public int Id { get; set; }
         public int LineIndex { get; set; }
         public string ItemCode { get; set; } = string.Empty;
+        public string ItemName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public decimal Quantity { get; set; } = 1;
         public string Uom { get; set; } = string.Empty;
+        public decimal Weight { get; set; }
+        public decimal UnitWeight { get; set; }
         public decimal Rate { get; set; }
+        public decimal DiscountPercent { get; set; }
+        public decimal GstPercent { get; set; }
         public decimal Amount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal LineTotal { get; set; }
+    }
+
+    public class QuotationGridColumnDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public bool Visible { get; set; } = true;
+        public int Order { get; set; }
+        public int Width { get; set; } = 100;
+        public bool Editable { get; set; } = true;
+    }
+
+    public class QuotationGridColumnsDto
+    {
+        public List<QuotationGridColumnDto> Columns { get; set; } = new();
+    }
+
+    public class QuotationTotalsDto
+    {
+        public decimal Subtotal { get; set; }
+        public decimal TaxTotal { get; set; }
+        public decimal GrandTotal { get; set; }
+        public decimal TotalQuantity { get; set; }
+        public decimal TotalWeight { get; set; }
     }
 
     public class QuotationUpsertDto
@@ -59,6 +90,11 @@ namespace CRM.DTO
         public DateTime? QuotationDate { get; set; }
         public string Status { get; set; } = CRM.models.QuotationStatuses.Draft;
         public string Remarks { get; set; } = string.Empty;
+        public decimal Subtotal { get; set; }
+        public decimal TaxTotal { get; set; }
+        public decimal GrandTotal { get; set; }
+        public decimal TotalQuantity { get; set; }
+        public decimal TotalWeight { get; set; }
         public List<QuotationLineItemDto> LineItems { get; set; } = new();
     }
 

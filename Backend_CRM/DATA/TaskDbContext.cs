@@ -66,6 +66,10 @@ namespace CRM.DATA
 
         public DbSet<QuotationFiscalSequence> QuotationFiscalSequences { get; set; }
 
+        public DbSet<QuotationItemGridDefault> QuotationItemGridDefaults { get; set; }
+
+        public DbSet<QuotationItemGridUserPreference> QuotationItemGridUserPreferences { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Quotation>()

@@ -12,6 +12,10 @@ namespace CRM.Services
         Task<QuotationSettingsDto> UpdateSettingsAsync(QuotationSettingsDto dto, CancellationToken ct = default);
         Task<QuotationNextNumberDto> PeekNextNumberAsync(string? companyCode, DateTime? asOf, CancellationToken ct = default);
         Task ReserveNextNumberAsync(Quotation entity, bool forceNewSequence, CancellationToken ct = default);
+        Task<QuotationGridColumnsDto> GetGridColumnsForUserAsync(int userId, CancellationToken ct = default);
+        Task<QuotationGridColumnsDto> SaveUserGridColumnsAsync(int userId, QuotationGridColumnsDto dto, CancellationToken ct = default);
+        Task<QuotationGridColumnsDto> GetGridDefaultColumnsAsync(CancellationToken ct = default);
+        Task<QuotationGridColumnsDto> SaveGridDefaultColumnsAsync(int adminUserId, QuotationGridColumnsDto dto, CancellationToken ct = default);
     }
 
     public class QuotationService : IQuotationService
@@ -79,7 +83,7 @@ namespace CRM.Services
 
             if (entity.SequenceNumber > 0 && !string.IsNullOrWhiteSpace(entity.QuotationNumber) && !forceNewSequence)
             {
-                entity.GrandTotal = QuotationMappingHelper.ComputeGrandTotal(entity.LineItems);
+                QuotationMappingHelper.ApplyTotals(entity, entity.LineItems);
                 return;
             }
 
@@ -90,7 +94,96 @@ namespace CRM.Services
                 entity.DocumentTypeCode,
                 entity.FiscalYearLabel,
                 entity.SequenceNumber);
-            entity.GrandTotal = QuotationMappingHelper.ComputeGrandTotal(entity.LineItems);
+            QuotationMappingHelper.ApplyTotals(entity, entity.LineItems);
+        }
+
+        public async Task<QuotationGridColumnsDto> GetGridColumnsForUserAsync(int userId, CancellationToken ct = default)
+        {
+            var userPref = await _db.QuotationItemGridUserPreferences
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.UserId == userId, ct);
+
+            if (userPref != null && !string.IsNullOrWhiteSpace(userPref.ColumnsJson))
+            {
+                return new QuotationGridColumnsDto
+                {
+                    Columns = QuotationGridColumnHelper.ParseColumns(userPref.ColumnsJson),
+                };
+            }
+
+            return await GetGridDefaultColumnsAsync(ct);
+        }
+
+        public async Task<QuotationGridColumnsDto> SaveUserGridColumnsAsync(
+            int userId,
+            QuotationGridColumnsDto dto,
+            CancellationToken ct = default)
+        {
+            var merged = QuotationGridColumnHelper.MergeWithDefaults(dto.Columns ?? new List<QuotationGridColumnDto>());
+            var json = QuotationGridColumnHelper.SerializeColumns(merged);
+
+            var row = await _db.QuotationItemGridUserPreferences.FirstOrDefaultAsync(p => p.UserId == userId, ct);
+            if (row == null)
+            {
+                row = new QuotationItemGridUserPreference { UserId = userId };
+                _db.QuotationItemGridUserPreferences.Add(row);
+            }
+
+            row.ColumnsJson = json;
+            row.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+
+            return new QuotationGridColumnsDto { Columns = merged };
+        }
+
+        public async Task<QuotationGridColumnsDto> GetGridDefaultColumnsAsync(CancellationToken ct = default)
+        {
+            var row = await EnsureGridDefaultRowAsync(ct);
+            return new QuotationGridColumnsDto
+            {
+                Columns = QuotationGridColumnHelper.ParseColumns(row.ColumnsJson),
+            };
+        }
+
+        public async Task<QuotationGridColumnsDto> SaveGridDefaultColumnsAsync(
+            int adminUserId,
+            QuotationGridColumnsDto dto,
+            CancellationToken ct = default)
+        {
+            var merged = QuotationGridColumnHelper.MergeWithDefaults(dto.Columns ?? new List<QuotationGridColumnDto>());
+            var json = QuotationGridColumnHelper.SerializeColumns(merged);
+            var row = await EnsureGridDefaultRowAsync(ct);
+            row.ColumnsJson = json;
+            row.UpdatedAt = DateTime.UtcNow;
+            row.UpdatedBy = adminUserId;
+            await _db.SaveChangesAsync(ct);
+            return new QuotationGridColumnsDto { Columns = merged };
+        }
+
+        private async Task<QuotationItemGridDefault> EnsureGridDefaultRowAsync(CancellationToken ct)
+        {
+            var row = await _db.QuotationItemGridDefaults.FirstOrDefaultAsync(d => d.Id == 1, ct);
+            if (row != null)
+            {
+                if (string.IsNullOrWhiteSpace(row.ColumnsJson))
+                {
+                    row.ColumnsJson = QuotationGridColumnDefaults.DefaultColumnsJson;
+                    row.UpdatedAt = DateTime.UtcNow;
+                    await _db.SaveChangesAsync(ct);
+                }
+
+                return row;
+            }
+
+            row = new QuotationItemGridDefault
+            {
+                Id = 1,
+                ColumnsJson = QuotationGridColumnDefaults.DefaultColumnsJson,
+                UpdatedAt = DateTime.UtcNow,
+            };
+            _db.QuotationItemGridDefaults.Add(row);
+            await _db.SaveChangesAsync(ct);
+            return row;
         }
 
         private async Task<QuotationSettings> EnsureSettingsRowAsync(CancellationToken ct)
