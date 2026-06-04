@@ -124,10 +124,18 @@ namespace CRM.Controllers
         public async Task<IActionResult> GetAll(
             [FromQuery] int userId,
             [FromQuery] string? status = null,
-            [FromQuery] int? dealId = null)
+            [FromQuery] int? dealId = null,
+            [FromQuery] string? search = null)
         {
-            _ = userId;
-            IQueryable<Quotation> q = _context.Quotations.AsNoTracking();
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
+            {
+                return ctxErr;
+            }
+
+            IQueryable<Quotation> q = QuotationAccessHelper.ApplyVisibilityFilter(
+                _context.Quotations.AsNoTracking(),
+                ctx!);
 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -139,6 +147,10 @@ namespace CRM.Controllers
             {
                 q = q.Where(x => x.DealId == dealId);
             }
+
+            q = QuotationAccessHelper.ApplySearchFilter(q, search);
+
+            var includeCreator = ctx!.CanViewAll;
 
             var list = await q
                 .OrderByDescending(x => x.UpdatedAt)
@@ -156,6 +168,13 @@ namespace CRM.Controllers
                     x.QuotationDate,
                     x.Status,
                     x.GrandTotal,
+                    x.CreatedBy,
+                    CreatedByName = includeCreator
+                        ? _context.Users
+                            .Where(u => u.Id == x.CreatedBy)
+                            .Select(u => u.FullName)
+                            .FirstOrDefault()
+                        : null,
                     x.CreatedAt,
                     x.UpdatedAt,
                 })
@@ -167,7 +186,18 @@ namespace CRM.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
         {
-            _ = userId;
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
+            {
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
+            }
+
             var q = await LoadQuotationAsync(id);
             if (q == null)
             {
@@ -213,24 +243,8 @@ namespace CRM.Controllers
             entity.LineItems = lines;
             QuotationMappingHelper.ApplyTotals(entity, lines);
 
-            var assignNumber = string.IsNullOrWhiteSpace(dto.QuotationNumber);
-            if (assignNumber)
-            {
-                await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
-            }
-            else
-            {
-                if (entity.SequenceNumber <= 0 &&
-                    QuotationNumberHelper.TryParseSequenceFromNumber(entity.QuotationNumber, out var parsed))
-                {
-                    entity.SequenceNumber = parsed;
-                }
-
-                if (string.IsNullOrWhiteSpace(entity.FiscalYearLabel))
-                {
-                    entity.FiscalYearLabel = QuotationNumberHelper.FiscalYearLabelFor(entity.QuotationDate);
-                }
-            }
+            // Always assign on create — the UI preview number is not reserved until save.
+            await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
 
             await _context.Quotations.AddAsync(entity);
             await _context.SaveChangesAsync();
@@ -253,10 +267,16 @@ namespace CRM.Controllers
                 return validation;
             }
 
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
@@ -308,10 +328,16 @@ namespace CRM.Controllers
                 return BadRequest("status is required.");
             }
 
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
@@ -339,10 +365,16 @@ namespace CRM.Controllers
         [HttpPost("{id:int}/duplicate")]
         public async Task<IActionResult> Duplicate(int id, [FromQuery] int userId)
         {
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
@@ -384,10 +416,16 @@ namespace CRM.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id, [FromQuery] int userId)
         {
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             var existing = await _context.Quotations
