@@ -154,6 +154,39 @@ namespace CRM.Controllers
             }
         }
 
+        [HttpPut("reorder")]
+        public async Task<IActionResult> Reorder(
+            string entity,
+            [FromQuery] int userId,
+            [FromBody] DealStatusReorderDto dto)
+        {
+            if (dto == null)
+            {
+                return BadRequest();
+            }
+
+            if (!string.Equals(entity, "deal-statuses", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound($"Reorder is not supported for '{entity}'.");
+            }
+
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            if (adminErr != null)
+            {
+                return adminErr;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+
+            var (rows, error) = await _masterData.ReorderDealStatusesAsync(dto);
+            if (error != null)
+            {
+                return BadRequest(error);
+            }
+
+            return Ok(rows);
+        }
+
         [HttpPatch("{id:int}/active")]
         public async Task<IActionResult> PatchActive(
             string entity,

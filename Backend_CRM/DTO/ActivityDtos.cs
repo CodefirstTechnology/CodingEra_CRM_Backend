@@ -54,6 +54,9 @@ namespace CRM.DTO
         public string? Status { get; set; }
 
         public string? Comment { get; set; }
+
+        /// <summary>Required when moving to Lead Closed - Lost.</summary>
+        public string? LostReason { get; set; }
     }
 
     public class DealStageHistoryDto

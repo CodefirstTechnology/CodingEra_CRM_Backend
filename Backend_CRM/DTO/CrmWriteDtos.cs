@@ -12,6 +12,15 @@ namespace CRM.DTO
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
+
+        /// <summary>Deal pipeline order (<c>deal-statuses</c> only).</summary>
+        public int? SortOrder { get; set; }
+
+        /// <summary>Terminal won flag (<c>deal-statuses</c> only).</summary>
+        public bool? IsWon { get; set; }
+
+        /// <summary>Terminal lost flag (<c>deal-statuses</c> only).</summary>
+        public bool? IsLost { get; set; }
     }
 
     /// <summary>PATCH body for toggling <c>is_active</c> on master-data rows.</summary>
@@ -28,6 +37,20 @@ namespace CRM.DTO
         public string Description { get; set; } = string.Empty;
         public bool IsActive { get; set; }
         public DateTime? CreatedAt { get; set; }
+        public int? SortOrder { get; set; }
+        public bool? IsWon { get; set; }
+        public bool? IsLost { get; set; }
+    }
+
+    public class DealStatusReorderItemDto
+    {
+        public int Id { get; set; }
+        public int SortOrder { get; set; }
+    }
+
+    public class DealStatusReorderDto
+    {
+        public List<DealStatusReorderItemDto> Items { get; set; } = new();
     }
 
     /// <summary>POST/PUT <c>/api/contacts</c>. Server sets id and lastModified.</summary>
@@ -78,6 +101,9 @@ namespace CRM.DTO
         public int? ProbabilityPercent { get; set; }
         public string NextStep { get; set; } = string.Empty;
         public DateTime? NextFollowUpDate { get; set; }
+
+        /// <summary>Set when closing a deal as lost.</summary>
+        public string? LostReason { get; set; }
     }
 
     /// <summary>POST <c>AddNote</c> / PUT <c>UpdateNote</c>. Server sets id, createdAt, updatedAt.</summary>
@@ -199,6 +225,7 @@ namespace CRM.DTO
             ProbabilityPercent = d.ProbabilityPercent,
             NextStep = d.NextStep ?? string.Empty,
             NextFollowUpDate = d.NextFollowUpDate,
+            LostReason = d.LostReason ?? string.Empty,
         };
 
         public static void Apply(Deal e, DealUpsertDto d)
@@ -226,6 +253,10 @@ namespace CRM.DTO
             e.ProbabilityPercent = d.ProbabilityPercent;
             e.NextStep = d.NextStep ?? string.Empty;
             e.NextFollowUpDate = d.NextFollowUpDate;
+            if (d.LostReason != null)
+            {
+                e.LostReason = d.LostReason;
+            }
         }
 
         public static Note ToNote(NoteUpsertDto d, int id = 0) => new()

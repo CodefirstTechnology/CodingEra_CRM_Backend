@@ -152,12 +152,18 @@ namespace CRM.Controllers
 
             var includeCreator = ctx!.CanViewAll;
 
-            var list = await q
+            var rows = await q
                 .OrderByDescending(x => x.UpdatedAt)
                 .Select(x => new
                 {
                     x.Id,
                     x.DealId,
+                    DealStatus = x.DealId != null
+                        ? _context.Deals
+                            .Where(d => d.Id == x.DealId)
+                            .Select(d => d.Status)
+                            .FirstOrDefault()
+                        : null,
                     x.CustomerName,
                     x.CompanyName,
                     x.ContactPerson,
@@ -179,6 +185,30 @@ namespace CRM.Controllers
                     x.UpdatedAt,
                 })
                 .ToListAsync();
+
+            var pipeline = await QuotationDealLockHelper.LoadActivePipelineAsync(_context);
+            var list = rows.Select(x => new
+            {
+                x.Id,
+                x.DealId,
+                DealClosed = x.DealId is > 0
+                    && !string.IsNullOrWhiteSpace(x.DealStatus)
+                    && DealStageValidationHelper.IsClosed(x.DealStatus, pipeline),
+                x.CustomerName,
+                x.CompanyName,
+                x.ContactPerson,
+                x.MobileNumber,
+                x.EmailAddress,
+                x.ReferenceNumber,
+                x.QuotationNumber,
+                x.QuotationDate,
+                x.Status,
+                x.GrandTotal,
+                x.CreatedBy,
+                x.CreatedByName,
+                x.CreatedAt,
+                x.UpdatedAt,
+            });
 
             return Ok(list);
         }
@@ -204,7 +234,9 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            return Ok(QuotationMappingHelper.ToUpsertDto(q));
+            var response = QuotationMappingHelper.ToUpsertDto(q);
+            response.DealClosed = await QuotationDealLockHelper.IsDealClosedAsync(_context, response.DealId);
+            return Ok(response);
         }
 
         [HttpPost]
@@ -228,6 +260,12 @@ namespace CRM.Controllers
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
+
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(dto.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
+            }
 
             var entity = new Quotation { Id = 0 };
             QuotationMappingHelper.ApplyHeader(entity, dto);
@@ -294,6 +332,12 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(existing.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
+            }
+
             QuotationMappingHelper.ApplyHeader(existing, dto);
             if (dto.QuotationDate.HasValue)
             {
@@ -348,6 +392,12 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(existing.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
+            }
+
             var st = dto.Status.Trim();
             if (!QuotationStatuses.All.Contains(st, StringComparer.OrdinalIgnoreCase))
             {
@@ -386,6 +436,11 @@ namespace CRM.Controllers
             }
 
             var dto = QuotationMappingHelper.ToUpsertDto(source);
+            if (await QuotationDealLockHelper.IsDealClosedAsync(_context, source.DealId))
+            {
+                dto.DealId = null;
+            }
+
             dto.Id = 0;
             dto.Status = QuotationStatuses.Draft;
             dto.QuotationNumber = string.Empty;
@@ -436,11 +491,27 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(existing.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
+            }
+
             _context.QuotationLineItems.RemoveRange(existing.LineItems);
             _context.Quotations.Remove(existing);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Deleted successfully" });
+        }
+
+        private async Task<IActionResult?> EnsureLinkedDealAllowsQuotationEditAsync(int? dealId)
+        {
+            if (await QuotationDealLockHelper.IsDealClosedAsync(_context, dealId))
+            {
+                return BadRequest(QuotationDealLockHelper.ClosedDealMessage);
+            }
+
+            return null;
         }
 
         private async Task<Quotation?> LoadQuotationAsync(int id) =>

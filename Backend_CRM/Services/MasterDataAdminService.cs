@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,6 +29,10 @@ namespace CRM.Services
             string entity,
             int id,
             bool isActive,
+            CancellationToken ct = default);
+
+        Task<(IReadOnlyList<MasterDataRowDto>? Rows, string? Error)> ReorderDealStatusesAsync(
+            DealStatusReorderDto dto,
             CancellationToken ct = default);
     }
 
@@ -59,7 +64,7 @@ namespace CRM.Services
             {
                 "salutations" => ListCore(_context.Salutations, activeOnly, ct),
                 "lead-statuses" => ListCore(_context.LeadStatuses, activeOnly, ct),
-                "deal-statuses" => ListCore(_context.DealStatuses, activeOnly, ct),
+                "deal-statuses" => ListDealStatusesAsync(activeOnly, ct),
                 "request-types" => ListCore(_context.RequestTypes, activeOnly, ct),
                 "industries" => ListCore(_context.Industries, activeOnly, ct),
                 "employee-counts" => ListCore(_context.EmployeeCounts, activeOnly, ct),
@@ -72,7 +77,7 @@ namespace CRM.Services
             {
                 "salutations" => GetByIdCore(_context.Salutations, id, ct),
                 "lead-statuses" => GetByIdCore(_context.LeadStatuses, id, ct),
-                "deal-statuses" => GetByIdCore(_context.DealStatuses, id, ct),
+                "deal-statuses" => GetDealStatusByIdAsync(id, ct),
                 "request-types" => GetByIdCore(_context.RequestTypes, id, ct),
                 "industries" => GetByIdCore(_context.Industries, id, ct),
                 "employee-counts" => GetByIdCore(_context.EmployeeCounts, id, ct),
@@ -88,7 +93,7 @@ namespace CRM.Services
             {
                 "salutations" => CreateCore(_context.Salutations, () => new Salutation(), dto, ct),
                 "lead-statuses" => CreateCore(_context.LeadStatuses, () => new LeadStatus(), dto, ct),
-                "deal-statuses" => CreateCore(_context.DealStatuses, () => new DealStatus(), dto, ct),
+                "deal-statuses" => CreateDealStatusAsync(dto, ct),
                 "request-types" => CreateCore(_context.RequestTypes, () => new RequestType(), dto, ct),
                 "industries" => CreateCore(_context.Industries, () => new Industry(), dto, ct),
                 "employee-counts" => CreateCore(_context.EmployeeCounts, () => new EmployeeCount(), dto, ct),
@@ -105,7 +110,7 @@ namespace CRM.Services
             {
                 "salutations" => UpdateCore(_context.Salutations, id, dto, ct),
                 "lead-statuses" => UpdateCore(_context.LeadStatuses, id, dto, ct),
-                "deal-statuses" => UpdateCore(_context.DealStatuses, id, dto, ct),
+                "deal-statuses" => UpdateDealStatusAsync(id, dto, ct),
                 "request-types" => UpdateCore(_context.RequestTypes, id, dto, ct),
                 "industries" => UpdateCore(_context.Industries, id, dto, ct),
                 "employee-counts" => UpdateCore(_context.EmployeeCounts, id, dto, ct),
@@ -122,7 +127,7 @@ namespace CRM.Services
             {
                 "salutations" => PatchActiveCore(_context.Salutations, id, isActive, ct),
                 "lead-statuses" => PatchActiveCore(_context.LeadStatuses, id, isActive, ct),
-                "deal-statuses" => PatchActiveCore(_context.DealStatuses, id, isActive, ct),
+                "deal-statuses" => PatchDealStatusActiveAsync(id, isActive, ct),
                 "request-types" => PatchActiveCore(_context.RequestTypes, id, isActive, ct),
                 "industries" => PatchActiveCore(_context.Industries, id, isActive, ct),
                 "employee-counts" => PatchActiveCore(_context.EmployeeCounts, id, isActive, ct),
@@ -254,6 +259,155 @@ namespace CRM.Services
             existing.IsActive = isActive;
             await _context.SaveChangesAsync(ct);
             return (ToDto(existing), false);
+        }
+
+        public async Task<(IReadOnlyList<MasterDataRowDto>? Rows, string? Error)> ReorderDealStatusesAsync(
+            DealStatusReorderDto dto,
+            CancellationToken ct = default)
+        {
+            if (dto.Items == null || dto.Items.Count == 0)
+            {
+                return (null, "At least one item is required.");
+            }
+
+            var ids = dto.Items.Select(i => i.Id).Distinct().ToList();
+            var rows = await _context.DealStatuses.Where(s => ids.Contains(s.Id)).ToListAsync(ct);
+            if (rows.Count != ids.Count)
+            {
+                return (null, "One or more deal statuses were not found.");
+            }
+
+            foreach (var item in dto.Items)
+            {
+                var row = rows.First(r => r.Id == item.Id);
+                row.SortOrder = item.SortOrder;
+            }
+
+            await _context.SaveChangesAsync(ct);
+            var ordered = await ListDealStatusesAsync(activeOnly: false, ct);
+            return (ordered, null);
+        }
+
+        private async Task<IReadOnlyList<MasterDataRowDto>> ListDealStatusesAsync(bool activeOnly, CancellationToken ct)
+        {
+            var q = _context.DealStatuses.AsNoTracking();
+            if (activeOnly)
+            {
+                q = q.Where(x => x.IsActive);
+            }
+
+            return await q
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Id)
+                .Select(x => new MasterDataRowDto
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Description = x.Description,
+                    IsActive = x.IsActive,
+                    CreatedAt = x.CreatedAt == default ? null : x.CreatedAt,
+                    SortOrder = x.SortOrder,
+                    IsWon = x.IsWon,
+                    IsLost = x.IsLost,
+                })
+                .ToListAsync(ct);
+        }
+
+        private async Task<MasterDataRowDto?> GetDealStatusByIdAsync(int id, CancellationToken ct)
+        {
+            var row = await _context.DealStatuses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+            return row == null ? null : DealStatusMasterHelper.ToDto(row);
+        }
+
+        private async Task<(MasterDataRowDto? Row, string? Error)> CreateDealStatusAsync(
+            MasterDataUpsertDto dto,
+            CancellationToken ct)
+        {
+            var name = (dto.Name ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return (null, "Name is required.");
+            }
+
+            if (await NameExistsAsync(_context.DealStatuses, name, excludeId: null, ct))
+            {
+                return (null, "A record with this name already exists.");
+            }
+
+            var isWon = dto.IsWon ?? false;
+            var isLost = dto.IsLost ?? false;
+            var flagErr = DealStatusMasterHelper.ValidateFlags(isWon, isLost);
+            if (flagErr != null)
+            {
+                return (null, flagErr);
+            }
+
+            var maxSort = await _context.DealStatuses.MaxAsync(x => (int?)x.SortOrder, ct) ?? 0;
+            var entity = new DealStatus { Id = 0 };
+            DealStatusMasterHelper.ApplyUpsert(entity, dto, defaultSortOrder: maxSort + 10);
+            entity.IsWon = isWon;
+            entity.IsLost = isLost;
+            await _context.DealStatuses.AddAsync(entity, ct);
+            await _context.SaveChangesAsync(ct);
+            return (DealStatusMasterHelper.ToDto(entity), null);
+        }
+
+        private async Task<(MasterDataRowDto? Row, bool NotFound)> PatchDealStatusActiveAsync(
+            int id,
+            bool isActive,
+            CancellationToken ct)
+        {
+            var existing = await _context.DealStatuses.FindAsync([id], ct);
+            if (existing == null)
+            {
+                return (null, true);
+            }
+
+            existing.IsActive = isActive;
+            await _context.SaveChangesAsync(ct);
+            return (DealStatusMasterHelper.ToDto(existing), false);
+        }
+
+        private async Task<(MasterDataRowDto? Row, string? Error, bool NotFound)> UpdateDealStatusAsync(
+            int id,
+            MasterDataUpsertDto dto,
+            CancellationToken ct)
+        {
+            if (dto.Id != 0 && dto.Id != id)
+            {
+                return (null, "Route id and body id must match when the body includes an id.", false);
+            }
+
+            var name = (dto.Name ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return (null, "Name is required.", false);
+            }
+
+            var existing = await _context.DealStatuses.FindAsync([id], ct);
+            if (existing == null)
+            {
+                return (null, null, true);
+            }
+
+            if (await NameExistsAsync(_context.DealStatuses, name, excludeId: id, ct))
+            {
+                return (null, "A record with this name already exists.", false);
+            }
+
+            var isWon = dto.IsWon ?? existing.IsWon;
+            var isLost = dto.IsLost ?? existing.IsLost;
+            var flagErr = DealStatusMasterHelper.ValidateFlags(isWon, isLost);
+            if (flagErr != null)
+            {
+                return (null, flagErr, false);
+            }
+
+            DealStatusMasterHelper.ApplyUpsert(existing, dto);
+            existing.IsWon = isWon;
+            existing.IsLost = isLost;
+            await _context.SaveChangesAsync(ct);
+            return (DealStatusMasterHelper.ToDto(existing), null, false);
         }
 
         private static async Task<bool> NameExistsAsync<T>(
