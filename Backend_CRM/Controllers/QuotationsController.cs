@@ -124,10 +124,18 @@ namespace CRM.Controllers
         public async Task<IActionResult> GetAll(
             [FromQuery] int userId,
             [FromQuery] string? status = null,
-            [FromQuery] int? dealId = null)
+            [FromQuery] int? dealId = null,
+            [FromQuery] string? search = null)
         {
-            _ = userId;
-            IQueryable<Quotation> q = _context.Quotations.AsNoTracking();
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
+            {
+                return ctxErr;
+            }
+
+            IQueryable<Quotation> q = QuotationAccessHelper.ApplyVisibilityFilter(
+                _context.Quotations.AsNoTracking(),
+                ctx!);
 
             if (!string.IsNullOrWhiteSpace(status))
             {
@@ -140,12 +148,22 @@ namespace CRM.Controllers
                 q = q.Where(x => x.DealId == dealId);
             }
 
-            var list = await q
+            q = QuotationAccessHelper.ApplySearchFilter(q, search);
+
+            var includeCreator = ctx!.CanViewAll;
+
+            var rows = await q
                 .OrderByDescending(x => x.UpdatedAt)
                 .Select(x => new
                 {
                     x.Id,
                     x.DealId,
+                    DealStatus = x.DealId != null
+                        ? _context.Deals
+                            .Where(d => d.Id == x.DealId)
+                            .Select(d => d.Status)
+                            .FirstOrDefault()
+                        : null,
                     x.CustomerName,
                     x.CompanyName,
                     x.ContactPerson,
@@ -156,10 +174,41 @@ namespace CRM.Controllers
                     x.QuotationDate,
                     x.Status,
                     x.GrandTotal,
+                    x.CreatedBy,
+                    CreatedByName = includeCreator
+                        ? _context.Users
+                            .Where(u => u.Id == x.CreatedBy)
+                            .Select(u => u.FullName)
+                            .FirstOrDefault()
+                        : null,
                     x.CreatedAt,
                     x.UpdatedAt,
                 })
                 .ToListAsync();
+
+            var pipeline = await QuotationDealLockHelper.LoadActivePipelineAsync(_context);
+            var list = rows.Select(x => new
+            {
+                x.Id,
+                x.DealId,
+                DealClosed = x.DealId is > 0
+                    && !string.IsNullOrWhiteSpace(x.DealStatus)
+                    && DealStageValidationHelper.IsClosed(x.DealStatus, pipeline),
+                x.CustomerName,
+                x.CompanyName,
+                x.ContactPerson,
+                x.MobileNumber,
+                x.EmailAddress,
+                x.ReferenceNumber,
+                x.QuotationNumber,
+                x.QuotationDate,
+                x.Status,
+                x.GrandTotal,
+                x.CreatedBy,
+                x.CreatedByName,
+                x.CreatedAt,
+                x.UpdatedAt,
+            });
 
             return Ok(list);
         }
@@ -167,14 +216,27 @@ namespace CRM.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
         {
-            _ = userId;
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
+            {
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
+            }
+
             var q = await LoadQuotationAsync(id);
             if (q == null)
             {
                 return NotFound();
             }
 
-            return Ok(QuotationMappingHelper.ToUpsertDto(q));
+            var response = QuotationMappingHelper.ToUpsertDto(q);
+            response.DealClosed = await QuotationDealLockHelper.IsDealClosedAsync(_context, response.DealId);
+            return Ok(response);
         }
 
         [HttpPost]
@@ -199,6 +261,12 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(dto.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
+            }
+
             var entity = new Quotation { Id = 0 };
             QuotationMappingHelper.ApplyHeader(entity, dto);
             if (string.IsNullOrWhiteSpace(entity.Status))
@@ -213,24 +281,8 @@ namespace CRM.Controllers
             entity.LineItems = lines;
             QuotationMappingHelper.ApplyTotals(entity, lines);
 
-            var assignNumber = string.IsNullOrWhiteSpace(dto.QuotationNumber);
-            if (assignNumber)
-            {
-                await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
-            }
-            else
-            {
-                if (entity.SequenceNumber <= 0 &&
-                    QuotationNumberHelper.TryParseSequenceFromNumber(entity.QuotationNumber, out var parsed))
-                {
-                    entity.SequenceNumber = parsed;
-                }
-
-                if (string.IsNullOrWhiteSpace(entity.FiscalYearLabel))
-                {
-                    entity.FiscalYearLabel = QuotationNumberHelper.FiscalYearLabelFor(entity.QuotationDate);
-                }
-            }
+            // Always assign on create — the UI preview number is not reserved until save.
+            await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
 
             await _context.Quotations.AddAsync(entity);
             await _context.SaveChangesAsync();
@@ -253,10 +305,16 @@ namespace CRM.Controllers
                 return validation;
             }
 
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
@@ -272,6 +330,12 @@ namespace CRM.Controllers
             if (existing == null)
             {
                 return NotFound();
+            }
+
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(existing.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
             }
 
             QuotationMappingHelper.ApplyHeader(existing, dto);
@@ -308,10 +372,16 @@ namespace CRM.Controllers
                 return BadRequest("status is required.");
             }
 
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
@@ -320,6 +390,12 @@ namespace CRM.Controllers
             if (existing == null)
             {
                 return NotFound();
+            }
+
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(existing.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
             }
 
             var st = dto.Status.Trim();
@@ -339,10 +415,16 @@ namespace CRM.Controllers
         [HttpPost("{id:int}/duplicate")]
         public async Task<IActionResult> Duplicate(int id, [FromQuery] int userId)
         {
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             AuditUserValidation.SetAuditUser(_context, userId);
@@ -354,6 +436,11 @@ namespace CRM.Controllers
             }
 
             var dto = QuotationMappingHelper.ToUpsertDto(source);
+            if (await QuotationDealLockHelper.IsDealClosedAsync(_context, source.DealId))
+            {
+                dto.DealId = null;
+            }
+
             dto.Id = 0;
             dto.Status = QuotationStatuses.Draft;
             dto.QuotationNumber = string.Empty;
@@ -384,10 +471,16 @@ namespace CRM.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id, [FromQuery] int userId)
         {
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var (ctx, ctxErr) = await QuotationAccessHelper.ResolveUserContextAsync(_context, userId, Request);
+            if (ctxErr != null)
             {
-                return auditErr;
+                return ctxErr;
+            }
+
+            var accessErr = await QuotationAccessHelper.EnsureCanAccessAsync(_context, id, ctx!);
+            if (accessErr != null)
+            {
+                return accessErr;
             }
 
             var existing = await _context.Quotations
@@ -398,11 +491,27 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(existing.DealId);
+            if (closedDealErr != null)
+            {
+                return closedDealErr;
+            }
+
             _context.QuotationLineItems.RemoveRange(existing.LineItems);
             _context.Quotations.Remove(existing);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Deleted successfully" });
+        }
+
+        private async Task<IActionResult?> EnsureLinkedDealAllowsQuotationEditAsync(int? dealId)
+        {
+            if (await QuotationDealLockHelper.IsDealClosedAsync(_context, dealId))
+            {
+                return BadRequest(QuotationDealLockHelper.ClosedDealMessage);
+            }
+
+            return null;
         }
 
         private async Task<Quotation?> LoadQuotationAsync(int id) =>

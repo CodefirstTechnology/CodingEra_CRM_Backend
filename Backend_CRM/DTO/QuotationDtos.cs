@@ -63,6 +63,8 @@ namespace CRM.DTO
     {
         public int Id { get; set; }
         public int? DealId { get; set; }
+        /// <summary>True when the linked deal is closed (Won/Lost). Read-only on API responses.</summary>
+        public bool DealClosed { get; set; }
         public string Salutation { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
