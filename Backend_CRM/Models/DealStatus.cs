@@ -22,6 +22,18 @@ namespace CRM.models
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 
+        /// <summary>Pipeline position for ordering and validation.</summary>
+        [Column("sort_order")]
+        public int SortOrder { get; set; }
+
+        /// <summary>System terminal flag — deal is closed as won.</summary>
+        [Column("is_won")]
+        public bool IsWon { get; set; }
+
+        /// <summary>System terminal flag — deal is closed as lost.</summary>
+        [Column("is_lost")]
+        public bool IsLost { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 

@@ -79,6 +79,9 @@ coverage*.xml
 **/appsettings.*.local.json
 **/secrets.json
 
+# Local DB schema probes (credentials via env vars only)
+**/_schema_probe.csx
+
 # EF / DB tooling (local scratch)
 *.db
 *.db-shm

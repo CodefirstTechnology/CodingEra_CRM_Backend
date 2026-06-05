@@ -57,6 +57,10 @@ namespace CRM.models
         [MaxLength(512)]
         public string Website { get; set; } = string.Empty;
 
+        [Column("gst")]
+        [MaxLength(32)]
+        public string Gst { get; set; } = string.Empty;
+
         [Column("territory")]
         [MaxLength(256)]
         public string Territory { get; set; } = string.Empty;
@@ -75,7 +79,7 @@ namespace CRM.models
         /// <summary>Denormalized status label; kept in sync with <see cref="DealStatus"/>.</summary>
         [Column("status")]
         [MaxLength(64)]
-        public string Status { get; set; } = "Quotation Shared";
+        public string Status { get; set; } = "Follow-Up Ongoing";
 
         [Column("deal_owner_id")]
         public int? DealOwnerId { get; set; }
@@ -101,6 +105,9 @@ namespace CRM.models
 
         [Column("next_follow_up_date")]
         public DateTime? NextFollowUpDate { get; set; }
+
+        [Column("lost_reason")]
+        public string LostReason { get; set; } = string.Empty;
 
         [Column("is_active")]
         public bool IsActive { get; set; } = true;

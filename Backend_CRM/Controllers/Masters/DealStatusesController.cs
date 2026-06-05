@@ -28,7 +28,8 @@ namespace CRM.Controllers.Masters
                 q = q.Where(s => s.IsActive);
             }
 
-            return Ok(await q.OrderBy(s => s.Id).ToListAsync());
+            var rows = await q.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).ToListAsync();
+            return Ok(rows.Select(DealStatusMasterHelper.ToDto));
         }
 
         [HttpGet("{id:int}")]
@@ -37,7 +38,7 @@ namespace CRM.Controllers.Masters
             _ = userId;
             var s = await _context.DealStatuses.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == id);
-            return s == null ? NotFound() : Ok(s);
+            return s == null ? NotFound() : Ok(DealStatusMasterHelper.ToDto(s));
         }
 
         [HttpPost]
@@ -67,16 +68,22 @@ namespace CRM.Controllers.Masters
                 return Conflict("A deal status with this name already exists.");
             }
 
-            var entity = new DealStatus
+            var isWon = dto.IsWon ?? false;
+            var isLost = dto.IsLost ?? false;
+            var flagErr = DealStatusMasterHelper.ValidateFlags(isWon, isLost);
+            if (flagErr != null)
             {
-                Id = 0,
-                Name = name,
-                Description = dto.Description?.Trim() ?? string.Empty,
-                IsActive = dto.IsActive,
-            };
+                return BadRequest(flagErr);
+            }
+
+            var maxSortOrder = await _context.DealStatuses.MaxAsync(x => (int?)x.SortOrder) ?? 0;
+            var entity = new DealStatus { Id = 0 };
+            DealStatusMasterHelper.ApplyUpsert(entity, dto, defaultSortOrder: maxSortOrder + 10);
+            entity.IsWon = isWon;
+            entity.IsLost = isLost;
             await _context.DealStatuses.AddAsync(entity);
             await _context.SaveChangesAsync();
-            return Ok(entity);
+            return Ok(DealStatusMasterHelper.ToDto(entity));
         }
 
         [HttpPut("{id:int}")]
@@ -117,11 +124,19 @@ namespace CRM.Controllers.Masters
                 return Conflict("A deal status with this name already exists.");
             }
 
-            existing.Name = name;
-            existing.Description = dto.Description?.Trim() ?? string.Empty;
-            existing.IsActive = dto.IsActive;
+            var isWon = dto.IsWon ?? existing.IsWon;
+            var isLost = dto.IsLost ?? existing.IsLost;
+            var flagErr = DealStatusMasterHelper.ValidateFlags(isWon, isLost);
+            if (flagErr != null)
+            {
+                return BadRequest(flagErr);
+            }
+
+            DealStatusMasterHelper.ApplyUpsert(existing, dto);
+            existing.IsWon = isWon;
+            existing.IsLost = isLost;
             await _context.SaveChangesAsync();
-            return Ok(existing);
+            return Ok(DealStatusMasterHelper.ToDto(existing));
         }
 
         [HttpDelete("{id:int}")]
