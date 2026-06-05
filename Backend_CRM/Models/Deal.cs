@@ -106,6 +106,9 @@ namespace CRM.models
         [Column("next_follow_up_date")]
         public DateTime? NextFollowUpDate { get; set; }
 
+        [Column("lost_reason")]
+        public string LostReason { get; set; } = string.Empty;
+
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 

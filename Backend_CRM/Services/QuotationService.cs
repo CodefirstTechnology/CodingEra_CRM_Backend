@@ -215,6 +215,10 @@ namespace CRM.Services
             var cc = (companyCode ?? string.Empty).Trim();
             var fy = (fiscalYear ?? string.Empty).Trim();
 
+            var maxUsedInQuotations = await _db.Quotations.AsNoTracking()
+                .Where(q => q.CompanyCode == cc && q.FiscalYearLabel == fy)
+                .MaxAsync(q => (int?)q.SequenceNumber, ct) ?? 0;
+
             var row = await _db.QuotationFiscalSequences
                 .FirstOrDefaultAsync(s => s.CompanyCode == cc && s.FiscalYearLabel == fy, ct);
 
@@ -222,22 +226,20 @@ namespace CRM.Services
             {
                 if (peekOnly)
                 {
-                    var used = await _db.Quotations.AsNoTracking()
-                        .Where(q => q.CompanyCode == cc && q.FiscalYearLabel == fy)
-                        .MaxAsync(q => (int?)q.SequenceNumber, ct);
-                    return (used ?? 0) + 1;
+                    return maxUsedInQuotations + 1;
                 }
 
                 row = new QuotationFiscalSequence
                 {
                     CompanyCode = cc,
                     FiscalYearLabel = fy,
-                    LastSequence = 0,
+                    LastSequence = maxUsedInQuotations,
                 };
                 _db.QuotationFiscalSequences.Add(row);
             }
 
-            var next = row.LastSequence + 1;
+            var baseline = Math.Max(row.LastSequence, maxUsedInQuotations);
+            var next = baseline + 1;
             if (!peekOnly)
             {
                 row.LastSequence = next;
