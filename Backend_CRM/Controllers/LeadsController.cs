@@ -15,15 +15,18 @@ namespace CRM.Controllers
         private readonly TaskDbcontext _context;
         private readonly ILeadImportService _leadImportService;
         private readonly ILeadImportFileParser _leadImportFileParser;
+        private readonly IRbacService _rbac;
 
         public LeadsController(
             TaskDbcontext context,
             ILeadImportService leadImportService,
-            ILeadImportFileParser leadImportFileParser)
+            ILeadImportFileParser leadImportFileParser,
+            IRbacService rbac)
         {
             _context = context;
             _leadImportService = leadImportService;
             _leadImportFileParser = leadImportFileParser;
+            _rbac = rbac;
         }
 
         private static IQueryable<Lead> QueryWithMasters(IQueryable<Lead> q) =>
@@ -40,7 +43,8 @@ namespace CRM.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] string? leadSource = null, [FromQuery] string? status = null)
         {
-            _ = userId;
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
+            if (permErr != null) return permErr;
             IQueryable<Lead> q = QueryWithMasters(_context.Leads.AsNoTracking());
             if (!string.IsNullOrWhiteSpace(leadSource))
             {
@@ -68,7 +72,8 @@ namespace CRM.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
         {
-            _ = userId;
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
+            if (permErr != null) return permErr;
             var l = await QueryWithMasters(_context.Leads.AsNoTracking())
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (l == null)
@@ -83,7 +88,8 @@ namespace CRM.Controllers
         [HttpGet("{id:int}/history")]
         public async Task<IActionResult> GetHistory(int id, [FromQuery] int userId)
         {
-            _ = userId;
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
+            if (permErr != null) return permErr;
             if (!await _context.Leads.AsNoTracking().AnyAsync(l => l.Id == id))
             {
                 return NotFound();
@@ -104,6 +110,9 @@ namespace CRM.Controllers
             {
                 return BadRequest();
             }
+
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.create");
+            if (permErr != null) return permErr;
 
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
             if (auditErr != null)
@@ -127,6 +136,8 @@ namespace CRM.Controllers
                 return orgError;
             }
 
+            await RecordOwnershipEnforcement.EnforceLeadOwnerOnCreateAsync(_rbac, userId, entity);
+
             entity.Id = 0;
 
             var now = DateTime.UtcNow;
@@ -146,7 +157,8 @@ namespace CRM.Controllers
         [RequestSizeLimit(104_857_600)]
         public async Task<IActionResult> ValidateImport([FromQuery] int userId)
         {
-            _ = userId;
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.import");
+            if (permErr != null) return permErr;
             var resolved = await ResolveImportRowsAsync();
             if (resolved.Error != null)
             {
@@ -163,6 +175,9 @@ namespace CRM.Controllers
         [RequestSizeLimit(104_857_600)]
         public async Task<IActionResult> CommitImport([FromQuery] int userId)
         {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.import");
+            if (permErr != null) return permErr;
+
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
             if (auditErr != null)
             {
@@ -230,6 +245,9 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.edit");
+            if (permErr != null) return permErr;
+
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
             if (auditErr != null)
             {
@@ -250,6 +268,8 @@ namespace CRM.Controllers
             {
                 return NotFound();
             }
+
+            await RecordOwnershipEnforcement.EnforceLeadOwnerOnUpdateAsync(_rbac, userId, dto, existing);
 
             ApplyDtoToLeadScalars(dto, existing);
             var masterErr = await ApplyLeadMastersFromDtoAsync(dto, existing, isCreate: false);
@@ -418,8 +438,11 @@ namespace CRM.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id, [FromQuery] int userId)
         {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.delete");
+            if (permErr != null) return permErr;
+
             var entity = await _context.Leads.FindAsync(id);
             if (entity == null)
             {

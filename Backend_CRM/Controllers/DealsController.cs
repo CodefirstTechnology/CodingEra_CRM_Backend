@@ -2,6 +2,7 @@ using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
 using CRM.models;
+using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,11 +14,13 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly ILogger<DealsController> _logger;
+        private readonly IRbacService _rbac;
 
-        public DealsController(TaskDbcontext context, ILogger<DealsController> logger)
+        public DealsController(TaskDbcontext context, ILogger<DealsController> logger, IRbacService rbac)
         {
             _context = context;
             _logger = logger;
+            _rbac = rbac;
         }
 
         [HttpGet]
@@ -84,6 +87,8 @@ namespace CRM.Controllers
                 return statusErr;
             }
 
+            await RecordOwnershipEnforcement.EnforceDealOwnerOnCreateAsync(_rbac, userId, entity);
+
             await _context.Deals.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(entity);
@@ -121,6 +126,8 @@ namespace CRM.Controllers
             {
                 return BadRequest(DealStageValidationHelper.ClosedDealMessage);
             }
+
+            await RecordOwnershipEnforcement.EnforceDealOwnerOnUpdateAsync(_rbac, userId, dto, existing);
 
             CrmWriteMappings.Apply(existing, dto);
 

@@ -13,11 +13,16 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly IMasterDataAdminService _masterData;
+        private readonly IRbacService _rbac;
 
-        public MasterDataController(TaskDbcontext context, IMasterDataAdminService masterData)
+        public MasterDataController(
+            TaskDbcontext context,
+            IMasterDataAdminService masterData,
+            IRbacService rbac)
         {
             _context = context;
             _masterData = masterData;
+            _rbac = rbac;
         }
 
         [HttpGet]
@@ -26,7 +31,7 @@ namespace CRM.Controllers
             [FromQuery] int userId,
             [FromQuery] bool activeOnly = false)
         {
-            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId, _rbac);
             if (adminErr != null)
             {
                 return adminErr;
@@ -44,7 +49,7 @@ namespace CRM.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(string entity, int id, [FromQuery] int userId)
         {
-            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId, _rbac);
             if (adminErr != null)
             {
                 return adminErr;
@@ -75,7 +80,7 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
-            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId, _rbac);
             if (adminErr != null)
             {
                 return adminErr;
@@ -118,7 +123,7 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
-            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId, _rbac);
             if (adminErr != null)
             {
                 return adminErr;
@@ -170,7 +175,7 @@ namespace CRM.Controllers
                 return NotFound($"Reorder is not supported for '{entity}'.");
             }
 
-            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId, _rbac);
             if (adminErr != null)
             {
                 return adminErr;
@@ -199,7 +204,7 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
-            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId);
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId, _rbac);
             if (adminErr != null)
             {
                 return adminErr;
