@@ -134,6 +134,18 @@ namespace CRM.Services
                     }
                 }
 
+                var batchContactEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var batchContactMobiles = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var lead in leadsToInsert)
+                {
+                    await LeadContactSyncHelper.TryAddContactFromLeadAsync(
+                        _context,
+                        lead,
+                        batchContactEmails,
+                        batchContactMobiles,
+                        cancellationToken);
+                }
+
                 await _context.Leads.AddRangeAsync(leadsToInsert, cancellationToken);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);

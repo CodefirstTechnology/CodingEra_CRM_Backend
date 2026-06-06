@@ -153,6 +153,7 @@ namespace CRM.Controllers
             }
 
             await _context.Leads.AddAsync(entity);
+            await LeadContactSyncHelper.TryAddContactFromLeadAsync(_context, entity);
             await _context.SaveChangesAsync();
             return Ok(await ReloadLeadAsync(entity.Id));
         }
