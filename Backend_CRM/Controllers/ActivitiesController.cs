@@ -24,6 +24,7 @@ namespace CRM.Controllers
             ActivityActionTypes.TaskAdded,
             ActivityActionTypes.CallLogged,
             ActivityActionTypes.EmailSent,
+            ActivityActionTypes.AttachmentAdded,
             ActivityActionTypes.Deleted,
         };
 
