@@ -30,7 +30,10 @@ namespace CRM.Controllers
             [FromQuery] int? statusId = null)
         {
             _ = userId;
-            IQueryable<Deal> q = _context.Deals.AsNoTracking().Include(d => d.DealStatus);
+            IQueryable<Deal> q = _context.Deals.AsNoTracking()
+                .Include(d => d.DealStatus)
+                .Include(d => d.AssignedToUser)
+                .Include(d => d.DealOwner);
 
             if (statusId is > 0)
             {
@@ -53,6 +56,8 @@ namespace CRM.Controllers
             _ = userId;
             var d = await _context.Deals.AsNoTracking()
                 .Include(x => x.DealStatus)
+                .Include(x => x.AssignedToUser)
+                .Include(x => x.DealOwner)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (d == null)
             {

@@ -164,7 +164,7 @@ namespace CRM.DATA
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Lead>()
-                .HasOne<User>()
+                .HasOne(l => l.LeadOwner)
                 .WithMany()
                 .HasForeignKey(l => l.LeadOwnerId)
                 .OnDelete(DeleteBehavior.SetNull);
@@ -263,13 +263,13 @@ namespace CRM.DATA
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Deal>()
-                .HasOne<User>()
+                .HasOne(d => d.DealOwner)
                 .WithMany()
                 .HasForeignKey(d => d.DealOwnerId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Deal>()
-                .HasOne<User>()
+                .HasOne(d => d.AssignedToUser)
                 .WithMany()
                 .HasForeignKey(d => d.AssignedToUserId)
                 .OnDelete(DeleteBehavior.SetNull);
