@@ -36,6 +36,7 @@ namespace CRM.Helpers
                 logger.LogInformation("Database schema is up to date.");
 
                 await DealPipelineStageSeed.EnsureAsync(db, logger);
+                await RbacSeed.EnsureAsync(db, logger);
             }
             catch (Exception ex)
             {

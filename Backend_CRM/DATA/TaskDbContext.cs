@@ -52,6 +52,10 @@ namespace CRM.DATA
 
         public DbSet<Role> Roles { get; set; }
 
+        public DbSet<Permission> Permissions { get; set; }
+
+        public DbSet<RolePermission> RolePermissions { get; set; }
+
         public DbSet<ActivityLog> ActivityLogs { get; set; }
 
         public DbSet<Comment> Comments { get; set; }
@@ -557,6 +561,22 @@ namespace CRM.DATA
                 .HasForeignKey(r => r.UpdatedBy)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Permission>()
+                .HasIndex(p => p.Code)
+                .IsUnique();
+
+            modelBuilder.Entity<RolePermission>()
+                .HasOne(rp => rp.Role)
+                .WithMany()
+                .HasForeignKey(rp => rp.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<RolePermission>()
+                .HasOne(rp => rp.Permission)
+                .WithMany()
+                .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Integer PKs: PostgreSQL GENERATED ALWAYS AS IDENTITY (values come from the database only).
             modelBuilder.Entity<Salutation>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<EmployeeCount>().Property(e => e.Id).UseIdentityAlwaysColumn();
@@ -566,6 +586,7 @@ namespace CRM.DATA
             modelBuilder.Entity<DealStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<RequestType>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Role>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Permission>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Organization>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Contact>().Property(e => e.Id).UseIdentityAlwaysColumn();

@@ -101,6 +101,41 @@ namespace CRM.Controllers
             return Ok(await QueryActivitiesAsync(ActivityEntityTypes.Organization, organizationId));
         }
 
+        /// <summary>Recent lead/deal activities for admin and user dashboards.</summary>
+        [HttpGet("recent")]
+        public async Task<IActionResult> GetRecent([FromQuery] int userId, [FromQuery] int limit = 50)
+        {
+            _ = userId;
+            var take = Math.Clamp(limit, 1, 100);
+
+            var items = await _context.ActivityLogs.AsNoTracking()
+                .Where(a =>
+                    a.EntityType == ActivityEntityTypes.Lead ||
+                    a.EntityType == ActivityEntityTypes.Deal)
+                .OrderByDescending(a => a.CreatedAt)
+                .ThenByDescending(a => a.Id)
+                .Take(take)
+                .Select(a => new ActivityLogDto
+                {
+                    Id = a.Id,
+                    EntityType = a.EntityType,
+                    EntityId = a.EntityId,
+                    ActionType = a.ActionType,
+                    ActorUserId = a.ActorUserId,
+                    ActorName = a.ActorName,
+                    Message = a.Message,
+                    FieldName = a.FieldName,
+                    OldValue = a.OldValue,
+                    NewValue = a.NewValue,
+                    RelatedRecordType = a.RelatedRecordType,
+                    RelatedRecordId = a.RelatedRecordId,
+                    CreatedAt = a.CreatedAt,
+                })
+                .ToListAsync();
+
+            return Ok(items);
+        }
+
         /// <summary>Generic feed: <c>?entityType=lead&amp;entityId=1</c></summary>
         [HttpGet]
         public async Task<IActionResult> Get(
