@@ -142,6 +142,11 @@ namespace CRM.Controllers
             entity.Id = 0;
 
             var now = DateTime.UtcNow;
+            if (entity.LeadDate == null)
+            {
+                entity.LeadDate = now.Date;
+            }
+
             if (entity.CreatedAt == null && string.Equals(entity.LeadSource, "IndiaMART", StringComparison.OrdinalIgnoreCase))
             {
                 entity.CreatedAt = now;
@@ -302,6 +307,8 @@ namespace CRM.Controllers
             to.Mobile = from.Mobile;
             to.Email = from.Email;
             to.Notes = from.Notes;
+            to.Location = from.Location ?? string.Empty;
+            to.LeadDate = from.LeadDate;
             to.LeadOwnerId = from.LeadOwnerId;
             to.LeadSource = from.LeadSource;
             to.CreatedAt = from.CreatedAt;

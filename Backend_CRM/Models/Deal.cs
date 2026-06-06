@@ -49,6 +49,9 @@ namespace CRM.models
         [Column("annual_revenue")]
         public decimal? AnnualRevenue { get; set; }
 
+        [Column("deal_amount")]
+        public decimal? DealAmount { get; set; }
+
         [Column("employees")]
         [MaxLength(128)]
         public string Employees { get; set; } = string.Empty;

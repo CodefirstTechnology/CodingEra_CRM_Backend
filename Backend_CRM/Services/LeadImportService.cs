@@ -244,6 +244,7 @@ namespace CRM.Services
                 OrganizationId = organizationId > 0 ? organizationId : null,
                 IsActive = true,
                 CreatedAt = now,
+                LeadDate = now.Date,
             };
 
             return lead;

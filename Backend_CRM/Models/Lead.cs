@@ -66,6 +66,12 @@ namespace CRM.models
         [Column("notes")]
         public string Notes { get; set; } = string.Empty;
 
+        [Column("address")]
+        public string Location { get; set; } = string.Empty;
+
+        [Column("lead_date")]
+        public DateTime? LeadDate { get; set; }
+
         [Column("lead_owner_id")]
         public int? LeadOwnerId { get; set; }
 

@@ -187,6 +187,14 @@ namespace CRM.DATA
                 .HasForeignKey(l => l.RequestTypeId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Lead>()
+                .Property(l => l.LeadDate)
+                .HasColumnType("date");
+
+            modelBuilder.Entity<LeadHistory>()
+                .Property(h => h.LeadDate)
+                .HasColumnType("date");
+
             modelBuilder.Entity<LeadHistory>()
                 .HasOne<Lead>()
                 .WithMany()
@@ -676,6 +684,8 @@ namespace CRM.DATA
                     LeadStatusId = (int?)o[nameof(Lead.LeadStatusId)],
                     RequestTypeId = (int?)o[nameof(Lead.RequestTypeId)],
                     Notes = (string)o[nameof(Lead.Notes)]!,
+                    Location = (string)o[nameof(Lead.Location)]!,
+                    LeadDate = (DateTime?)o[nameof(Lead.LeadDate)],
                     LeadOwnerId = (int?)o[nameof(Lead.LeadOwnerId)],
                     LeadSource = (string)o[nameof(Lead.LeadSource)]!,
                     IsActive = (bool)o[nameof(Lead.IsActive)]!,
