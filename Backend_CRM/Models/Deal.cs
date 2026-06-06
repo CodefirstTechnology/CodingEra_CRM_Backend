@@ -84,8 +84,16 @@ namespace CRM.models
         [Column("deal_owner_id")]
         public int? DealOwnerId { get; set; }
 
+        [ForeignKey(nameof(DealOwnerId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public User? DealOwner { get; set; }
+
         [Column("assigned_to_user_id")]
         public int? AssignedToUserId { get; set; }
+
+        [ForeignKey(nameof(AssignedToUserId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public User? AssignedToUser { get; set; }
 
         [Column("assigned_initials")]
         [MaxLength(16)]

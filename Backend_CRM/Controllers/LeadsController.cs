@@ -33,6 +33,7 @@ namespace CRM.Controllers
             q.Include(l => l.Salutation)
                 .Include(l => l.LeadStatus)
                 .Include(l => l.RequestType)
+                .Include(l => l.LeadOwner)
                 .Include(l => l.Organization)
                 .ThenInclude(o => o!.Industry)
                 .Include(l => l.Organization)

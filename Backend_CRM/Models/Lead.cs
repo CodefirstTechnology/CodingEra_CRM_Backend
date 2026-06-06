@@ -69,6 +69,10 @@ namespace CRM.models
         [Column("lead_owner_id")]
         public int? LeadOwnerId { get; set; }
 
+        [ForeignKey(nameof(LeadOwnerId))]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public User? LeadOwner { get; set; }
+
         [Column("lead_source")]
         [MaxLength(64)]
         public string LeadSource { get; set; } = "Manual";
