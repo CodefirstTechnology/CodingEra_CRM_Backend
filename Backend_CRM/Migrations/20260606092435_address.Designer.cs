@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260606092435_address")]
+    partial class address
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -372,10 +375,6 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
-
-                    b.Property<decimal?>("DealAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("deal_amount");
 
                     b.Property<int?>("DealOwnerId")
                         .HasColumnType("integer")
@@ -848,7 +847,7 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Location")
+                    b.Property<string>("Address")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("address");
@@ -966,7 +965,7 @@ namespace Backend_CRM.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Location")
+                    b.Property<string>("Address")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("address");
@@ -1011,13 +1010,13 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("last_name");
 
-                    b.Property<int>("LeadId")
-                        .HasColumnType("integer")
-                        .HasColumnName("lead_id");
-
                     b.Property<DateTime?>("LeadDate")
                         .HasColumnType("date")
                         .HasColumnName("lead_date");
+
+                    b.Property<int>("LeadId")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_id");
 
                     b.Property<int?>("LeadOwnerId")
                         .HasColumnType("integer")
@@ -2256,7 +2255,7 @@ namespace Backend_CRM.Migrations
 
             modelBuilder.Entity("CRM.models.Deal", b =>
                 {
-                    b.HasOne("CRM.models.User", null)
+                    b.HasOne("CRM.models.User", "AssignedToUser")
                         .WithMany()
                         .HasForeignKey("AssignedToUserId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -2271,7 +2270,7 @@ namespace Backend_CRM.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.User", null)
+                    b.HasOne("CRM.models.User", "DealOwner")
                         .WithMany()
                         .HasForeignKey("DealOwnerId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -2300,6 +2299,10 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("DealOwner");
 
                     b.Navigation("DealStatus");
                 });
@@ -2382,7 +2385,7 @@ namespace Backend_CRM.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.User", null)
+                    b.HasOne("CRM.models.User", "LeadOwner")
                         .WithMany()
                         .HasForeignKey("LeadOwnerId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -2411,6 +2414,8 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("LeadOwner");
 
                     b.Navigation("LeadStatus");
 
