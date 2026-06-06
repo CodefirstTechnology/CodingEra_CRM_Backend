@@ -19,6 +19,7 @@ namespace CRM.Helpers
         public const string TaskAdded = "task_added";
         public const string CallLogged = "call_logged";
         public const string EmailSent = "email_sent";
+        public const string AttachmentAdded = "attachment_added";
         public const string Deleted = "deleted";
     }
 }
