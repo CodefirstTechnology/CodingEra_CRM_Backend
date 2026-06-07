@@ -67,6 +67,7 @@ namespace CRM.DATA
         public DbSet<QuotationLineItem> QuotationLineItems { get; set; }
 
         public DbSet<QuotationSettings> QuotationSettings { get; set; }
+        public DbSet<CompanyProfile> CompanyProfiles { get; set; }
 
         public DbSet<QuotationFiscalSequence> QuotationFiscalSequences { get; set; }
 
