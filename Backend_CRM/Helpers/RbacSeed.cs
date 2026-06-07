@@ -72,6 +72,8 @@ namespace CRM.Helpers
                 ("email", "configure", "email.configure", "Configure email"),
                 ("roles", "view", "roles.view", "View roles"),
                 ("roles", "manage", "roles.manage", "Manage roles and permissions"),
+                ("items", "view", "items.view", "View item master"),
+                ("items", "manage", "items.manage", "Manage item master"),
             };
 
             foreach (var s in seeds)

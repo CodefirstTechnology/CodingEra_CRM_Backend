@@ -75,6 +75,20 @@ namespace CRM.DATA
 
         public DbSet<QuotationItemGridUserPreference> QuotationItemGridUserPreferences { get; set; }
 
+        public DbSet<ItemGroup> ItemGroups { get; set; }
+
+        public DbSet<ItemAttribute> ItemAttributes { get; set; }
+
+        public DbSet<ItemAttributeValue> ItemAttributeValues { get; set; }
+
+        public DbSet<Item> Items { get; set; }
+
+        public DbSet<ItemSpecification> ItemSpecifications { get; set; }
+
+        public DbSet<ItemTemplateAttribute> ItemTemplateAttributes { get; set; }
+
+        public DbSet<ItemVariantAttributeValue> ItemVariantAttributeValues { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Quotation>()
@@ -609,6 +623,125 @@ namespace CRM.DATA
             modelBuilder.Entity<ActivityLog>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Comment>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Email>().Property(e => e.Id).UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasOne(g => g.Parent)
+                .WithMany(g => g.Children)
+                .HasForeignKey(g => g.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasIndex(g => g.Name);
+
+            modelBuilder.Entity<ItemAttribute>()
+                .HasIndex(a => a.Code)
+                .IsUnique();
+
+            modelBuilder.Entity<ItemAttributeValue>()
+                .HasOne(v => v.Attribute)
+                .WithMany(a => a.Values)
+                .HasForeignKey(v => v.AttributeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Item>()
+                .HasIndex(i => i.ItemCode)
+                .IsUnique();
+
+            modelBuilder.Entity<Item>()
+                .HasOne(i => i.ItemGroup)
+                .WithMany()
+                .HasForeignKey(i => i.ItemGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Item>()
+                .HasOne(i => i.ParentItem)
+                .WithMany(i => i.Variants)
+                .HasForeignKey(i => i.ParentItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemSpecification>()
+                .HasOne(s => s.Item)
+                .WithMany(i => i.Specifications)
+                .HasForeignKey(s => s.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemTemplateAttribute>()
+                .HasOne(t => t.Item)
+                .WithMany(i => i.TemplateAttributes)
+                .HasForeignKey(t => t.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemTemplateAttribute>()
+                .HasOne(t => t.Attribute)
+                .WithMany()
+                .HasForeignKey(t => t.AttributeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ItemTemplateAttribute>()
+                .HasIndex(t => new { t.ItemId, t.AttributeId })
+                .IsUnique();
+
+            modelBuilder.Entity<ItemVariantAttributeValue>()
+                .HasOne(v => v.Item)
+                .WithMany(i => i.VariantAttributeValues)
+                .HasForeignKey(v => v.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemVariantAttributeValue>()
+                .HasOne(v => v.Attribute)
+                .WithMany()
+                .HasForeignKey(v => v.AttributeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ItemVariantAttributeValue>()
+                .HasOne(v => v.AttributeValue)
+                .WithMany()
+                .HasForeignKey(v => v.AttributeValueId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(g => g.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(g => g.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAttribute>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(a => a.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAttribute>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(a => a.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Item>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(i => i.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Item>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(i => i.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemGroup>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemAttribute>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemAttributeValue>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Item>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemSpecification>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemTemplateAttribute>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemVariantAttributeValue>().Property(e => e.Id).UseIdentityAlwaysColumn();
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -825,6 +958,18 @@ namespace CRM.DATA
                                 qt.CreatedAt = utc;
                                 qt.UpdatedAt = utc;
                                 break;
+                            case ItemGroup ig:
+                                ig.CreatedAt = utc;
+                                ig.UpdatedAt = utc;
+                                break;
+                            case ItemAttribute ia:
+                                ia.CreatedAt = utc;
+                                ia.UpdatedAt = utc;
+                                break;
+                            case Item it:
+                                it.CreatedAt = utc;
+                                it.UpdatedAt = utc;
+                                break;
                         }
 
                         break;
@@ -877,6 +1022,15 @@ namespace CRM.DATA
                                 break;
                             case Quotation qt:
                                 qt.UpdatedAt = utc;
+                                break;
+                            case ItemGroup ig:
+                                ig.UpdatedAt = utc;
+                                break;
+                            case ItemAttribute ia:
+                                ia.UpdatedAt = utc;
+                                break;
+                            case Item it:
+                                it.UpdatedAt = utc;
                                 break;
                         }
 
