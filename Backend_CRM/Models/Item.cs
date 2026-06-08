@@ -34,6 +34,10 @@ namespace CRM.models
         [Column("description")]
         public string Description { get; set; } = string.Empty;
 
+        /// <summary>Steel material rate per kg (₹/kg) used for quotation pricing.</summary>
+        [Column("steel_rate")]
+        public decimal SteelRate { get; set; }
+
         [Column("status")]
         public ItemStatus Status { get; set; } = ItemStatus.Active;
 

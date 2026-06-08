@@ -111,6 +111,7 @@ namespace CRM.DTO
         public string ParentItemName { get; set; } = string.Empty;
         public int VariantCount { get; set; }
         public List<ItemVariantAttributeDto> VariantAttributes { get; set; } = new();
+        public decimal SteelRate { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
@@ -129,6 +130,7 @@ namespace CRM.DTO
         public string ItemName { get; set; } = string.Empty;
         public int? ItemGroupId { get; set; }
         public string Description { get; set; } = string.Empty;
+        public decimal SteelRate { get; set; }
         public string Status { get; set; } = "Active";
         public bool HasVariants { get; set; }
         public List<int> VariantAttributeIds { get; set; } = new();
@@ -138,6 +140,7 @@ namespace CRM.DTO
     public class ItemVariantUpsertDto
     {
         public string? ItemCode { get; set; }
+        public decimal? SteelRate { get; set; }
         public string Status { get; set; } = "Active";
         public List<ItemVariantAttributeUpsertDto> Attributes { get; set; } = new();
         public List<ItemSpecificationUpsertDto> Specifications { get; set; } = new();
