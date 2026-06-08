@@ -448,8 +448,9 @@ namespace CRM.Services
                 throw new InvalidOperationException("Parent item not found or does not support variants.");
             }
 
+            var signature = BuildVariantAttributeSignature(dto.Attributes);
             var itemCode = string.IsNullOrWhiteSpace(dto.ItemCode)
-                ? await GenerateVariantCodeAsync(parent, dto.Attributes, ct)
+                ? await GenerateVariantCodeAsync(parent, dto.Attributes, signature, ct)
                 : dto.ItemCode.Trim();
             await EnsureItemCodeUniqueAsync(itemCode, null, ct);
 
@@ -512,10 +513,14 @@ namespace CRM.Services
                     CustomValue = c.Value,
                 }).ToList();
 
-                var itemCode = await GenerateVariantCodeAsync(parent, attrs, ct);
-                if (await _db.Items.AnyAsync(i => i.ItemCode == itemCode, ct))
+                var itemCode = await GenerateVariantCodeAsync(parent, attrs, signature, ct);
+                var attempt = 0;
+                while (await _db.Items.AnyAsync(i => i.ItemCode == itemCode, ct))
                 {
-                    itemCode = $"{itemCode}-{Guid.NewGuid().ToString("N")[..4]}";
+                    attempt++;
+                    itemCode = ItemMasterMappingHelper.FitItemCode(
+                        $"{parent.ItemCode}-v{ItemMasterMappingHelper.ShortHash($"{signature}:{attempt}")}",
+                        $"{signature}:{attempt}");
                 }
 
                 var variant = new Item
@@ -549,6 +554,84 @@ namespace CRM.Services
             _db.Items.Remove(variant);
             await _db.SaveChangesAsync(ct);
             return true;
+        }
+
+        public async Task<QuotationCatalogDto> GetQuotationCatalogAsync(CancellationToken ct = default)
+        {
+            var attributes = await _db.ItemAttributes.AsNoTracking()
+                .Where(a => a.IsActive && a.IsVariantAttribute)
+                .OrderBy(a => a.SortOrder)
+                .ThenBy(a => a.Name)
+                .ToListAsync(ct);
+
+            var sellable = await _db.Items.AsNoTracking()
+                .Include(i => i.Specifications)
+                .Include(i => i.VariantAttributeValues).ThenInclude(v => v.Attribute)
+                .Include(i => i.VariantAttributeValues).ThenInclude(v => v.AttributeValue)
+                .Where(i => i.Status == ItemStatus.Active)
+                .Where(i => i.ParentItemId != null || !i.HasVariants)
+                .OrderBy(i => i.ItemName)
+                .ThenBy(i => i.ItemCode)
+                .ToListAsync(ct);
+
+            var specNames = sellable
+                .SelectMany(i => i.Specifications)
+                .Select(s => s.SpecName.Trim())
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var columns = new List<QuotationCatalogColumnDto>();
+            var order = 0;
+            foreach (var attr in attributes)
+            {
+                columns.Add(new QuotationCatalogColumnDto
+                {
+                    Key = $"attr:{ItemMasterMappingHelper.SlugifyCode(attr.Code)}",
+                    Label = attr.Name,
+                    Source = "attribute",
+                    SortOrder = order++,
+                });
+            }
+
+            foreach (var specName in specNames)
+            {
+                columns.Add(new QuotationCatalogColumnDto
+                {
+                    Key = $"spec:{QuotationItemSnapshotHelper.NormalizeKey(specName, specName)}",
+                    Label = specName,
+                    Source = "specification",
+                    SortOrder = order++,
+                });
+            }
+
+            var items = sellable.Select(i =>
+            {
+                var snapshot = QuotationItemSnapshotHelper.BuildFromEntity(i);
+                return new QuotationCatalogItemDto
+                {
+                    Id = i.Id,
+                    ItemCode = i.ItemCode,
+                    ItemName = i.ItemName,
+                    Description = i.Description,
+                    SteelRate = i.SteelRate < 0 ? 0 : i.SteelRate,
+                    UnitWeight = snapshot.UnitWeight,
+                    Attributes = i.VariantAttributeValues
+                        .Select(ItemMasterMappingHelper.ToVariantAttributeDto)
+                        .ToList(),
+                    Specifications = i.Specifications
+                        .OrderBy(s => s.SortOrder)
+                        .Select(ItemMasterMappingHelper.ToSpecificationDto)
+                        .ToList(),
+                };
+            }).ToList();
+
+            return new QuotationCatalogDto
+            {
+                DynamicColumns = columns,
+                Items = items,
+            };
         }
 
         private static IQueryable<Item> ApplyItemSort(IQueryable<Item> q, string? sortBy, string? sortDir)
@@ -759,6 +842,7 @@ namespace CRM.Services
         private async Task<string> GenerateVariantCodeAsync(
             Item parent,
             List<ItemVariantAttributeUpsertDto> attrs,
+            string uniquenessSeed,
             CancellationToken ct)
         {
             var attrIds = attrs.Select(a => a.AttributeId).ToList();
@@ -776,7 +860,15 @@ namespace CRM.Services
             });
 
             var suffix = string.Join("-", suffixParts.Where(s => !string.IsNullOrEmpty(s)));
-            return string.IsNullOrEmpty(suffix) ? $"{parent.ItemCode}-var" : $"{parent.ItemCode}-{suffix}";
+            var raw = string.IsNullOrEmpty(suffix) ? $"{parent.ItemCode}-var" : $"{parent.ItemCode}-{suffix}";
+            return ItemMasterMappingHelper.FitItemCode(raw, uniquenessSeed);
+        }
+
+        private static string BuildVariantAttributeSignature(List<ItemVariantAttributeUpsertDto> attrs)
+        {
+            return string.Join("|", attrs
+                .OrderBy(a => a.AttributeId)
+                .Select(a => $"{a.AttributeId}:{a.CustomValue?.Trim().ToLowerInvariant()}:{a.AttributeValueId}"));
         }
 
         private static List<List<(int AttributeId, string Value)>> BuildCombinations(

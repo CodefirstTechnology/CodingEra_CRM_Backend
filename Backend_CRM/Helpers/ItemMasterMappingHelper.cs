@@ -106,7 +106,36 @@ namespace CRM.Helpers
             };
         }
 
+        public const int ItemCodeMaxLength = 64;
+
         public static decimal NormalizeSteelRate(decimal rate) => rate < 0 ? 0 : rate;
+
+        /// <summary>Truncates generated variant codes to fit <see cref="ItemCodeMaxLength"/> with a stable short hash suffix.</summary>
+        public static string FitItemCode(string code, string uniquenessSeed)
+        {
+            if (string.IsNullOrEmpty(code) || code.Length <= ItemCodeMaxLength)
+            {
+                return code;
+            }
+
+            var hash = ShortHash(uniquenessSeed);
+            var suffix = $"-{hash}";
+            var maxBase = ItemCodeMaxLength - suffix.Length;
+            if (maxBase < 1)
+            {
+                return hash[..Math.Min(ItemCodeMaxLength, hash.Length)];
+            }
+
+            var basePart = code[..maxBase].TrimEnd('-');
+            return $"{basePart}{suffix}";
+        }
+
+        public static string ShortHash(string input)
+        {
+            var bytes = System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(input));
+            return Convert.ToHexString(bytes)[..6].ToLowerInvariant();
+        }
 
         public static ItemStatus ParseStatus(string? status)
         {

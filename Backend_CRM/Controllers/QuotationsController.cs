@@ -261,10 +261,10 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
-            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(dto.DealId);
-            if (closedDealErr != null)
+            var generationErr = await EnsureLinkedDealAllowsQuotationGenerationAsync(dto.DealId);
+            if (generationErr != null)
             {
-                return closedDealErr;
+                return generationErr;
             }
 
             var entity = new Quotation { Id = 0 };
@@ -509,6 +509,16 @@ namespace CRM.Controllers
             if (await QuotationDealLockHelper.IsDealClosedAsync(_context, dealId))
             {
                 return BadRequest(QuotationDealLockHelper.ClosedDealMessage);
+            }
+
+            return null;
+        }
+
+        private async Task<IActionResult?> EnsureLinkedDealAllowsQuotationGenerationAsync(int? dealId)
+        {
+            if (await QuotationDealLockHelper.IsQuotationGenerationBlockedAsync(_context, dealId))
+            {
+                return BadRequest(QuotationDealLockHelper.GenerationBlockedMessage);
             }
 
             return null;
