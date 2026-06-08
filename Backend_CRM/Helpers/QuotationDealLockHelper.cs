@@ -83,5 +83,24 @@ namespace CRM.Helpers
             pipeline ??= await LoadActivePipelineAsync(context);
             return pipeline.Count > 0 && DealStageValidationHelper.IsClosed(status, pipeline);
         }
+
+        public static async Task SyncDealAmountFromGrandTotalAsync(
+            TaskDbcontext context,
+            int? dealId,
+            decimal grandTotal)
+        {
+            if (dealId is not > 0)
+            {
+                return;
+            }
+
+            var deal = await context.Deals.FirstOrDefaultAsync(d => d.Id == dealId);
+            if (deal == null)
+            {
+                return;
+            }
+
+            deal.DealAmount = grandTotal;
+        }
     }
 }

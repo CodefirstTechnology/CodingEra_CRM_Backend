@@ -285,6 +285,10 @@ namespace CRM.Controllers
             await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
 
             await _context.Quotations.AddAsync(entity);
+            await QuotationDealLockHelper.SyncDealAmountFromGrandTotalAsync(
+                _context,
+                entity.DealId,
+                entity.GrandTotal);
             await _context.SaveChangesAsync();
 
             var saved = await LoadQuotationAsync(entity.Id);
@@ -355,6 +359,10 @@ namespace CRM.Controllers
             existing.LineItems = lines;
             QuotationMappingHelper.ApplyTotals(existing, lines);
 
+            await QuotationDealLockHelper.SyncDealAmountFromGrandTotalAsync(
+                _context,
+                existing.DealId,
+                existing.GrandTotal);
             await _context.SaveChangesAsync();
 
             var saved = await LoadQuotationAsync(id);
