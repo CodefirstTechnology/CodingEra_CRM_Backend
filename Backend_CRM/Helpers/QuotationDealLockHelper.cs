@@ -9,9 +9,56 @@ namespace CRM.Helpers
         public const string ClosedDealMessage =
             "Quotations linked to closed deals cannot be modified.";
 
+        public const string GenerationBlockedMessage =
+            "Quotations cannot be created when the deal is Material Delivered or Lead Closed - Lost.";
+
         public static async Task<IReadOnlyList<DealStatus>> LoadActivePipelineAsync(TaskDbcontext context) =>
             DealStageValidationHelper.OrderPipeline(
                 await context.DealStatuses.AsNoTracking().ToListAsync());
+
+        public static bool IsQuotationGenerationBlocked(
+            string status,
+            IReadOnlyList<DealStatus> allStatuses)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return false;
+            }
+
+            var normalized = status.Trim();
+            if (DealStageValidationHelper.IsClosedLost(normalized, allStatuses))
+            {
+                return true;
+            }
+
+            return string.Equals(
+                normalized,
+                DealStageMilestoneRules.MaterialDelivered,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static async Task<bool> IsQuotationGenerationBlockedAsync(
+            TaskDbcontext context,
+            int? dealId)
+        {
+            if (dealId is not > 0)
+            {
+                return false;
+            }
+
+            var status = await context.Deals.AsNoTracking()
+                .Where(d => d.Id == dealId)
+                .Select(d => d.Status)
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return false;
+            }
+
+            var allStatuses = await context.DealStatuses.AsNoTracking().ToListAsync();
+            return IsQuotationGenerationBlocked(status, allStatuses);
+        }
 
         public static async Task<bool> IsDealClosedAsync(
             TaskDbcontext context,

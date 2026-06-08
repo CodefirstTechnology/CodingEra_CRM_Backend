@@ -25,5 +25,7 @@ namespace CRM.Services
         Task<ItemDetailDto?> CreateVariantAsync(int parentId, ItemVariantUpsertDto dto, CancellationToken ct = default);
         Task<ItemDetailDto?> GenerateVariantsAsync(int parentId, ItemVariantGenerateDto dto, CancellationToken ct = default);
         Task<bool> DeleteVariantAsync(int parentId, int variantId, CancellationToken ct = default);
+
+        Task<QuotationCatalogDto> GetQuotationCatalogAsync(CancellationToken ct = default);
     }
 }

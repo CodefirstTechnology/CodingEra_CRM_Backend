@@ -181,4 +181,30 @@ namespace CRM.DTO
         public int PageSize { get; set; }
         public int TotalPages { get; set; }
     }
+
+    public class QuotationCatalogColumnDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
+        public int SortOrder { get; set; }
+    }
+
+    public class QuotationCatalogItemDto
+    {
+        public int Id { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
+        public string ItemName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal SteelRate { get; set; }
+        public decimal UnitWeight { get; set; }
+        public List<ItemVariantAttributeDto> Attributes { get; set; } = new();
+        public List<ItemSpecificationDto> Specifications { get; set; } = new();
+    }
+
+    public class QuotationCatalogDto
+    {
+        public List<QuotationCatalogColumnDto> DynamicColumns { get; set; } = new();
+        public List<QuotationCatalogItemDto> Items { get; set; } = new();
+    }
 }

@@ -136,6 +136,10 @@ namespace CRM.models
         [Column("tax_total")]
         public decimal TaxTotal { get; set; }
 
+        /// <summary>GST % applied on quotation subtotal (not per line).</summary>
+        [Column("gst_percent")]
+        public decimal GstPercent { get; set; }
+
         [Column("total_quantity")]
         public decimal TotalQuantity { get; set; }
 

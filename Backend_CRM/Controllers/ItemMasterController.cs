@@ -197,6 +197,16 @@ namespace CRM.Controllers
             }
         }
 
+        [HttpGet("quotation-catalog")]
+        public async Task<IActionResult> GetQuotationCatalog([FromQuery] int userId)
+        {
+            var permErr = await RbacAuthorization.RequireAnyPermissionAsync(
+                _context, _rbac, userId, "items.view", "items.manage", "settings.manage", "quotations.view", "quotations.manage");
+            if (permErr != null) return permErr;
+
+            return Ok(await _itemMaster.GetQuotationCatalogAsync());
+        }
+
         [HttpGet("items")]
         public async Task<IActionResult> ListItems([FromQuery] int userId, [FromQuery] ItemListQueryDto query)
         {

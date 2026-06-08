@@ -22,6 +22,9 @@ namespace CRM.models
         [Column("line_index")]
         public int LineIndex { get; set; }
 
+        [Column("item_id")]
+        public int? ItemId { get; set; }
+
         [Column("item_code")]
         [MaxLength(64)]
         public string ItemCode { get; set; } = string.Empty;
@@ -48,6 +51,13 @@ namespace CRM.models
 
         [Column("rate")]
         public decimal Rate { get; set; }
+
+        [Column("steel_rate")]
+        public decimal SteelRate { get; set; }
+
+        /// <summary>JSON snapshot of item attributes/specs at quote time.</summary>
+        [Column("item_snapshot_json")]
+        public string ItemSnapshotJson { get; set; } = string.Empty;
 
         [Column("discount_percent")]
         public decimal DiscountPercent { get; set; }

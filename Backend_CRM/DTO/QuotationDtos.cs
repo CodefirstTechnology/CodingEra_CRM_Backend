@@ -27,7 +27,10 @@ namespace CRM.DTO
         public string Uom { get; set; } = string.Empty;
         public decimal Weight { get; set; }
         public decimal UnitWeight { get; set; }
+        public int? ItemId { get; set; }
         public decimal Rate { get; set; }
+        public decimal SteelRate { get; set; }
+        public string ItemSnapshotJson { get; set; } = string.Empty;
         public decimal DiscountPercent { get; set; }
         public decimal GstPercent { get; set; }
         public decimal Amount { get; set; }
@@ -94,6 +97,7 @@ namespace CRM.DTO
         public string Remarks { get; set; } = string.Empty;
         public decimal Subtotal { get; set; }
         public decimal TaxTotal { get; set; }
+        public decimal GstPercent { get; set; }
         public decimal GrandTotal { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal TotalWeight { get; set; }
