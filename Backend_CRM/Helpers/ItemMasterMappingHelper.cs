@@ -100,10 +100,13 @@ namespace CRM.Helpers
                 ParentItemName = parentName ?? item.ParentItem?.ItemName ?? string.Empty,
                 VariantCount = variantCount,
                 VariantAttributes = variantAttrs?.Select(ToVariantAttributeDto).ToList() ?? new List<ItemVariantAttributeDto>(),
+                SteelRate = item.SteelRate < 0 ? 0 : item.SteelRate,
                 CreatedAt = item.CreatedAt,
                 UpdatedAt = item.UpdatedAt,
             };
         }
+
+        public static decimal NormalizeSteelRate(decimal rate) => rate < 0 ? 0 : rate;
 
         public static ItemStatus ParseStatus(string? status)
         {

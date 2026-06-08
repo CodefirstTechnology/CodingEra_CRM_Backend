@@ -322,6 +322,7 @@ namespace CRM.Services
                 ItemGroupId = item.ItemGroupId,
                 ItemGroupName = item.ItemGroup?.Name ?? string.Empty,
                 Description = item.Description,
+                SteelRate = ItemMasterMappingHelper.NormalizeSteelRate(item.SteelRate),
                 Status = item.Status.ToString(),
                 HasVariants = item.HasVariants,
                 ParentItemId = item.ParentItemId,
@@ -377,6 +378,7 @@ namespace CRM.Services
                 ItemName = dto.ItemName.Trim(),
                 ItemGroupId = dto.ItemGroupId,
                 Description = dto.Description?.Trim() ?? string.Empty,
+                SteelRate = ItemMasterMappingHelper.NormalizeSteelRate(dto.SteelRate),
                 Status = ItemMasterMappingHelper.ParseStatus(dto.Status),
                 HasVariants = dto.HasVariants,
                 CreatedAt = now,
@@ -408,6 +410,7 @@ namespace CRM.Services
             row.ItemName = dto.ItemName.Trim();
             row.ItemGroupId = dto.ItemGroupId;
             row.Description = dto.Description?.Trim() ?? string.Empty;
+            row.SteelRate = ItemMasterMappingHelper.NormalizeSteelRate(dto.SteelRate);
             row.Status = ItemMasterMappingHelper.ParseStatus(dto.Status);
             row.HasVariants = dto.HasVariants;
             row.UpdatedAt = DateTime.UtcNow;
@@ -457,6 +460,9 @@ namespace CRM.Services
                 ItemName = BuildVariantName(parent.ItemName, dto.Attributes),
                 ItemGroupId = parent.ItemGroupId,
                 Description = parent.Description,
+                SteelRate = dto.SteelRate.HasValue
+                    ? ItemMasterMappingHelper.NormalizeSteelRate(dto.SteelRate.Value)
+                    : parent.SteelRate,
                 Status = ItemMasterMappingHelper.ParseStatus(dto.Status),
                 HasVariants = false,
                 ParentItemId = parentId,
@@ -518,6 +524,7 @@ namespace CRM.Services
                     ItemName = BuildVariantName(parent.ItemName, attrs),
                     ItemGroupId = parent.ItemGroupId,
                     Description = parent.Description,
+                    SteelRate = parent.SteelRate,
                     Status = ItemMasterMappingHelper.ParseStatus(dto.Status),
                     HasVariants = false,
                     ParentItemId = parentId,
