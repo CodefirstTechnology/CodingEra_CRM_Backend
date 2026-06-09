@@ -14,11 +14,16 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly IQuotationService _quotationService;
+        private readonly IUserTargetService _userTargets;
 
-        public QuotationsController(TaskDbcontext context, IQuotationService quotationService)
+        public QuotationsController(
+            TaskDbcontext context,
+            IQuotationService quotationService,
+            IUserTargetService userTargets)
         {
             _context = context;
             _quotationService = quotationService;
+            _userTargets = userTargets;
         }
 
         [HttpGet("settings")]
@@ -290,6 +295,10 @@ namespace CRM.Controllers
                 entity.DealId,
                 entity.GrandTotal);
             await _context.SaveChangesAsync();
+            if (entity.DealId is > 0)
+            {
+                await _userTargets.RecalculateForDealAsync(entity.DealId.Value);
+            }
 
             var saved = await LoadQuotationAsync(entity.Id);
             return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
@@ -364,6 +373,10 @@ namespace CRM.Controllers
                 existing.DealId,
                 existing.GrandTotal);
             await _context.SaveChangesAsync();
+            if (existing.DealId is > 0)
+            {
+                await _userTargets.RecalculateForDealAsync(existing.DealId.Value);
+            }
 
             var saved = await LoadQuotationAsync(id);
             return Ok(QuotationMappingHelper.ToUpsertDto(saved!));

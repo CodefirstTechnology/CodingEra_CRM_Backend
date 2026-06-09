@@ -49,6 +49,7 @@ builder.Services.AddScoped<IItemMasterService, ItemMasterService>();
 builder.Services.AddScoped<ILeadImportService, LeadImportService>();
 builder.Services.AddScoped<ILeadImportFileParser, LeadImportFileParser>();
 builder.Services.AddScoped<IRbacService, RbacService>();
+builder.Services.AddScoped<IUserTargetService, UserTargetService>();
 
 var app = builder.Build();
 

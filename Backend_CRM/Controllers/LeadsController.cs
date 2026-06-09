@@ -42,11 +42,22 @@ namespace CRM.Controllers
                 .ThenInclude(o => o!.Territory);
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] string? leadSource = null, [FromQuery] string? status = null)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int userId,
+            [FromQuery] string? leadSource = null,
+            [FromQuery] string? status = null,
+            [FromQuery] int? leadOwnerId = null)
         {
             var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
             if (permErr != null) return permErr;
             IQueryable<Lead> q = QueryWithMasters(_context.Leads.AsNoTracking());
+            q = await RbacRecordScopeHelper.ApplyLeadOwnerScopeAsync(_context, _rbac, userId, "leads", q);
+
+            if (leadOwnerId is > 0 && await _rbac.IsAdminUserAsync(userId))
+            {
+                q = q.Where(l => l.LeadOwnerId == leadOwnerId);
+            }
+
             if (!string.IsNullOrWhiteSpace(leadSource))
             {
                 q = q.Where(l => l.LeadSource == leadSource);
