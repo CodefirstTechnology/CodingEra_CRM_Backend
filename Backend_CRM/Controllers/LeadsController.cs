@@ -16,17 +16,20 @@ namespace CRM.Controllers
         private readonly ILeadImportService _leadImportService;
         private readonly ILeadImportFileParser _leadImportFileParser;
         private readonly IRbacService _rbac;
+        private readonly ILeadSyncRoundRobinService _leadSyncRoundRobin;
 
         public LeadsController(
             TaskDbcontext context,
             ILeadImportService leadImportService,
             ILeadImportFileParser leadImportFileParser,
-            IRbacService rbac)
+            IRbacService rbac,
+            ILeadSyncRoundRobinService leadSyncRoundRobin)
         {
             _context = context;
             _leadImportService = leadImportService;
             _leadImportFileParser = leadImportFileParser;
             _rbac = rbac;
+            _leadSyncRoundRobin = leadSyncRoundRobin;
         }
 
         private static IQueryable<Lead> QueryWithMasters(IQueryable<Lead> q) =>
@@ -148,7 +151,9 @@ namespace CRM.Controllers
                 return orgError;
             }
 
-            await RecordOwnershipEnforcement.EnforceLeadOwnerOnCreateAsync(_rbac, userId, entity);
+            var syncOwnerApplied = await _leadSyncRoundRobin.TryApplyOwnerForSyncLeadAsync(entity);
+            await RecordOwnershipEnforcement.EnforceLeadOwnerOnCreateAsync(
+                _rbac, userId, entity, syncOwnerApplied);
 
             entity.Id = 0;
 

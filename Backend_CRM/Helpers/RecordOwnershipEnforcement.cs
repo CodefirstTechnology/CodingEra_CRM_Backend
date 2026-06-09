@@ -12,8 +12,18 @@ namespace CRM.Helpers
     public static class RecordOwnershipEnforcement
     {
     /// Users without assign always self-own on create; assign users keep DTO owner when set.
-    public static async Task EnforceLeadOwnerOnCreateAsync(IRbacService rbac, int userId, Lead lead)
+    /// When <paramref name="syncRoundRobinOwnerApplied"/> is true, the owner was set by lead sync round-robin and is kept.
+    public static async Task EnforceLeadOwnerOnCreateAsync(
+        IRbacService rbac,
+        int userId,
+        Lead lead,
+        bool syncRoundRobinOwnerApplied = false)
     {
+        if (syncRoundRobinOwnerApplied && lead.LeadOwnerId is > 0)
+        {
+            return;
+        }
+
         if (await rbac.HasPermissionAsync(userId, "leads.assign") && lead.LeadOwnerId is > 0)
         {
             return;
