@@ -74,6 +74,8 @@ namespace CRM.Helpers
                 ("roles", "manage", "roles.manage", "Manage roles and permissions"),
                 ("items", "view", "items.view", "View item master"),
                 ("items", "manage", "items.manage", "Manage item master"),
+                ("user_targets", "view", "user_targets.view", "View sales user targets"),
+                ("user_targets", "manage", "user_targets.manage", "Manage sales user targets"),
             };
 
             foreach (var s in seeds)

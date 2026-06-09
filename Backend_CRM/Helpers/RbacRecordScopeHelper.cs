@@ -100,5 +100,51 @@ namespace CRM.Helpers
 
             return false;
         }
+
+        /// <summary>Scopes lead lists by <see cref="Lead.LeadOwnerId"/> (sales ownership), not created-by.</summary>
+        public static async Task<IQueryable<Lead>> ApplyLeadOwnerScopeAsync(
+            TaskDbcontext db,
+            IRbacService rbac,
+            int userId,
+            string module,
+            IQueryable<Lead> query)
+        {
+            if (await rbac.IsAdminUserAsync(userId))
+            {
+                return query;
+            }
+
+            var scope = await rbac.GetModuleAccessScopeAsync(userId, module);
+            if (scope is null or AccessScope.All)
+            {
+                return query;
+            }
+
+            if (scope == AccessScope.Own)
+            {
+                return query.Where(l => l.LeadOwnerId == userId);
+            }
+
+            if (scope == AccessScope.Team)
+            {
+                var roleId = await db.Users.AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.RoleId)
+                    .FirstOrDefaultAsync();
+
+                if (roleId == null)
+                {
+                    return query.Where(l => l.LeadOwnerId == userId);
+                }
+
+                var teamUserIds = db.Users.AsNoTracking()
+                    .Where(u => u.IsActive && u.RoleId == roleId)
+                    .Select(u => u.Id);
+
+                return query.Where(l => l.LeadOwnerId != null && teamUserIds.Contains(l.LeadOwnerId.Value));
+            }
+
+            return query.Where(l => l.LeadOwnerId == userId);
+        }
     }
 }

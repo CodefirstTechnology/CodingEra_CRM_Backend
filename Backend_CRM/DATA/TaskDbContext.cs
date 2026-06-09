@@ -89,6 +89,10 @@ namespace CRM.DATA
 
         public DbSet<ItemVariantAttributeValue> ItemVariantAttributeValues { get; set; }
 
+        public DbSet<UserTargetType> UserTargetTypes { get; set; }
+
+        public DbSet<UserTarget> UserTargets { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Quotation>()
@@ -742,6 +746,55 @@ namespace CRM.DATA
             modelBuilder.Entity<ItemSpecification>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<ItemTemplateAttribute>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<ItemVariantAttributeValue>().Property(e => e.Id).UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<UserTargetType>()
+                .HasIndex(t => t.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<UserTargetType>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTargetType>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne(t => t.TargetType)
+                .WithMany()
+                .HasForeignKey(t => t.TargetTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasIndex(t => new { t.UserId, t.TargetTypeId, t.StartDate, t.EndDate });
+
+            modelBuilder.Entity<UserTarget>()
+                .HasIndex(t => t.IsActive);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTargetType>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<UserTarget>().Property(e => e.Id).UseIdentityAlwaysColumn();
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -970,6 +1023,11 @@ namespace CRM.DATA
                                 it.CreatedAt = utc;
                                 it.UpdatedAt = utc;
                                 break;
+                            case UserTarget ut:
+                                ut.CreatedAt = utc;
+                                ut.UpdatedAt = utc;
+                                ut.LastModified = utc;
+                                break;
                         }
 
                         break;
@@ -1031,6 +1089,10 @@ namespace CRM.DATA
                                 break;
                             case Item it:
                                 it.UpdatedAt = utc;
+                                break;
+                            case UserTarget ut:
+                                ut.UpdatedAt = utc;
+                                ut.LastModified = utc;
                                 break;
                         }
 
