@@ -37,6 +37,9 @@ namespace CRM.Helpers
 
                 await DealPipelineStageSeed.EnsureAsync(db, logger);
                 await RbacSeed.EnsureAsync(db, logger);
+
+                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                await LeadSyncSeed.EnsureAsync(db, configuration, logger);
             }
             catch (Exception ex)
             {

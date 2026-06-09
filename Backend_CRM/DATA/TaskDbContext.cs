@@ -93,6 +93,18 @@ namespace CRM.DATA
 
         public DbSet<UserTarget> UserTargets { get; set; }
 
+        public DbSet<LeadSyncSource> LeadSyncSources { get; set; }
+
+        public DbSet<LeadSyncIntervalOption> LeadSyncIntervalOptions { get; set; }
+
+        public DbSet<LeadSyncSourceConfig> LeadSyncSourceConfigs { get; set; }
+
+        public DbSet<LeadSyncSourceAssignment> LeadSyncSourceAssignments { get; set; }
+
+        public DbSet<LeadSyncRoundRobinState> LeadSyncRoundRobinStates { get; set; }
+
+        public DbSet<LeadSyncLog> LeadSyncLogs { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Quotation>()
@@ -795,6 +807,66 @@ namespace CRM.DATA
 
             modelBuilder.Entity<UserTargetType>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<UserTarget>().Property(e => e.Id).UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<LeadSyncSource>()
+                .HasIndex(s => s.Code)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncSource>()
+                .HasIndex(s => s.MarkerName)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncIntervalOption>()
+                .HasIndex(o => o.Hours)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncSourceConfig>()
+                .HasOne(c => c.Source)
+                .WithOne(s => s.Config)
+                .HasForeignKey<LeadSyncSourceConfig>(c => c.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeadSyncSourceConfig>()
+                .HasIndex(c => c.NextSyncAt);
+
+            modelBuilder.Entity<LeadSyncRoundRobinState>()
+                .HasOne(r => r.Source)
+                .WithOne(s => s.RoundRobinState)
+                .HasForeignKey<LeadSyncRoundRobinState>(r => r.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasIndex(a => new { a.SourceId, a.UserId })
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasIndex(a => new { a.SourceId, a.SortOrder });
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasOne(a => a.Source)
+                .WithMany(s => s.Assignments)
+                .HasForeignKey(a => a.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LeadSyncLog>()
+                .HasIndex(l => new { l.SourceId, l.StartedAt });
+
+            modelBuilder.Entity<LeadSyncLog>()
+                .HasOne(l => l.Source)
+                .WithMany()
+                .HasForeignKey(l => l.SourceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LeadSyncSource>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSyncIntervalOption>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSyncSourceAssignment>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSyncLog>().Property(e => e.Id).UseIdentityAlwaysColumn();
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
