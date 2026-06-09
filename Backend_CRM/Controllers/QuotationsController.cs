@@ -566,11 +566,6 @@ namespace CRM.Controllers
                 errors.Add("Organization / company name is required.");
             }
 
-            if (string.IsNullOrWhiteSpace(dto.EmailAddress))
-            {
-                errors.Add("Email address is required.");
-            }
-
             if (errors.Count == 0)
             {
                 return null;
