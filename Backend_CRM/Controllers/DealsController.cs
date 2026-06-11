@@ -2,6 +2,7 @@ using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
 using CRM.models;
+using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,11 +14,19 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly ILogger<DealsController> _logger;
+        private readonly IRbacService _rbac;
+        private readonly IUserTargetService _userTargets;
 
-        public DealsController(TaskDbcontext context, ILogger<DealsController> logger)
+        public DealsController(
+            TaskDbcontext context,
+            ILogger<DealsController> logger,
+            IRbacService rbac,
+            IUserTargetService userTargets)
         {
             _context = context;
             _logger = logger;
+            _rbac = rbac;
+            _userTargets = userTargets;
         }
 
         [HttpGet]
@@ -27,7 +36,10 @@ namespace CRM.Controllers
             [FromQuery] int? statusId = null)
         {
             _ = userId;
-            IQueryable<Deal> q = _context.Deals.AsNoTracking().Include(d => d.DealStatus);
+            IQueryable<Deal> q = _context.Deals.AsNoTracking()
+                .Include(d => d.DealStatus)
+                .Include(d => d.AssignedToUser)
+                .Include(d => d.DealOwner);
 
             if (statusId is > 0)
             {
@@ -41,7 +53,9 @@ namespace CRM.Controllers
                     || (d.DealStatus != null && d.DealStatus.Name == st));
             }
 
-            return Ok(await q.OrderByDescending(d => d.LastModified).ToListAsync());
+            var deals = await q.OrderByDescending(d => d.LastModified).ToListAsync();
+            await DealAmountHelper.ApplyLatestQuotationAmountsAsync(_context, deals);
+            return Ok(deals);
         }
 
         [HttpGet("{id:int}")]
@@ -50,12 +64,15 @@ namespace CRM.Controllers
             _ = userId;
             var d = await _context.Deals.AsNoTracking()
                 .Include(x => x.DealStatus)
+                .Include(x => x.AssignedToUser)
+                .Include(x => x.DealOwner)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (d == null)
             {
                 return NotFound();
             }
 
+            await DealAmountHelper.ApplyLatestQuotationAmountsAsync(_context, new[] { d });
             return Ok(d);
         }
 
@@ -84,8 +101,11 @@ namespace CRM.Controllers
                 return statusErr;
             }
 
+            await RecordOwnershipEnforcement.EnforceDealOwnerOnCreateAsync(_rbac, userId, entity);
+
             await _context.Deals.AddAsync(entity);
             await _context.SaveChangesAsync();
+            await _userTargets.RecalculateForDealAsync(entity.Id);
             return Ok(entity);
         }
 
@@ -116,11 +136,15 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var previousOwnerId = existing.DealOwnerId;
+
             var allStatuses = await LoadAllDealStatusesAsync();
             if (DealStageValidationHelper.IsClosed(existing.Status, allStatuses))
             {
                 return BadRequest(DealStageValidationHelper.ClosedDealMessage);
             }
+
+            await RecordOwnershipEnforcement.EnforceDealOwnerOnUpdateAsync(_rbac, userId, dto, existing);
 
             CrmWriteMappings.Apply(existing, dto);
 
@@ -131,6 +155,7 @@ namespace CRM.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await _userTargets.RecalculateForDealAsync(id, previousOwnerId);
             return Ok(existing);
         }
 
@@ -166,6 +191,8 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var previousOwnerId = existing.DealOwnerId;
+
             var lostReason = dto.LostReason?.Trim();
             if (!string.IsNullOrWhiteSpace(lostReason))
             {
@@ -190,6 +217,7 @@ namespace CRM.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await _userTargets.RecalculateForDealAsync(id, previousOwnerId);
             return Ok(existing);
         }
 
@@ -208,8 +236,13 @@ namespace CRM.Controllers
                 return BadRequest(DealStageValidationHelper.ClosedDealMessage);
             }
 
+            var ownerId = entity.DealOwnerId;
             _context.Deals.Remove(entity);
             await _context.SaveChangesAsync();
+            if (ownerId is > 0)
+            {
+                await _userTargets.RecalculateForUserAsync(ownerId.Value);
+            }
             return Ok(new { deleted = true });
         }
 

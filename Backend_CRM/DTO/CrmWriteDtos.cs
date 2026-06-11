@@ -82,6 +82,7 @@ namespace CRM.DTO
         public string Mobile { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
         public decimal? AnnualRevenue { get; set; }
+        public decimal? DealAmount { get; set; }
         public string Employees { get; set; } = string.Empty;
         public string Website { get; set; } = string.Empty;
         public string Gst { get; set; } = string.Empty;
@@ -212,6 +213,7 @@ namespace CRM.DTO
             Mobile = d.Mobile ?? string.Empty,
             Gender = d.Gender ?? string.Empty,
             AnnualRevenue = d.AnnualRevenue,
+            DealAmount = d.DealAmount,
             Employees = d.Employees ?? string.Empty,
             Website = d.Website ?? string.Empty,
             Gst = d.Gst ?? string.Empty,
@@ -240,6 +242,7 @@ namespace CRM.DTO
             e.Mobile = d.Mobile ?? string.Empty;
             e.Gender = d.Gender ?? string.Empty;
             e.AnnualRevenue = d.AnnualRevenue;
+            e.DealAmount = d.DealAmount;
             e.Employees = d.Employees ?? string.Empty;
             e.Website = d.Website ?? string.Empty;
             e.Gst = d.Gst ?? string.Empty;

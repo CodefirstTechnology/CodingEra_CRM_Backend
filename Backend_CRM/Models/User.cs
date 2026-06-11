@@ -26,6 +26,7 @@ namespace CRM.models
 
         [Column("password_hash")]
         [MaxLength(256)]
+        [JsonIgnore]
         public string PasswordHash { get; set; } = string.Empty;
 
         [Column("role_id")]

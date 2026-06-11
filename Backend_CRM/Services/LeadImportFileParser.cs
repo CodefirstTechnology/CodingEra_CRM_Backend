@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
@@ -163,26 +164,64 @@ namespace CRM.Services
             IReadOnlyList<string> columns,
             int rowNumber)
         {
+            var (firstName, lastName) = ResolveNameParts(values, columns);
+
             return new LeadImportRowDto
             {
                 RowNumber = rowNumber,
                 Salutation = Optional(Pick(values, columns, "salutation")),
-                FirstName = Optional(Pick(values, columns, "first name", "firstname", "first_name")),
-                LastName = Optional(Pick(values, columns, "last name", "lastname", "last_name")),
+                FirstName = Optional(firstName),
+                LastName = Optional(lastName),
                 Mobile = Optional(Pick(values, columns, "mobile", "phone", "mobile number")),
                 Email = Optional(Pick(values, columns, "email", "e-mail")),
+                Gender = Optional(Pick(values, columns, "gender")),
                 Organization = Optional(Pick(values, columns, "organization", "organisation", "company")),
                 Industry = Optional(Pick(values, columns, "industry")),
                 NoOfEmployees = Optional(Pick(values, columns, "no of employees", "employees", "employee count", "no_of_employees")),
                 AnnualRevenue = Optional(Pick(values, columns, "annual revenue", "revenue", "annual_revenue")),
                 Website = Optional(Pick(values, columns, "website", "web site", "url")),
+                Gst = Optional(Pick(values, columns, "gstin", "gst", "gst number")),
                 Territory = Optional(Pick(values, columns, "territory")),
+                Location = Optional(Pick(values, columns, "location", "address")),
                 Status = Optional(Pick(values, columns, "status", "lead status")),
                 LeadOwner = Optional(Pick(values, columns, "lead owner", "owner", "assigned to")),
                 RequestType = Optional(Pick(values, columns, "request type", "request_type")),
+                LeadDate = Optional(Pick(values, columns, "lead date", "lead_date", "date")),
                 Requirement = Optional(Pick(values, columns, "requirement", "requirements")),
                 AdditionalDetails = Optional(Pick(values, columns, "additional details", "notes", "additional_details")),
             };
+        }
+
+        private static (string FirstName, string LastName) ResolveNameParts(
+            IReadOnlyDictionary<string, string> values,
+            IReadOnlyList<string> columns)
+        {
+            var fullName = Pick(values, columns, "full name", "fullname", "full_name", "name");
+            if (fullName.Length > 0)
+            {
+                return SplitFullName(fullName);
+            }
+
+            return (
+                Pick(values, columns, "first name", "firstname", "first_name"),
+                Pick(values, columns, "last name", "lastname", "last_name"));
+        }
+
+        private static (string First, string Last) SplitFullName(string fullName)
+        {
+            var trimmed = fullName.Trim();
+            if (trimmed.Length == 0)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1)
+            {
+                return (parts[0], string.Empty);
+            }
+
+            return (parts[0], string.Join(' ', parts.Skip(1)));
         }
 
         private static List<string> ResolveColumns(string[] headerRow)

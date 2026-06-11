@@ -2,6 +2,7 @@ using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
 using CRM.models;
+using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,21 +13,27 @@ namespace CRM.Controllers
     public class ContactsController : ControllerBase
     {
         private readonly TaskDbcontext _context;
+        private readonly IRbacService _rbac;
 
-        public ContactsController(TaskDbcontext context)
+        public ContactsController(TaskDbcontext context, IRbacService rbac)
         {
             _context = context;
+            _rbac = rbac;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] int? organizationId = null)
         {
-            _ = userId;
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.view");
+            if (permErr != null) return permErr;
+
             var q = _context.Contacts.AsNoTracking();
             if (organizationId.HasValue)
             {
                 q = q.Where(c => c.OrganizationId == organizationId);
             }
+
+            q = await RbacRecordScopeHelper.ApplyCreatedByScopeAsync(_context, _rbac, userId, "contacts", q);
 
             return Ok(await q.OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync());
         }
@@ -34,9 +41,16 @@ namespace CRM.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
         {
-            _ = userId;
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.view");
+            if (permErr != null) return permErr;
+
             var c = await _context.Contacts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
             if (c == null)
+            {
+                return NotFound();
+            }
+
+            if (!await RbacRecordScopeHelper.CanAccessCreatedByRecordAsync(_context, _rbac, userId, "contacts", c.CreatedBy))
             {
                 return NotFound();
             }
@@ -51,6 +65,9 @@ namespace CRM.Controllers
             {
                 return BadRequest();
             }
+
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.create");
+            if (permErr != null) return permErr;
 
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
             if (auditErr != null)
@@ -75,6 +92,9 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.edit");
+            if (permErr != null) return permErr;
+
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
             if (auditErr != null)
             {
@@ -94,16 +114,29 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            if (!await RbacRecordScopeHelper.CanAccessCreatedByRecordAsync(_context, _rbac, userId, "contacts", existing.CreatedBy))
+            {
+                return NotFound();
+            }
+
             CrmWriteMappings.Apply(existing, dto);
             await _context.SaveChangesAsync();
             return Ok(existing);
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id, [FromQuery] int userId)
         {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.delete");
+            if (permErr != null) return permErr;
+
             var entity = await _context.Contacts.FindAsync(id);
             if (entity == null)
+            {
+                return NotFound();
+            }
+
+            if (!await RbacRecordScopeHelper.CanAccessCreatedByRecordAsync(_context, _rbac, userId, "contacts", entity.CreatedBy))
             {
                 return NotFound();
             }

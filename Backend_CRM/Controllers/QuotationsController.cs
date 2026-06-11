@@ -14,11 +14,16 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly IQuotationService _quotationService;
+        private readonly IUserTargetService _userTargets;
 
-        public QuotationsController(TaskDbcontext context, IQuotationService quotationService)
+        public QuotationsController(
+            TaskDbcontext context,
+            IQuotationService quotationService,
+            IUserTargetService userTargets)
         {
             _context = context;
             _quotationService = quotationService;
+            _userTargets = userTargets;
         }
 
         [HttpGet("settings")]
@@ -261,10 +266,10 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
-            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(dto.DealId);
-            if (closedDealErr != null)
+            var generationErr = await EnsureLinkedDealAllowsQuotationGenerationAsync(dto.DealId);
+            if (generationErr != null)
             {
-                return closedDealErr;
+                return generationErr;
             }
 
             var entity = new Quotation { Id = 0 };
@@ -285,7 +290,15 @@ namespace CRM.Controllers
             await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
 
             await _context.Quotations.AddAsync(entity);
+            await QuotationDealLockHelper.SyncDealAmountFromGrandTotalAsync(
+                _context,
+                entity.DealId,
+                entity.GrandTotal);
             await _context.SaveChangesAsync();
+            if (entity.DealId is > 0)
+            {
+                await _userTargets.RecalculateForDealAsync(entity.DealId.Value);
+            }
 
             var saved = await LoadQuotationAsync(entity.Id);
             return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
@@ -355,7 +368,15 @@ namespace CRM.Controllers
             existing.LineItems = lines;
             QuotationMappingHelper.ApplyTotals(existing, lines);
 
+            await QuotationDealLockHelper.SyncDealAmountFromGrandTotalAsync(
+                _context,
+                existing.DealId,
+                existing.GrandTotal);
             await _context.SaveChangesAsync();
+            if (existing.DealId is > 0)
+            {
+                await _userTargets.RecalculateForDealAsync(existing.DealId.Value);
+            }
 
             var saved = await LoadQuotationAsync(id);
             return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
@@ -514,6 +535,16 @@ namespace CRM.Controllers
             return null;
         }
 
+        private async Task<IActionResult?> EnsureLinkedDealAllowsQuotationGenerationAsync(int? dealId)
+        {
+            if (await QuotationDealLockHelper.IsQuotationGenerationBlockedAsync(_context, dealId))
+            {
+                return BadRequest(QuotationDealLockHelper.GenerationBlockedMessage);
+            }
+
+            return null;
+        }
+
         private async Task<Quotation?> LoadQuotationAsync(int id) =>
             await _context.Quotations.AsNoTracking()
                 .Include(x => x.LineItems.OrderBy(l => l.LineIndex))
@@ -533,11 +564,6 @@ namespace CRM.Controllers
             if (string.IsNullOrWhiteSpace(dto.CompanyName))
             {
                 errors.Add("Organization / company name is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(dto.EmailAddress))
-            {
-                errors.Add("Email address is required.");
             }
 
             if (errors.Count == 0)
