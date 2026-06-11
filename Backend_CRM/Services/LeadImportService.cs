@@ -179,7 +179,7 @@ namespace CRM.Services
             {
                 rowIndex++;
                 var rowNumber = row.RowNumber > 0 ? row.RowNumber : rowIndex + 1;
-                var errors = ValidateRowFields(row, masters);
+                var errors = ValidateRowFields(row, masters, userLookups);
                 var duplicateErrors = CollectDuplicateErrors(row, existingContacts, batchEmails, batchMobiles);
 
                 if (duplicateErrors.Count > 0)
@@ -223,6 +223,7 @@ namespace CRM.Services
                 Id = 0,
                 Name = orgName,
                 Website = row.Website?.Trim() ?? string.Empty,
+                Gst = row.Gst?.Trim() ?? string.Empty,
                 AnnualRevenue = ParseAnnualRevenue(row.AnnualRevenue),
                 IndustryId = ResolveMasterId(masters.Industries, row.Industry),
                 EmployeeCountId = ResolveOptionalMasterId(masters.EmployeeCounts, row.NoOfEmployees),
@@ -243,10 +244,11 @@ namespace CRM.Services
             {
                 Id = 0,
                 FirstName = row.FirstName!.Trim(),
-                LastName = row.LastName!.Trim(),
+                LastName = row.LastName?.Trim() ?? string.Empty,
                 Mobile = row.Mobile?.Trim() ?? string.Empty,
                 Email = row.Email?.Trim() ?? string.Empty,
-                Gender = DefaultLeadGender,
+                Gender = ResolveLeadGender(row.Gender),
+                Location = row.Location?.Trim() ?? string.Empty,
                 Notes = ComposeNotes(row.Requirement, row.AdditionalDetails),
                 LeadSource = ExcelLeadSource,
                 LeadOwnerId = ResolveLeadOwnerId(row.LeadOwner, importingUserId, users),
@@ -256,7 +258,7 @@ namespace CRM.Services
                 OrganizationId = organizationId > 0 ? organizationId : null,
                 IsActive = true,
                 CreatedAt = now,
-                LeadDate = now.Date,
+                LeadDate = ParseLeadDate(row.LeadDate) ?? now.Date,
             };
 
             return lead;
@@ -286,37 +288,9 @@ namespace CRM.Services
                 return importingUserId;
             }
 
-            var trimmed = leadOwnerText.Trim();
-
-            if (int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedId)
-                && users.ById.ContainsKey(parsedId))
-            {
-                return parsedId;
-            }
-
-            var key = trimmed.ToLowerInvariant();
-
-            if (users.AssignableByEmail.TryGetValue(key, out var assignableByEmail))
-            {
-                return assignableByEmail;
-            }
-
-            if (users.AssignableByName.TryGetValue(key, out var assignableByName))
-            {
-                return assignableByName;
-            }
-
-            if (users.ByEmail.TryGetValue(key, out var byEmail))
-            {
-                return byEmail;
-            }
-
-            if (users.ByName.TryGetValue(key, out var byName))
-            {
-                return byName;
-            }
-
-            return importingUserId;
+            return TryResolveLeadOwnerId(leadOwnerText.Trim(), users, out var ownerId)
+                ? ownerId
+                : importingUserId;
         }
 
         private static int? ResolveOptionalMasterId(Dictionary<string, int> map, string? value)
@@ -450,19 +424,39 @@ namespace CRM.Services
             return new UserLookups(byId, byName, byEmail, assignableByName, assignableByEmail);
         }
 
-        private static List<string> ValidateRowFields(LeadImportRowDto row, MasterLookups masters)
+        private static List<string> ValidateRowFields(LeadImportRowDto row, MasterLookups masters, UserLookups users)
         {
             var errors = new List<string>();
 
             if (string.IsNullOrWhiteSpace(row.FirstName))
             {
-                errors.Add("First Name is required");
+                errors.Add("Full Name is required");
             }
 
-            if (string.IsNullOrWhiteSpace(row.LastName))
+            if (string.IsNullOrWhiteSpace(row.Organization))
             {
-                errors.Add("Last Name is required");
+                errors.Add("Organization is required");
             }
+
+            if (string.IsNullOrWhiteSpace(row.Industry))
+            {
+                errors.Add("Industry is required");
+            }
+            else if (!masters.Industries.ContainsKey(NormalizeKey(row.Industry)))
+            {
+                errors.Add("Invalid Industry");
+            }
+
+            if (string.IsNullOrWhiteSpace(row.Status))
+            {
+                errors.Add("Status is required");
+            }
+            else if (!masters.LeadStatuses.ContainsKey(NormalizeKey(row.Status)))
+            {
+                errors.Add("Invalid Status");
+            }
+
+            errors.AddRange(ValidateLeadOwnerField(row.LeadOwner, users));
 
             if (string.IsNullOrWhiteSpace(row.Requirement))
             {
@@ -471,12 +465,7 @@ namespace CRM.Services
 
             errors.AddRange(ValidateMobileField(row.Mobile));
             errors.AddRange(ValidateEmailField(row.Email));
-
-            if (!string.IsNullOrWhiteSpace(row.Industry) &&
-                !masters.Industries.ContainsKey(NormalizeKey(row.Industry)))
-            {
-                errors.Add("Invalid Industry");
-            }
+            errors.AddRange(ValidateGenderField(row.Gender));
 
             if (!string.IsNullOrWhiteSpace(row.Salutation) &&
                 !masters.Salutations.ContainsKey(NormalizeKey(row.Salutation)))
@@ -488,12 +477,6 @@ namespace CRM.Services
                 !masters.Territories.ContainsKey(NormalizeKey(row.Territory)))
             {
                 errors.Add("Invalid Territory");
-            }
-
-            if (!string.IsNullOrWhiteSpace(row.Status) &&
-                !masters.LeadStatuses.ContainsKey(NormalizeKey(row.Status)))
-            {
-                errors.Add("Invalid Status");
             }
 
             if (!string.IsNullOrWhiteSpace(row.RequestType) &&
@@ -516,14 +499,13 @@ namespace CRM.Services
             var errors = new List<string>();
             if (string.IsNullOrWhiteSpace(mobile))
             {
-                errors.Add("Mobile is required");
                 return errors;
             }
 
-            var trimmed = mobile.Trim();
-            if (!Regex.IsMatch(trimmed, @"^\d{10}$"))
+            var digits = NormalizeMobile(mobile);
+            if (digits.Length < 8 || digits.Length > 15)
             {
-                errors.Add("Mobile must be exactly 10 digits");
+                errors.Add("Invalid Mobile");
             }
 
             return errors;
@@ -534,7 +516,6 @@ namespace CRM.Services
             var errors = new List<string>();
             if (string.IsNullOrWhiteSpace(email))
             {
-                errors.Add("Email is required");
                 return errors;
             }
 
@@ -545,6 +526,117 @@ namespace CRM.Services
             }
 
             return errors;
+        }
+
+        private static List<string> ValidateGenderField(string? gender)
+        {
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(gender))
+            {
+                return errors;
+            }
+
+            var normalized = gender.Trim().ToLowerInvariant();
+            if (normalized is not ("male" or "female" or "other" or "prefer not to say"))
+            {
+                errors.Add("Invalid Gender");
+            }
+
+            return errors;
+        }
+
+        private static List<string> ValidateLeadOwnerField(string? leadOwner, UserLookups users)
+        {
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(leadOwner))
+            {
+                errors.Add("Lead Owner is required");
+                return errors;
+            }
+
+            if (!TryResolveLeadOwnerId(leadOwner.Trim(), users, out _))
+            {
+                errors.Add("Invalid Lead Owner");
+            }
+
+            return errors;
+        }
+
+        private static string ResolveLeadGender(string? gender)
+        {
+            if (string.IsNullOrWhiteSpace(gender))
+            {
+                return DefaultLeadGender;
+            }
+
+            var trimmed = gender.Trim();
+            return trimmed.ToLowerInvariant() switch
+            {
+                "male" => "Male",
+                "female" => "Female",
+                "other" => "Other",
+                "prefer not to say" => "Prefer not to say",
+                _ => DefaultLeadGender,
+            };
+        }
+
+        private static DateTime? ParseLeadDate(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            if (DateTime.TryParse(
+                    value.Trim(),
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeLocal,
+                    out var parsed))
+            {
+                return parsed.Date;
+            }
+
+            return null;
+        }
+
+        private static bool TryResolveLeadOwnerId(string leadOwnerText, UserLookups users, out int ownerId)
+        {
+            ownerId = 0;
+
+            if (int.TryParse(leadOwnerText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedId)
+                && users.ById.ContainsKey(parsedId))
+            {
+                ownerId = parsedId;
+                return true;
+            }
+
+            var key = leadOwnerText.ToLowerInvariant();
+
+            if (users.AssignableByEmail.TryGetValue(key, out var assignableByEmail))
+            {
+                ownerId = assignableByEmail;
+                return true;
+            }
+
+            if (users.AssignableByName.TryGetValue(key, out var assignableByName))
+            {
+                ownerId = assignableByName;
+                return true;
+            }
+
+            if (users.ByEmail.TryGetValue(key, out var byEmail))
+            {
+                ownerId = byEmail;
+                return true;
+            }
+
+            if (users.ByName.TryGetValue(key, out var byName))
+            {
+                ownerId = byName;
+                return true;
+            }
+
+            return false;
         }
 
         private static List<string> CollectDuplicateErrors(
