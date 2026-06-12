@@ -105,6 +105,8 @@ namespace CRM.DATA
 
         public DbSet<LeadSyncLog> LeadSyncLogs { get; set; }
 
+        public DbSet<UserDashboardPreference> UserDashboardPreferences { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Quotation>()

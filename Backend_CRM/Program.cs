@@ -58,6 +58,11 @@ builder.Services.AddScoped<ILeadImportService, LeadImportService>();
 builder.Services.AddScoped<ILeadImportFileParser, LeadImportFileParser>();
 builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<IUserTargetService, UserTargetService>();
+builder.Services.Configure<MorningBriefingAiOptions>(
+    builder.Configuration.GetSection(MorningBriefingAiOptions.SectionName));
+builder.Services.AddHttpClient("MorningBriefingAi");
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IMorningBriefingAiService, MorningBriefingAiService>();
 
 var app = builder.Build();
 
