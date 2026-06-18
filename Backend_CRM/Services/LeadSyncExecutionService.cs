@@ -76,8 +76,7 @@ namespace CRM.Services
             var now = DateTime.UtcNow;
             return await _db.LeadSyncSourceConfigs.AsNoTracking()
                 .Where(c => c.AutoSyncEnabled
-                    && c.NextSyncAt != null
-                    && c.NextSyncAt <= now)
+                    && (c.NextSyncAt == null || c.NextSyncAt <= now))
                 .Join(
                     _db.LeadSyncSources.Where(s => s.IsActive && s.ApiIntegrationReady),
                     c => c.SourceId,
@@ -304,9 +303,9 @@ namespace CRM.Services
             }
 
             config.LastSyncAt = endedAt;
-            if (config.AutoSyncEnabled && config.IntervalOption != null)
+            if (config.AutoSyncEnabled)
             {
-                config.NextSyncAt = endedAt.AddHours(config.IntervalOption.Hours);
+                config.NextSyncAt = endedAt;
             }
             else
             {
