@@ -35,6 +35,16 @@ namespace CRM.DTO
         public DateTime? UpdatedAt { get; set; }
     }
 
+    /// <summary>Public branding payload (logo + display names only).</summary>
+    public class CompanyProfileBrandingDto
+    {
+        public string BrandName { get; set; } = string.Empty;
+        public string CompanyName { get; set; } = string.Empty;
+        public string Tagline { get; set; } = string.Empty;
+        public string LogoContentType { get; set; } = string.Empty;
+        public string? LogoBase64 { get; set; }
+    }
+
     public class CompanyProfileUpsertDto
     {
         public string BrandName { get; set; } = string.Empty;

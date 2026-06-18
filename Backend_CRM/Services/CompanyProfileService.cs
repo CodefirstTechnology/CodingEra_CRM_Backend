@@ -9,6 +9,7 @@ namespace CRM.Services
     public interface ICompanyProfileService
     {
         Task<CompanyProfileDto> GetAsync(CancellationToken ct = default);
+        Task<CompanyProfileBrandingDto> GetBrandingAsync(CancellationToken ct = default);
         Task<CompanyProfileDto> UpdateAsync(CompanyProfileUpsertDto dto, CancellationToken ct = default);
     }
 
@@ -27,6 +28,12 @@ namespace CRM.Services
         {
             var row = await EnsureRowAsync(ct);
             return CompanyProfileMappingHelper.ToDto(row);
+        }
+
+        public async Task<CompanyProfileBrandingDto> GetBrandingAsync(CancellationToken ct = default)
+        {
+            var row = await EnsureRowAsync(ct);
+            return CompanyProfileMappingHelper.ToBrandingDto(row);
         }
 
         public async Task<CompanyProfileDto> UpdateAsync(CompanyProfileUpsertDto dto, CancellationToken ct = default)
