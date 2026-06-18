@@ -66,6 +66,8 @@ namespace CRM.DATA
 
         public DbSet<QuotationLineItem> QuotationLineItems { get; set; }
 
+        public DbSet<QuotationAdditionalCharge> QuotationAdditionalCharges { get; set; }
+
         public DbSet<QuotationSettings> QuotationSettings { get; set; }
         public DbSet<CompanyProfile> CompanyProfiles { get; set; }
 
@@ -121,6 +123,12 @@ namespace CRM.DATA
                 .HasOne(li => li.Quotation)
                 .WithMany(q => q.LineItems)
                 .HasForeignKey(li => li.QuotationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<QuotationAdditionalCharge>()
+                .HasOne(c => c.Quotation)
+                .WithMany(q => q.AdditionalCharges)
+                .HasForeignKey(c => c.QuotationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<User>()
