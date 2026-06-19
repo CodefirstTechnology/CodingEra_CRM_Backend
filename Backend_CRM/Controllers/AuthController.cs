@@ -102,7 +102,8 @@ namespace CRM.Controllers
         public async Task<IActionResult> GetAllUsers([FromQuery] int userId)
         {
             var err = await RbacAuthorization.RequireAnyPermissionAsync(
-                _context, _rbac, userId, "users.view", "settings.manage");
+                _context, _rbac, userId,
+                "users.view", "settings.manage", "leads.assign", "deals.assign");
             if (err != null)
             {
                 return err;

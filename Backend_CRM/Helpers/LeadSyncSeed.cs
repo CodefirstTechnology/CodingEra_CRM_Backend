@@ -19,6 +19,7 @@ namespace CRM.Helpers
                 var now = DateTime.UtcNow;
                 await EnsureIntervalsAsync(db, now, cancellationToken);
                 await EnsureSourcesAsync(db, configuration, now, cancellationToken);
+                await NormalizeAutoSyncConfigsAsync(db, now, cancellationToken);
                 logger.LogInformation("Lead sync seed verified (sources + intervals).");
             }
             catch (Exception ex)
@@ -69,6 +70,31 @@ namespace CRM.Helpers
             }
 
             await db.SaveChangesAsync(cancellationToken);
+        }
+
+        private static async Task NormalizeAutoSyncConfigsAsync(
+            TaskDbcontext db,
+            DateTime now,
+            CancellationToken cancellationToken)
+        {
+            var enabled = await db.LeadSyncSourceConfigs
+                .Where(c => c.AutoSyncEnabled)
+                .ToListAsync(cancellationToken);
+
+            foreach (var config in enabled)
+            {
+                if (config.IntervalOptionId != null || config.NextSyncAt == null || config.NextSyncAt > now)
+                {
+                    config.IntervalOptionId = null;
+                    config.NextSyncAt = now;
+                    config.UpdatedAt = now;
+                }
+            }
+
+            if (enabled.Count > 0)
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
 
         private static async Task EnsureSourcesAsync(

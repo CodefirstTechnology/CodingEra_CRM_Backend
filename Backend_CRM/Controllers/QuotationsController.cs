@@ -283,7 +283,9 @@ namespace CRM.Controllers
                 ? DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value)
                 : DateTime.UtcNow;
             var lines = QuotationMappingHelper.MapLineItems(0, dto.LineItems);
+            var customCharges = QuotationMappingHelper.MapCustomCharges(0, dto.CustomCharges);
             entity.LineItems = lines;
+            entity.AdditionalCharges = customCharges;
             QuotationMappingHelper.ApplyTotals(entity, lines);
 
             // Always assign on create — the UI preview number is not reserved until save.
@@ -339,6 +341,7 @@ namespace CRM.Controllers
 
             var existing = await _context.Quotations
                 .Include(x => x.LineItems)
+                .Include(x => x.AdditionalCharges)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (existing == null)
             {
@@ -358,14 +361,23 @@ namespace CRM.Controllers
             }
 
             _context.QuotationLineItems.RemoveRange(existing.LineItems);
+            _context.QuotationAdditionalCharges.RemoveRange(existing.AdditionalCharges);
             var lines = QuotationMappingHelper.MapLineItems(id, dto.LineItems);
+            var customCharges = QuotationMappingHelper.MapCustomCharges(id, dto.CustomCharges);
             foreach (var line in lines)
             {
                 line.QuotationId = id;
                 await _context.QuotationLineItems.AddAsync(line);
             }
 
+            foreach (var charge in customCharges)
+            {
+                charge.QuotationId = id;
+                await _context.QuotationAdditionalCharges.AddAsync(charge);
+            }
+
             existing.LineItems = lines;
+            existing.AdditionalCharges = customCharges;
             QuotationMappingHelper.ApplyTotals(existing, lines);
 
             await QuotationDealLockHelper.SyncDealAmountFromGrandTotalAsync(
@@ -473,13 +485,21 @@ namespace CRM.Controllers
                 line.Id = 0;
             }
 
+            foreach (var charge in dto.CustomCharges)
+            {
+                charge.Id = 0;
+            }
+
             var entity = new Quotation { Id = 0 };
             QuotationMappingHelper.ApplyHeader(entity, dto);
             entity.QuotationDate = dto.QuotationDate.HasValue
                 ? DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value)
                 : DateTime.UtcNow;
             var lines = QuotationMappingHelper.MapLineItems(0, dto.LineItems);
+            var customCharges = QuotationMappingHelper.MapCustomCharges(0, dto.CustomCharges);
             entity.LineItems = lines;
+            entity.AdditionalCharges = customCharges;
+            QuotationMappingHelper.ApplyTotals(entity, lines);
             await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
 
             await _context.Quotations.AddAsync(entity);
@@ -506,6 +526,7 @@ namespace CRM.Controllers
 
             var existing = await _context.Quotations
                 .Include(x => x.LineItems)
+                .Include(x => x.AdditionalCharges)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (existing == null)
             {
@@ -519,6 +540,7 @@ namespace CRM.Controllers
             }
 
             _context.QuotationLineItems.RemoveRange(existing.LineItems);
+            _context.QuotationAdditionalCharges.RemoveRange(existing.AdditionalCharges);
             _context.Quotations.Remove(existing);
             await _context.SaveChangesAsync();
 
@@ -548,6 +570,7 @@ namespace CRM.Controllers
         private async Task<Quotation?> LoadQuotationAsync(int id) =>
             await _context.Quotations.AsNoTracking()
                 .Include(x => x.LineItems.OrderBy(l => l.LineIndex))
+                .Include(x => x.AdditionalCharges.OrderBy(c => c.SortIndex))
                 .FirstOrDefaultAsync(x => x.Id == id);
 
         private static BadRequestObjectResult? ValidateRequired(QuotationUpsertDto dto)

@@ -146,6 +146,15 @@ namespace CRM.models
         [Column("total_weight")]
         public decimal TotalWeight { get; set; }
 
+        [Column("transportation_charges")]
+        public decimal TransportationCharges { get; set; }
+
+        [Column("loading_charges")]
+        public decimal LoadingCharges { get; set; }
+
+        [Column("service_charges")]
+        public decimal ServiceCharges { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 
@@ -160,5 +169,10 @@ namespace CRM.models
 
         [JsonIgnore]
         public ICollection<QuotationLineItem> LineItems { get; set; } = new List<QuotationLineItem>();
+
+        [JsonIgnore]
+        public ICollection<QuotationAdditionalCharge> AdditionalCharges { get; set; } =
+            new List<QuotationAdditionalCharge>();
     }
 }
+

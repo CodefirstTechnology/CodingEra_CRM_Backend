@@ -45,6 +45,18 @@ namespace CRM.Helpers
             };
         }
 
+        public static CompanyProfileBrandingDto ToBrandingDto(CompanyProfile row)
+        {
+            return new CompanyProfileBrandingDto
+            {
+                BrandName = row.BrandName ?? string.Empty,
+                CompanyName = row.CompanyName ?? string.Empty,
+                Tagline = row.Tagline ?? string.Empty,
+                LogoContentType = row.LogoContentType ?? string.Empty,
+                LogoBase64 = string.IsNullOrWhiteSpace(row.LogoBase64) ? null : row.LogoBase64,
+            };
+        }
+
         public static void Apply(CompanyProfile row, CompanyProfileUpsertDto dto)
         {
             row.BrandName = (dto.BrandName ?? string.Empty).Trim();
