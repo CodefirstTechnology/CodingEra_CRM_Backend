@@ -56,10 +56,20 @@ namespace CRM.DTO
     public class QuotationTotalsDto
     {
         public decimal Subtotal { get; set; }
+        public decimal AdditionalChargesTotal { get; set; }
+        public decimal TaxableAmount { get; set; }
         public decimal TaxTotal { get; set; }
         public decimal GrandTotal { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal TotalWeight { get; set; }
+    }
+
+    public class QuotationAdditionalChargeDto
+    {
+        public int Id { get; set; }
+        public int SortIndex { get; set; }
+        public string ChargeName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
     }
 
     public class QuotationUpsertDto
@@ -101,6 +111,10 @@ namespace CRM.DTO
         public decimal GrandTotal { get; set; }
         public decimal TotalQuantity { get; set; }
         public decimal TotalWeight { get; set; }
+        public decimal TransportationCharges { get; set; }
+        public decimal LoadingCharges { get; set; }
+        public decimal ServiceCharges { get; set; }
+        public List<QuotationAdditionalChargeDto> CustomCharges { get; set; } = new();
         public List<QuotationLineItemDto> LineItems { get; set; } = new();
     }
 

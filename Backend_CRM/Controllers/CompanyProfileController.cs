@@ -24,6 +24,12 @@ namespace CRM.Controllers
             _rbac = rbac;
         }
 
+        [HttpGet("branding")]
+        public async Task<IActionResult> GetBranding()
+        {
+            return Ok(await _companyProfileService.GetBrandingAsync());
+        }
+
         [HttpGet]
         public async Task<IActionResult> Get([FromQuery] int userId)
         {

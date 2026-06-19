@@ -215,21 +215,12 @@ namespace CRM.Services
 
             if (dto.AutoSyncEnabled)
             {
-                if (dto.IntervalOptionId is not > 0)
-                {
-                    throw new InvalidOperationException("Interval is required when auto sync is enabled.");
-                }
-
-                var interval = await _db.LeadSyncIntervalOptions.AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.Id == dto.IntervalOptionId && o.IsActive, cancellationToken)
-                    ?? throw new InvalidOperationException("Invalid interval option.");
-
-                config.IntervalOptionId = interval.Id;
-                config.NextSyncAt = DateTime.UtcNow.AddHours(interval.Hours);
+                config.IntervalOptionId = null;
+                config.NextSyncAt = DateTime.UtcNow;
             }
             else
             {
-                config.IntervalOptionId = dto.IntervalOptionId is > 0 ? dto.IntervalOptionId : config.IntervalOptionId;
+                config.IntervalOptionId = null;
                 config.NextSyncAt = null;
             }
 
@@ -275,9 +266,9 @@ namespace CRM.Services
             if (config != null)
             {
                 config.LastSyncAt = log.EndedAt ?? log.StartedAt;
-                if (config.AutoSyncEnabled && config.IntervalOption != null)
+                if (config.AutoSyncEnabled)
                 {
-                    config.NextSyncAt = config.LastSyncAt.Value.AddHours(config.IntervalOption.Hours);
+                    config.NextSyncAt = DateTime.UtcNow;
                 }
 
                 config.UpdatedAt = DateTime.UtcNow;

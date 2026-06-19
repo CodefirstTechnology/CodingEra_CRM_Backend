@@ -48,6 +48,9 @@ namespace CRM.Helpers
                 : DateTime.UtcNow;
             entity.Remarks = (dto.Remarks ?? string.Empty).Trim();
             entity.GstPercent = dto.GstPercent < 0 ? 0 : dto.GstPercent;
+            entity.TransportationCharges = dto.TransportationCharges < 0 ? 0 : dto.TransportationCharges;
+            entity.LoadingCharges = dto.LoadingCharges < 0 ? 0 : dto.LoadingCharges;
+            entity.ServiceCharges = dto.ServiceCharges < 0 ? 0 : dto.ServiceCharges;
 
             var status = (dto.Status ?? QuotationStatuses.Draft).Trim();
             entity.Status = QuotationStatuses.All.Contains(status, StringComparer.OrdinalIgnoreCase)
@@ -103,9 +106,58 @@ namespace CRM.Helpers
             return list;
         }
 
+        public static List<QuotationAdditionalCharge> MapCustomCharges(
+            int quotationId,
+            IEnumerable<QuotationAdditionalChargeDto>? items)
+        {
+            var list = new List<QuotationAdditionalCharge>();
+            if (items == null)
+            {
+                return list;
+            }
+
+            var idx = 0;
+            foreach (var dto in items.OrderBy(x => x.SortIndex).ThenBy(x => x.Id))
+            {
+                var name = (dto.ChargeName ?? string.Empty).Trim();
+                var amount = dto.Amount < 0 ? 0 : dto.Amount;
+                if (string.IsNullOrWhiteSpace(name) && amount <= 0)
+                {
+                    continue;
+                }
+
+                list.Add(new QuotationAdditionalCharge
+                {
+                    Id = 0,
+                    QuotationId = quotationId,
+                    SortIndex = dto.SortIndex >= 0 ? dto.SortIndex : idx,
+                    ChargeName = name,
+                    Amount = amount,
+                });
+                idx++;
+            }
+
+            return list;
+        }
+
+        public static decimal ComputeAdditionalChargesTotal(Quotation entity) =>
+            QuotationLineCalculator.SumAdditionalCharges(
+                entity.TransportationCharges,
+                entity.LoadingCharges,
+                entity.ServiceCharges,
+                entity.AdditionalCharges.Select(c => c.Amount));
+
+        public static decimal ComputeAdditionalChargesTotal(QuotationUpsertDto dto) =>
+            QuotationLineCalculator.SumAdditionalCharges(
+                dto.TransportationCharges,
+                dto.LoadingCharges,
+                dto.ServiceCharges,
+                dto.CustomCharges?.Select(c => c.Amount < 0 ? 0 : c.Amount));
+
         public static QuotationLineCalculator.QuotationTotals ComputeTotals(
             IEnumerable<QuotationLineItem> lines,
-            decimal headerGstPercent)
+            decimal headerGstPercent,
+            decimal additionalChargesTotal)
         {
             var rows = lines.Select(l =>
             {
@@ -116,12 +168,13 @@ namespace CRM.Helpers
                         l.Quantity, l.Rate, l.DiscountPercent, l.Weight, l.UnitWeight);
                 return (l.Quantity, calc);
             });
-            return QuotationLineCalculator.AggregateLines(rows, headerGstPercent);
+            return QuotationLineCalculator.AggregateLines(rows, headerGstPercent, additionalChargesTotal);
         }
 
         public static void ApplyTotals(Quotation entity, IEnumerable<QuotationLineItem> lines)
         {
-            var totals = ComputeTotals(lines, entity.GstPercent);
+            var additionalTotal = ComputeAdditionalChargesTotal(entity);
+            var totals = ComputeTotals(lines, entity.GstPercent, additionalTotal);
             entity.Subtotal = totals.Subtotal;
             entity.TaxTotal = totals.TaxTotal;
             entity.GrandTotal = totals.GrandTotal;
@@ -131,7 +184,8 @@ namespace CRM.Helpers
 
         public static QuotationUpsertDto ToUpsertDto(Quotation q)
         {
-            var totals = ComputeTotals(q.LineItems, q.GstPercent);
+            var additionalTotal = ComputeAdditionalChargesTotal(q);
+            var totals = ComputeTotals(q.LineItems, q.GstPercent, additionalTotal);
             return new QuotationUpsertDto
             {
                 Id = q.Id,
@@ -169,6 +223,19 @@ namespace CRM.Helpers
                 GrandTotal = totals.GrandTotal,
                 TotalQuantity = totals.TotalQuantity,
                 TotalWeight = totals.TotalWeight,
+                TransportationCharges = q.TransportationCharges,
+                LoadingCharges = q.LoadingCharges,
+                ServiceCharges = q.ServiceCharges,
+                CustomCharges = q.AdditionalCharges
+                    .OrderBy(c => c.SortIndex)
+                    .Select(c => new QuotationAdditionalChargeDto
+                    {
+                        Id = c.Id,
+                        SortIndex = c.SortIndex,
+                        ChargeName = c.ChargeName,
+                        Amount = c.Amount,
+                    })
+                    .ToList(),
                 LineItems = q.LineItems
                     .OrderBy(l => l.LineIndex)
                     .Select(l =>
