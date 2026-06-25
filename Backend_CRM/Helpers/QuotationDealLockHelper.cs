@@ -7,7 +7,7 @@ namespace CRM.Helpers
     public static class QuotationDealLockHelper
     {
         public const string ClosedDealMessage =
-            "Quotations linked to closed deals cannot be modified.";
+            "Quotations linked to delivered or closed deals cannot be modified.";
 
         public const string GenerationBlockedMessage =
             "Quotations cannot be created when the deal is Material Delivered or Lead Closed - Lost.";
@@ -81,7 +81,7 @@ namespace CRM.Helpers
             }
 
             pipeline ??= await LoadActivePipelineAsync(context);
-            return pipeline.Count > 0 && DealStageValidationHelper.IsClosed(status, pipeline);
+            return pipeline.Count > 0 && DealStageValidationHelper.IsDealDataLocked(status, pipeline);
         }
 
         public static async Task SyncDealAmountFromGrandTotalAsync(
