@@ -139,9 +139,9 @@ namespace CRM.Controllers
             var previousOwnerId = existing.DealOwnerId;
 
             var allStatuses = await LoadAllDealStatusesAsync();
-            if (DealStageValidationHelper.IsClosed(existing.Status, allStatuses))
+            if (DealStageValidationHelper.IsDealDataLocked(existing.Status, allStatuses))
             {
-                return BadRequest(DealStageValidationHelper.ClosedDealMessage);
+                return BadRequest(DealStageValidationHelper.DealDataLockedMessage);
             }
 
             await RecordOwnershipEnforcement.EnforceDealOwnerOnUpdateAsync(_rbac, userId, dto, existing);

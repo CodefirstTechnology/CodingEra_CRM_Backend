@@ -17,6 +17,8 @@ namespace CRM.Helpers
     {
         public const string ClosedDealMessage = "Closed deals cannot be modified.";
 
+        public const string DealDataLockedMessage = "Deal data cannot be modified at this stage.";
+
         public const string WonRequiresMaterialDeliveredMessage =
             "Closed Won is allowed only after Material Delivered.";
 
@@ -37,6 +39,24 @@ namespace CRM.Helpers
 
         public static bool IsClosed(string status, IReadOnlyList<DealStatus> allStatuses) =>
             IsClosedWon(status, allStatuses) || IsClosedLost(status, allStatuses);
+
+        public static bool IsDealDataLocked(string status, IReadOnlyList<DealStatus> allStatuses)
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return false;
+            }
+
+            if (IsClosed(status, allStatuses))
+            {
+                return true;
+            }
+
+            return string.Equals(
+                status.Trim(),
+                DealStageMilestoneRules.MaterialDelivered,
+                StringComparison.OrdinalIgnoreCase);
+        }
 
         public static DealStageValidationResult ValidateTransition(
             IReadOnlyList<DealStatus> allStatuses,
