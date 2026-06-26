@@ -198,7 +198,7 @@ namespace CRM.Controllers
                 x.DealId,
                 DealClosed = x.DealId is > 0
                     && !string.IsNullOrWhiteSpace(x.DealStatus)
-                    && DealStageValidationHelper.IsClosed(x.DealStatus, pipeline),
+                    && DealStageValidationHelper.IsDealDataLocked(x.DealStatus, pipeline),
                 x.CustomerName,
                 x.CompanyName,
                 x.ContactPerson,
