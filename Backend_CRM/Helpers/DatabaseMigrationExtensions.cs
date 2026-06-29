@@ -35,6 +35,7 @@ namespace CRM.Helpers
                 await db.Database.MigrateAsync();
                 logger.LogInformation("Database schema is up to date.");
 
+                await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await DealPipelineStageSeed.EnsureAsync(db, logger);
                 await RbacSeed.EnsureAsync(db, logger);
 

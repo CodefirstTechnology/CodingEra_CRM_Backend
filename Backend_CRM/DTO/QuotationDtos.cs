@@ -114,6 +114,12 @@ namespace CRM.DTO
         public decimal TransportationCharges { get; set; }
         public decimal LoadingCharges { get; set; }
         public decimal ServiceCharges { get; set; }
+        /// <summary>When true, quotation-specific terms content is used on PDF instead of company profile defaults.</summary>
+        public bool CustomizeTerms { get; set; }
+        public string IntroText { get; set; } = string.Empty;
+        public string TransportationLabel { get; set; } = string.Empty;
+        public string Jurisdiction { get; set; } = string.Empty;
+        public List<CompanyProfileTermDto> Terms { get; set; } = new();
         public List<QuotationAdditionalChargeDto> CustomCharges { get; set; } = new();
         public List<QuotationLineItemDto> LineItems { get; set; } = new();
     }
