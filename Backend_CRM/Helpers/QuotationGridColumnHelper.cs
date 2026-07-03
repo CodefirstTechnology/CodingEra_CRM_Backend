@@ -35,7 +35,9 @@ namespace CRM.Helpers
         public static List<QuotationGridColumnDto> MergeWithDefaults(IEnumerable<QuotationGridColumnDto> saved)
         {
             var defaults = LoadDefaultColumns();
-            var map = saved.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
+            var savedList = saved?.Where(c => !string.IsNullOrWhiteSpace(c.Key)).ToList()
+                             ?? new List<QuotationGridColumnDto>();
+            var map = savedList.ToDictionary(c => c.Key, StringComparer.OrdinalIgnoreCase);
             var merged = new List<QuotationGridColumnDto>();
 
             foreach (var def in defaults)
@@ -58,12 +60,35 @@ namespace CRM.Helpers
                 }
             }
 
+            var mergedKeys = new HashSet<string>(merged.Select(c => c.Key), StringComparer.OrdinalIgnoreCase);
+            foreach (var col in savedList)
+            {
+                if (mergedKeys.Contains(col.Key) || !IsDynamicColumnKey(col.Key))
+                {
+                    continue;
+                }
+
+                merged.Add(new QuotationGridColumnDto
+                {
+                    Key = col.Key.Trim(),
+                    Label = string.IsNullOrWhiteSpace(col.Label) ? col.Key.Trim() : col.Label.Trim(),
+                    Visible = col.Visible,
+                    Order = col.Order,
+                    Width = col.Width > 0 ? col.Width : 110,
+                    Editable = col.Editable,
+                });
+            }
+
             return merged.OrderBy(c => c.Order).Select((c, i) =>
             {
                 c.Order = i;
                 return c;
             }).ToList();
         }
+
+        private static bool IsDynamicColumnKey(string key) =>
+            key.StartsWith("attr:", StringComparison.OrdinalIgnoreCase) ||
+            key.StartsWith("spec:", StringComparison.OrdinalIgnoreCase);
 
         private static List<QuotationGridColumnDto> LoadDefaultColumns()
         {

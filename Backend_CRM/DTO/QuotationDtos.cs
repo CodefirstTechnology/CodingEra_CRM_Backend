@@ -72,6 +72,24 @@ namespace CRM.DTO
         public decimal Amount { get; set; }
     }
 
+    /// <summary>Template-specific fields for Technical Proposal quotations.</summary>
+    public class TechnicalProposalPayloadDto
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public string KindAttnDesignation { get; set; } = string.Empty;
+        public string CommercialTerms { get; set; } = string.Empty;
+        public string TaxLabel { get; set; } = string.Empty;
+        public string PaymentTerms { get; set; } = string.Empty;
+        public string HsnCode { get; set; } = string.Empty;
+        public string Incoterms { get; set; } = string.Empty;
+        public string DispatchLeadTime { get; set; } = string.Empty;
+        /// <summary>ISO 4217 code, e.g. INR or USD. Defaults to INR.</summary>
+        public string CurrencyCode { get; set; } = "INR";
+        public string ProposalIntro { get; set; } = string.Empty;
+        public List<CompanyProfileTermDto> TechnicalSections { get; set; } = new();
+        public List<CompanyProfileTermDto> CommercialSections { get; set; } = new();
+    }
+
     public class QuotationUpsertDto
     {
         public int Id { get; set; }
@@ -122,6 +140,8 @@ namespace CRM.DTO
         public List<CompanyProfileTermDto> Terms { get; set; } = new();
         public List<QuotationAdditionalChargeDto> CustomCharges { get; set; } = new();
         public List<QuotationLineItemDto> LineItems { get; set; } = new();
+        public string QuotationTemplate { get; set; } = CRM.models.QuotationTemplateTypes.Standard;
+        public TechnicalProposalPayloadDto? TechnicalProposal { get; set; }
     }
 
     public class QuotationStatusPatchDto

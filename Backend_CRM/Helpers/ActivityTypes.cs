@@ -6,6 +6,9 @@ namespace CRM.Helpers
         public const string Deal = "deal";
         public const string Contact = "contact";
         public const string Organization = "organization";
+        public const string Item = "item";
+        public const string ItemGroup = "item_group";
+        public const string ItemAttribute = "item_attribute";
     }
 
     public static class ActivityActionTypes

@@ -109,6 +109,54 @@ namespace CRM.Helpers
                 }
             }
 
+            foreach (var entry in db.ChangeTracker.Entries<Item>())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        AddRange(batch, BuildItemCreated(entry.Entity, actorId, lookup), entry);
+                        break;
+                    case EntityState.Modified:
+                        AddRange(batch, BuildItemUpdates(entry, actorId, lookup));
+                        break;
+                    case EntityState.Deleted:
+                        AddRange(batch, BuildItemDeleted(entry.Entity, actorId, lookup));
+                        break;
+                }
+            }
+
+            foreach (var entry in db.ChangeTracker.Entries<ItemGroup>())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        AddRange(batch, BuildItemGroupCreated(entry.Entity, actorId, lookup), entry);
+                        break;
+                    case EntityState.Modified:
+                        AddRange(batch, BuildItemGroupUpdates(entry, actorId, lookup));
+                        break;
+                    case EntityState.Deleted:
+                        AddRange(batch, BuildItemGroupDeleted(entry.Entity, actorId, lookup));
+                        break;
+                }
+            }
+
+            foreach (var entry in db.ChangeTracker.Entries<ItemAttribute>())
+            {
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        AddRange(batch, BuildItemAttributeCreated(entry.Entity, actorId, lookup), entry);
+                        break;
+                    case EntityState.Modified:
+                        AddRange(batch, BuildItemAttributeUpdates(entry, actorId, lookup));
+                        break;
+                    case EntityState.Deleted:
+                        AddRange(batch, BuildItemAttributeDeleted(entry.Entity, actorId, lookup));
+                        break;
+                }
+            }
+
             return batch;
         }
 
@@ -163,6 +211,9 @@ namespace CRM.Helpers
             Comment c => c.Id,
             TaskTable t => t.TaskId,
             CallLog cl => cl.CallId,
+            Item i => i.Id,
+            ItemGroup g => g.Id,
+            ItemAttribute a => a.Id,
             _ => 0,
         };
 
@@ -615,6 +666,290 @@ namespace CRM.Helpers
             }
         }
 
+        private static IEnumerable<ActivityLog> BuildItemCreated(Item item, int? actorId, ActivityLookup lookup)
+        {
+            var actor = lookup.ActorName(actorId);
+            var label = ItemDisplayLabel(item);
+            var kind = item.ParentItemId.HasValue ? "variant" : "item";
+            yield return new ActivityLog
+            {
+                EntityType = ActivityEntityTypes.Item,
+                EntityId = 0,
+                ActionType = ActivityActionTypes.Created,
+                ActorUserId = actorId,
+                ActorName = actor,
+                Message = $"{actor} created {kind} {label}",
+            };
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemUpdates(
+            EntityEntry<Item> entry, int? actorId, ActivityLookup lookup)
+        {
+            var item = entry.Entity;
+            var actor = lookup.ActorName(actorId);
+            var label = ItemDisplayLabel(item);
+
+            foreach (var prop in entry.Properties.Where(p => p.IsModified))
+            {
+                var name = prop.Metadata.Name;
+                if (name is nameof(Item.UpdatedAt) or nameof(Item.CreatedBy) or nameof(Item.UpdatedBy)
+                    or nameof(Item.CreatedAt))
+                {
+                    continue;
+                }
+
+                var oldRaw = prop.OriginalValue;
+                var newRaw = prop.CurrentValue;
+                if (Equals(oldRaw, newRaw))
+                {
+                    continue;
+                }
+
+                if (name == nameof(Item.Status))
+                {
+                    yield return new ActivityLog
+                    {
+                        EntityType = ActivityEntityTypes.Item,
+                        EntityId = item.Id,
+                        ActionType = ActivityActionTypes.StatusChanged,
+                        ActorUserId = actorId,
+                        ActorName = actor,
+                        FieldName = "status",
+                        OldValue = oldRaw?.ToString(),
+                        NewValue = newRaw?.ToString(),
+                        Message = $"{actor} changed status of {label} to {newRaw}",
+                    };
+                    continue;
+                }
+
+                if (name == nameof(Item.ItemGroupId))
+                {
+                    yield return new ActivityLog
+                    {
+                        EntityType = ActivityEntityTypes.Item,
+                        EntityId = item.Id,
+                        ActionType = ActivityActionTypes.FieldUpdated,
+                        ActorUserId = actorId,
+                        ActorName = actor,
+                        FieldName = "item group",
+                        OldValue = lookup.ItemGroupName(oldRaw as int?),
+                        NewValue = lookup.ItemGroupName(newRaw as int?),
+                        Message = $"{actor} updated item group on {label}",
+                    };
+                    continue;
+                }
+
+                var fieldLabel = ItemFieldLabel(name);
+                yield return new ActivityLog
+                {
+                    EntityType = ActivityEntityTypes.Item,
+                    EntityId = item.Id,
+                    ActionType = ActivityActionTypes.FieldUpdated,
+                    ActorUserId = actorId,
+                    ActorName = actor,
+                    FieldName = fieldLabel,
+                    OldValue = oldRaw?.ToString(),
+                    NewValue = newRaw?.ToString(),
+                    Message = $"{actor} updated {fieldLabel} on {label}",
+                };
+            }
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemDeleted(Item item, int? actorId, ActivityLookup lookup)
+        {
+            var actor = lookup.ActorName(actorId);
+            var label = ItemDisplayLabel(item);
+            var kind = item.ParentItemId.HasValue ? "variant" : "item";
+            yield return new ActivityLog
+            {
+                EntityType = ActivityEntityTypes.Item,
+                EntityId = item.Id,
+                ActionType = ActivityActionTypes.Deleted,
+                ActorUserId = actorId,
+                ActorName = actor,
+                Message = $"{actor} deleted {kind} {label}",
+            };
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemGroupCreated(
+            ItemGroup group, int? actorId, ActivityLookup lookup)
+        {
+            var actor = lookup.ActorName(actorId);
+            yield return new ActivityLog
+            {
+                EntityType = ActivityEntityTypes.ItemGroup,
+                EntityId = 0,
+                ActionType = ActivityActionTypes.Created,
+                ActorUserId = actorId,
+                ActorName = actor,
+                Message = $"{actor} created item group {group.Name}",
+            };
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemGroupUpdates(
+            EntityEntry<ItemGroup> entry, int? actorId, ActivityLookup lookup)
+        {
+            var group = entry.Entity;
+            var actor = lookup.ActorName(actorId);
+
+            foreach (var prop in entry.Properties.Where(p => p.IsModified))
+            {
+                var name = prop.Metadata.Name;
+                if (name is nameof(ItemGroup.UpdatedAt) or nameof(ItemGroup.CreatedBy) or nameof(ItemGroup.UpdatedBy)
+                    or nameof(ItemGroup.CreatedAt))
+                {
+                    continue;
+                }
+
+                var oldRaw = prop.OriginalValue;
+                var newRaw = prop.CurrentValue;
+                if (Equals(oldRaw, newRaw))
+                {
+                    continue;
+                }
+
+                var fieldLabel = ItemGroupFieldLabel(name);
+                yield return new ActivityLog
+                {
+                    EntityType = ActivityEntityTypes.ItemGroup,
+                    EntityId = group.Id,
+                    ActionType = ActivityActionTypes.FieldUpdated,
+                    ActorUserId = actorId,
+                    ActorName = actor,
+                    FieldName = fieldLabel,
+                    OldValue = oldRaw?.ToString(),
+                    NewValue = newRaw?.ToString(),
+                    Message = $"{actor} updated {fieldLabel} on item group {group.Name}",
+                };
+            }
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemGroupDeleted(
+            ItemGroup group, int? actorId, ActivityLookup lookup)
+        {
+            var actor = lookup.ActorName(actorId);
+            yield return new ActivityLog
+            {
+                EntityType = ActivityEntityTypes.ItemGroup,
+                EntityId = group.Id,
+                ActionType = ActivityActionTypes.Deleted,
+                ActorUserId = actorId,
+                ActorName = actor,
+                Message = $"{actor} deleted item group {group.Name}",
+            };
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemAttributeCreated(
+            ItemAttribute attribute, int? actorId, ActivityLookup lookup)
+        {
+            var actor = lookup.ActorName(actorId);
+            yield return new ActivityLog
+            {
+                EntityType = ActivityEntityTypes.ItemAttribute,
+                EntityId = 0,
+                ActionType = ActivityActionTypes.Created,
+                ActorUserId = actorId,
+                ActorName = actor,
+                Message = $"{actor} created attribute {attribute.Name}",
+            };
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemAttributeUpdates(
+            EntityEntry<ItemAttribute> entry, int? actorId, ActivityLookup lookup)
+        {
+            var attribute = entry.Entity;
+            var actor = lookup.ActorName(actorId);
+
+            foreach (var prop in entry.Properties.Where(p => p.IsModified))
+            {
+                var name = prop.Metadata.Name;
+                if (name is nameof(ItemAttribute.UpdatedAt) or nameof(ItemAttribute.CreatedBy)
+                    or nameof(ItemAttribute.UpdatedBy) or nameof(ItemAttribute.CreatedAt))
+                {
+                    continue;
+                }
+
+                var oldRaw = prop.OriginalValue;
+                var newRaw = prop.CurrentValue;
+                if (Equals(oldRaw, newRaw))
+                {
+                    continue;
+                }
+
+                var fieldLabel = ItemAttributeFieldLabel(name);
+                yield return new ActivityLog
+                {
+                    EntityType = ActivityEntityTypes.ItemAttribute,
+                    EntityId = attribute.Id,
+                    ActionType = ActivityActionTypes.FieldUpdated,
+                    ActorUserId = actorId,
+                    ActorName = actor,
+                    FieldName = fieldLabel,
+                    OldValue = oldRaw?.ToString(),
+                    NewValue = newRaw?.ToString(),
+                    Message = $"{actor} updated {fieldLabel} on attribute {attribute.Name}",
+                };
+            }
+        }
+
+        private static IEnumerable<ActivityLog> BuildItemAttributeDeleted(
+            ItemAttribute attribute, int? actorId, ActivityLookup lookup)
+        {
+            var actor = lookup.ActorName(actorId);
+            yield return new ActivityLog
+            {
+                EntityType = ActivityEntityTypes.ItemAttribute,
+                EntityId = attribute.Id,
+                ActionType = ActivityActionTypes.Deleted,
+                ActorUserId = actorId,
+                ActorName = actor,
+                Message = $"{actor} deleted attribute {attribute.Name}",
+            };
+        }
+
+        private static string ItemDisplayLabel(Item item)
+        {
+            var name = item.ItemName?.Trim();
+            var code = item.ItemCode?.Trim();
+            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(code))
+            {
+                return $"{name} ({code})";
+            }
+
+            return !string.IsNullOrWhiteSpace(name) ? name : code ?? $"Item #{item.Id}";
+        }
+
+        private static string ItemFieldLabel(string propertyName) => propertyName switch
+        {
+            nameof(Item.ItemCode) => "item code",
+            nameof(Item.ItemName) => "item name",
+            nameof(Item.Description) => "description",
+            nameof(Item.SteelRate) => "steel rate",
+            nameof(Item.HasVariants) => "has variants",
+            _ => propertyName,
+        };
+
+        private static string ItemGroupFieldLabel(string propertyName) => propertyName switch
+        {
+            nameof(ItemGroup.Name) => "name",
+            nameof(ItemGroup.Description) => "description",
+            nameof(ItemGroup.ParentId) => "parent group",
+            nameof(ItemGroup.SortOrder) => "sort order",
+            nameof(ItemGroup.IsActive) => "active",
+            _ => propertyName,
+        };
+
+        private static string ItemAttributeFieldLabel(string propertyName) => propertyName switch
+        {
+            nameof(ItemAttribute.Name) => "name",
+            nameof(ItemAttribute.Code) => "code",
+            nameof(ItemAttribute.ValueType) => "value type",
+            nameof(ItemAttribute.IsVariantAttribute) => "variant attribute",
+            nameof(ItemAttribute.SortOrder) => "sort order",
+            nameof(ItemAttribute.IsActive) => "active",
+            _ => propertyName,
+        };
+
         private static string LeadFieldLabel(string propertyName) => propertyName switch
         {
             nameof(Lead.FirstName) => "first name",
@@ -675,6 +1010,7 @@ namespace CRM.Helpers
             private readonly Dictionary<int, string> _employeeCounts = new();
             private readonly Dictionary<int, string> _salutations = new();
             private readonly Dictionary<int, string> _requestTypes = new();
+            private readonly Dictionary<int, string> _itemGroups = new();
 
             public ActivityLookup(TaskDbcontext db) => _db = db;
 
@@ -715,6 +1051,9 @@ namespace CRM.Helpers
 
             public string? OrganizationName(int? id) => Resolve(_orgs, id, () =>
                 _db.Organizations.AsNoTracking().Where(o => o.Id == id).Select(o => o.Name).FirstOrDefault());
+
+            public string? ItemGroupName(int? id) => Resolve(_itemGroups, id, () =>
+                _db.ItemGroups.AsNoTracking().Where(g => g.Id == id).Select(g => g.Name).FirstOrDefault());
 
             public string? LeadStatusName(int? id) => Resolve(_statuses, id, () =>
                 _db.LeadStatuses.AsNoTracking().Where(s => s.Id == id).Select(s => s.Name).FirstOrDefault());
