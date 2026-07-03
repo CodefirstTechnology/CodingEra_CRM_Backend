@@ -67,6 +67,17 @@ namespace CRM.Helpers
                 entity.TermsConditionsJson = string.Empty;
             }
 
+            entity.QuotationTemplate = QuotationTemplateTypes.Normalize(dto.QuotationTemplate);
+            if (entity.QuotationTemplate == QuotationTemplateTypes.TechnicalProposal)
+            {
+                entity.TemplatePayloadJson = QuotationTemplatePayloadHelper.SerializeTechnicalProposal(
+                    dto.TechnicalProposal);
+            }
+            else
+            {
+                entity.TemplatePayloadJson = string.Empty;
+            }
+
             var status = (dto.Status ?? QuotationStatuses.Draft).Trim();
             entity.Status = QuotationStatuses.All.Contains(status, StringComparer.OrdinalIgnoreCase)
                 ? QuotationStatuses.All.First(s => s.Equals(status, StringComparison.OrdinalIgnoreCase))
@@ -288,6 +299,10 @@ namespace CRM.Helpers
                         };
                     })
                     .ToList(),
+                QuotationTemplate = q.QuotationTemplate,
+                TechnicalProposal = q.QuotationTemplate == QuotationTemplateTypes.TechnicalProposal
+                    ? QuotationTemplatePayloadHelper.ParseTechnicalProposal(q.TemplatePayloadJson)
+                    : null,
             };
         }
     }

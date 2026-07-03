@@ -180,6 +180,7 @@ namespace CRM.Controllers
                     x.Status,
                     x.GrandTotal,
                     x.CreatedBy,
+                    QuotationTemplate = x.QuotationTemplate,
                     CreatedByName = includeCreator
                         ? _context.Users
                             .Where(u => u.Id == x.CreatedBy)
@@ -210,6 +211,7 @@ namespace CRM.Controllers
                 x.Status,
                 x.GrandTotal,
                 x.CreatedBy,
+                x.QuotationTemplate,
                 x.CreatedByName,
                 x.CreatedAt,
                 x.UpdatedAt,
