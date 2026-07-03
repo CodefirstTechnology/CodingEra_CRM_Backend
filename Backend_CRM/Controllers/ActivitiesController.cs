@@ -102,7 +102,7 @@ namespace CRM.Controllers
             return Ok(await QueryActivitiesAsync(ActivityEntityTypes.Organization, organizationId));
         }
 
-        /// <summary>Recent lead/deal activities for admin and user dashboards.</summary>
+        /// <summary>Recent CRM activities for admin and user dashboards.</summary>
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecent([FromQuery] int userId, [FromQuery] int limit = 50)
         {
@@ -112,7 +112,10 @@ namespace CRM.Controllers
             var items = await _context.ActivityLogs.AsNoTracking()
                 .Where(a =>
                     a.EntityType == ActivityEntityTypes.Lead ||
-                    a.EntityType == ActivityEntityTypes.Deal)
+                    a.EntityType == ActivityEntityTypes.Deal ||
+                    a.EntityType == ActivityEntityTypes.Item ||
+                    a.EntityType == ActivityEntityTypes.ItemGroup ||
+                    a.EntityType == ActivityEntityTypes.ItemAttribute)
                 .OrderByDescending(a => a.CreatedAt)
                 .ThenByDescending(a => a.Id)
                 .Take(take)

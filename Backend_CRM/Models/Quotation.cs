@@ -174,6 +174,15 @@ namespace CRM.models
         [Column("service_charges")]
         public decimal ServiceCharges { get; set; }
 
+        /// <summary>Quotation PDF template — {@link QuotationTemplateTypes}.</summary>
+        [Column("quotation_template")]
+        [MaxLength(32)]
+        public string QuotationTemplate { get; set; } = QuotationTemplateTypes.Standard;
+
+        /// <summary>JSON payload for template-specific fields (e.g. technical proposal meta).</summary>
+        [Column("template_payload_json")]
+        public string TemplatePayloadJson { get; set; } = string.Empty;
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 
