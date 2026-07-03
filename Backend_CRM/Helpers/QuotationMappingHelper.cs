@@ -51,6 +51,21 @@ namespace CRM.Helpers
             entity.TransportationCharges = dto.TransportationCharges < 0 ? 0 : dto.TransportationCharges;
             entity.LoadingCharges = dto.LoadingCharges < 0 ? 0 : dto.LoadingCharges;
             entity.ServiceCharges = dto.ServiceCharges < 0 ? 0 : dto.ServiceCharges;
+            entity.CustomizeTerms = dto.CustomizeTerms;
+            if (dto.CustomizeTerms)
+            {
+                entity.IntroText = (dto.IntroText ?? string.Empty).Trim();
+                entity.TransportationLabel = (dto.TransportationLabel ?? string.Empty).Trim();
+                entity.Jurisdiction = (dto.Jurisdiction ?? string.Empty).Trim();
+                entity.TermsConditionsJson = CompanyProfileMappingHelper.SerializeTerms(dto.Terms);
+            }
+            else
+            {
+                entity.IntroText = string.Empty;
+                entity.TransportationLabel = string.Empty;
+                entity.Jurisdiction = string.Empty;
+                entity.TermsConditionsJson = string.Empty;
+            }
 
             var status = (dto.Status ?? QuotationStatuses.Draft).Trim();
             entity.Status = QuotationStatuses.All.Contains(status, StringComparer.OrdinalIgnoreCase)
@@ -226,6 +241,11 @@ namespace CRM.Helpers
                 TransportationCharges = q.TransportationCharges,
                 LoadingCharges = q.LoadingCharges,
                 ServiceCharges = q.ServiceCharges,
+                CustomizeTerms = q.CustomizeTerms,
+                IntroText = q.IntroText ?? string.Empty,
+                TransportationLabel = q.TransportationLabel ?? string.Empty,
+                Jurisdiction = q.Jurisdiction ?? string.Empty,
+                Terms = CompanyProfileMappingHelper.ParseTerms(q.TermsConditionsJson),
                 CustomCharges = q.AdditionalCharges
                     .OrderBy(c => c.SortIndex)
                     .Select(c => new QuotationAdditionalChargeDto

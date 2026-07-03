@@ -2185,6 +2185,10 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
 
+                    b.Property<bool>("CustomizeTerms")
+                        .HasColumnType("boolean")
+                        .HasColumnName("customize_terms");
+
                     b.Property<string>("CustomerName")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -2250,6 +2254,17 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("industry");
+
+                    b.Property<string>("IntroText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("intro_text");
+
+                    b.Property<string>("Jurisdiction")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("jurisdiction");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -2336,6 +2351,11 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("territory");
 
+                    b.Property<string>("TermsConditionsJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("terms_conditions_json");
+
                     b.Property<decimal>("TotalQuantity")
                         .HasColumnType("numeric")
                         .HasColumnName("total_quantity");
@@ -2347,6 +2367,12 @@ namespace Backend_CRM.Migrations
                     b.Property<decimal>("TransportationCharges")
                         .HasColumnType("numeric")
                         .HasColumnName("transportation_charges");
+
+                    b.Property<string>("TransportationLabel")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("transportation_label");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

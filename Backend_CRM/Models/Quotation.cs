@@ -149,6 +149,25 @@ namespace CRM.models
         [Column("transportation_charges")]
         public decimal TransportationCharges { get; set; }
 
+        /// <summary>When true, PDF uses quotation-specific terms content instead of company profile defaults.</summary>
+        [Column("customize_terms")]
+        public bool CustomizeTerms { get; set; }
+
+        [Column("intro_text")]
+        public string IntroText { get; set; } = string.Empty;
+
+        [Column("transportation_label")]
+        [MaxLength(128)]
+        public string TransportationLabel { get; set; } = string.Empty;
+
+        [Column("jurisdiction")]
+        [MaxLength(256)]
+        public string Jurisdiction { get; set; } = string.Empty;
+
+        /// <summary>JSON array of { title, body } term rows for quotation PDF.</summary>
+        [Column("terms_conditions_json")]
+        public string TermsConditionsJson { get; set; } = string.Empty;
+
         [Column("loading_charges")]
         public decimal LoadingCharges { get; set; }
 
