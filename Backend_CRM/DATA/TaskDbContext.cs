@@ -52,6 +52,10 @@ namespace CRM.DATA
 
         public DbSet<Role> Roles { get; set; }
 
+        public DbSet<Permission> Permissions { get; set; }
+
+        public DbSet<RolePermission> RolePermissions { get; set; }
+
         public DbSet<ActivityLog> ActivityLogs { get; set; }
 
         public DbSet<Comment> Comments { get; set; }
@@ -62,13 +66,46 @@ namespace CRM.DATA
 
         public DbSet<QuotationLineItem> QuotationLineItems { get; set; }
 
+        public DbSet<QuotationAdditionalCharge> QuotationAdditionalCharges { get; set; }
+
         public DbSet<QuotationSettings> QuotationSettings { get; set; }
+        public DbSet<CompanyProfile> CompanyProfiles { get; set; }
 
         public DbSet<QuotationFiscalSequence> QuotationFiscalSequences { get; set; }
 
         public DbSet<QuotationItemGridDefault> QuotationItemGridDefaults { get; set; }
 
         public DbSet<QuotationItemGridUserPreference> QuotationItemGridUserPreferences { get; set; }
+
+        public DbSet<ItemGroup> ItemGroups { get; set; }
+
+        public DbSet<ItemAttribute> ItemAttributes { get; set; }
+
+        public DbSet<ItemAttributeValue> ItemAttributeValues { get; set; }
+
+        public DbSet<Item> Items { get; set; }
+
+        public DbSet<ItemSpecification> ItemSpecifications { get; set; }
+
+        public DbSet<ItemTemplateAttribute> ItemTemplateAttributes { get; set; }
+
+        public DbSet<ItemVariantAttributeValue> ItemVariantAttributeValues { get; set; }
+
+        public DbSet<UserTargetType> UserTargetTypes { get; set; }
+
+        public DbSet<UserTarget> UserTargets { get; set; }
+
+        public DbSet<LeadSyncSource> LeadSyncSources { get; set; }
+
+        public DbSet<LeadSyncIntervalOption> LeadSyncIntervalOptions { get; set; }
+
+        public DbSet<LeadSyncSourceConfig> LeadSyncSourceConfigs { get; set; }
+
+        public DbSet<LeadSyncSourceAssignment> LeadSyncSourceAssignments { get; set; }
+
+        public DbSet<LeadSyncRoundRobinState> LeadSyncRoundRobinStates { get; set; }
+
+        public DbSet<LeadSyncLog> LeadSyncLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -86,6 +123,12 @@ namespace CRM.DATA
                 .HasOne(li => li.Quotation)
                 .WithMany(q => q.LineItems)
                 .HasForeignKey(li => li.QuotationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<QuotationAdditionalCharge>()
+                .HasOne(c => c.Quotation)
+                .WithMany(q => q.AdditionalCharges)
+                .HasForeignKey(c => c.QuotationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<User>()
@@ -160,7 +203,7 @@ namespace CRM.DATA
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Lead>()
-                .HasOne<User>()
+                .HasOne(l => l.LeadOwner)
                 .WithMany()
                 .HasForeignKey(l => l.LeadOwnerId)
                 .OnDelete(DeleteBehavior.SetNull);
@@ -182,6 +225,14 @@ namespace CRM.DATA
                 .WithMany()
                 .HasForeignKey(l => l.RequestTypeId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Lead>()
+                .Property(l => l.LeadDate)
+                .HasColumnType("date");
+
+            modelBuilder.Entity<LeadHistory>()
+                .Property(h => h.LeadDate)
+                .HasColumnType("date");
 
             modelBuilder.Entity<LeadHistory>()
                 .HasOne<Lead>()
@@ -259,13 +310,13 @@ namespace CRM.DATA
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Deal>()
-                .HasOne<User>()
+                .HasOne(d => d.DealOwner)
                 .WithMany()
                 .HasForeignKey(d => d.DealOwnerId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Deal>()
-                .HasOne<User>()
+                .HasOne(d => d.AssignedToUser)
                 .WithMany()
                 .HasForeignKey(d => d.AssignedToUserId)
                 .OnDelete(DeleteBehavior.SetNull);
@@ -557,6 +608,22 @@ namespace CRM.DATA
                 .HasForeignKey(r => r.UpdatedBy)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Permission>()
+                .HasIndex(p => p.Code)
+                .IsUnique();
+
+            modelBuilder.Entity<RolePermission>()
+                .HasOne(rp => rp.Role)
+                .WithMany()
+                .HasForeignKey(rp => rp.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<RolePermission>()
+                .HasOne(rp => rp.Permission)
+                .WithMany()
+                .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Integer PKs: PostgreSQL GENERATED ALWAYS AS IDENTITY (values come from the database only).
             modelBuilder.Entity<Salutation>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<EmployeeCount>().Property(e => e.Id).UseIdentityAlwaysColumn();
@@ -566,6 +633,7 @@ namespace CRM.DATA
             modelBuilder.Entity<DealStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<RequestType>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Role>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Permission>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Organization>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Contact>().Property(e => e.Id).UseIdentityAlwaysColumn();
@@ -579,6 +647,234 @@ namespace CRM.DATA
             modelBuilder.Entity<ActivityLog>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Comment>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Email>().Property(e => e.Id).UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasOne(g => g.Parent)
+                .WithMany(g => g.Children)
+                .HasForeignKey(g => g.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasIndex(g => g.Name);
+
+            modelBuilder.Entity<ItemAttribute>()
+                .HasIndex(a => a.Code)
+                .IsUnique();
+
+            modelBuilder.Entity<ItemAttributeValue>()
+                .HasOne(v => v.Attribute)
+                .WithMany(a => a.Values)
+                .HasForeignKey(v => v.AttributeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Item>()
+                .HasIndex(i => i.ItemCode)
+                .IsUnique();
+
+            modelBuilder.Entity<Item>()
+                .HasOne(i => i.ItemGroup)
+                .WithMany()
+                .HasForeignKey(i => i.ItemGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Item>()
+                .HasOne(i => i.ParentItem)
+                .WithMany(i => i.Variants)
+                .HasForeignKey(i => i.ParentItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemSpecification>()
+                .HasOne(s => s.Item)
+                .WithMany(i => i.Specifications)
+                .HasForeignKey(s => s.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemTemplateAttribute>()
+                .HasOne(t => t.Item)
+                .WithMany(i => i.TemplateAttributes)
+                .HasForeignKey(t => t.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemTemplateAttribute>()
+                .HasOne(t => t.Attribute)
+                .WithMany()
+                .HasForeignKey(t => t.AttributeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ItemTemplateAttribute>()
+                .HasIndex(t => new { t.ItemId, t.AttributeId })
+                .IsUnique();
+
+            modelBuilder.Entity<ItemVariantAttributeValue>()
+                .HasOne(v => v.Item)
+                .WithMany(i => i.VariantAttributeValues)
+                .HasForeignKey(v => v.ItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ItemVariantAttributeValue>()
+                .HasOne(v => v.Attribute)
+                .WithMany()
+                .HasForeignKey(v => v.AttributeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ItemVariantAttributeValue>()
+                .HasOne(v => v.AttributeValue)
+                .WithMany()
+                .HasForeignKey(v => v.AttributeValueId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(g => g.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemGroup>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(g => g.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAttribute>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(a => a.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemAttribute>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(a => a.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Item>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(i => i.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<Item>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(i => i.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ItemGroup>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemAttribute>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemAttributeValue>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<Item>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemSpecification>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemTemplateAttribute>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<ItemVariantAttributeValue>().Property(e => e.Id).UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<UserTargetType>()
+                .HasIndex(t => t.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<UserTargetType>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTargetType>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne(t => t.TargetType)
+                .WithMany()
+                .HasForeignKey(t => t.TargetTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasIndex(t => new { t.UserId, t.TargetTypeId, t.StartDate, t.EndDate });
+
+            modelBuilder.Entity<UserTarget>()
+                .HasIndex(t => t.IsActive);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTarget>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<UserTargetType>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<UserTarget>().Property(e => e.Id).UseIdentityAlwaysColumn();
+
+            modelBuilder.Entity<LeadSyncSource>()
+                .HasIndex(s => s.Code)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncSource>()
+                .HasIndex(s => s.MarkerName)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncIntervalOption>()
+                .HasIndex(o => o.Hours)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncSourceConfig>()
+                .HasOne(c => c.Source)
+                .WithOne(s => s.Config)
+                .HasForeignKey<LeadSyncSourceConfig>(c => c.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeadSyncSourceConfig>()
+                .HasIndex(c => c.NextSyncAt);
+
+            modelBuilder.Entity<LeadSyncRoundRobinState>()
+                .HasOne(r => r.Source)
+                .WithOne(s => s.RoundRobinState)
+                .HasForeignKey<LeadSyncRoundRobinState>(r => r.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasIndex(a => new { a.SourceId, a.UserId })
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasIndex(a => new { a.SourceId, a.SortOrder });
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasOne(a => a.Source)
+                .WithMany(s => s.Assignments)
+                .HasForeignKey(a => a.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeadSyncSourceAssignment>()
+                .HasOne(a => a.User)
+                .WithMany()
+                .HasForeignKey(a => a.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LeadSyncLog>()
+                .HasIndex(l => new { l.SourceId, l.StartedAt });
+
+            modelBuilder.Entity<LeadSyncLog>()
+                .HasOne(l => l.Source)
+                .WithMany()
+                .HasForeignKey(l => l.SourceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LeadSyncSource>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSyncIntervalOption>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSyncSourceAssignment>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSyncLog>().Property(e => e.Id).UseIdentityAlwaysColumn();
         }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -655,6 +951,8 @@ namespace CRM.DATA
                     LeadStatusId = (int?)o[nameof(Lead.LeadStatusId)],
                     RequestTypeId = (int?)o[nameof(Lead.RequestTypeId)],
                     Notes = (string)o[nameof(Lead.Notes)]!,
+                    Location = (string)o[nameof(Lead.Location)]!,
+                    LeadDate = (DateTime?)o[nameof(Lead.LeadDate)],
                     LeadOwnerId = (int?)o[nameof(Lead.LeadOwnerId)],
                     LeadSource = (string)o[nameof(Lead.LeadSource)]!,
                     IsActive = (bool)o[nameof(Lead.IsActive)]!,
@@ -793,6 +1091,23 @@ namespace CRM.DATA
                                 qt.CreatedAt = utc;
                                 qt.UpdatedAt = utc;
                                 break;
+                            case ItemGroup ig:
+                                ig.CreatedAt = utc;
+                                ig.UpdatedAt = utc;
+                                break;
+                            case ItemAttribute ia:
+                                ia.CreatedAt = utc;
+                                ia.UpdatedAt = utc;
+                                break;
+                            case Item it:
+                                it.CreatedAt = utc;
+                                it.UpdatedAt = utc;
+                                break;
+                            case UserTarget ut:
+                                ut.CreatedAt = utc;
+                                ut.UpdatedAt = utc;
+                                ut.LastModified = utc;
+                                break;
                         }
 
                         break;
@@ -845,6 +1160,19 @@ namespace CRM.DATA
                                 break;
                             case Quotation qt:
                                 qt.UpdatedAt = utc;
+                                break;
+                            case ItemGroup ig:
+                                ig.UpdatedAt = utc;
+                                break;
+                            case ItemAttribute ia:
+                                ia.UpdatedAt = utc;
+                                break;
+                            case Item it:
+                                it.UpdatedAt = utc;
+                                break;
+                            case UserTarget ut:
+                                ut.UpdatedAt = utc;
+                                ut.LastModified = utc;
                                 break;
                         }
 

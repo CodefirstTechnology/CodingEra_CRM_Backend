@@ -1,3 +1,5 @@
+using CRM.models;
+
 namespace CRM.DTO
 {
     public class RegisterRequest
@@ -44,6 +46,20 @@ namespace CRM.DTO
 
         /// <summary>Opaque session token (replace with JWT when auth middleware is added).</summary>
         public string Token { get; set; } = string.Empty;
+
+        /// <summary>Effective permissions for the user's role (loaded from DB).</summary>
+        public IReadOnlyList<UserPermissionDto> Permissions { get; set; } = Array.Empty<UserPermissionDto>();
+    }
+
+    public class UpdateUserRequest
+    {
+        public string? FullName { get; set; }
+
+        public string? Phone { get; set; }
+
+        public int? RoleId { get; set; }
+
+        public bool? IsActive { get; set; }
     }
 
     /// <summary>User row for admin/UI lists — no credentials or session token.</summary>

@@ -34,6 +34,8 @@ namespace CRM.DTO
         public int? RequestTypeId { get; set; }
 
         public string Notes { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public DateTime? LeadDate { get; set; }
         public int? LeadOwnerId { get; set; }
         public string LeadSource { get; set; } = "Manual";
         public DateTime? CreatedAt { get; set; }

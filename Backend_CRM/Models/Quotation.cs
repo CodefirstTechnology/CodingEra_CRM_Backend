@@ -136,11 +136,52 @@ namespace CRM.models
         [Column("tax_total")]
         public decimal TaxTotal { get; set; }
 
+        /// <summary>GST % applied on quotation subtotal (not per line).</summary>
+        [Column("gst_percent")]
+        public decimal GstPercent { get; set; }
+
         [Column("total_quantity")]
         public decimal TotalQuantity { get; set; }
 
         [Column("total_weight")]
         public decimal TotalWeight { get; set; }
+
+        [Column("transportation_charges")]
+        public decimal TransportationCharges { get; set; }
+
+        /// <summary>When true, PDF uses quotation-specific terms content instead of company profile defaults.</summary>
+        [Column("customize_terms")]
+        public bool CustomizeTerms { get; set; }
+
+        [Column("intro_text")]
+        public string IntroText { get; set; } = string.Empty;
+
+        [Column("transportation_label")]
+        [MaxLength(128)]
+        public string TransportationLabel { get; set; } = string.Empty;
+
+        [Column("jurisdiction")]
+        [MaxLength(256)]
+        public string Jurisdiction { get; set; } = string.Empty;
+
+        /// <summary>JSON array of { title, body } term rows for quotation PDF.</summary>
+        [Column("terms_conditions_json")]
+        public string TermsConditionsJson { get; set; } = string.Empty;
+
+        [Column("loading_charges")]
+        public decimal LoadingCharges { get; set; }
+
+        [Column("service_charges")]
+        public decimal ServiceCharges { get; set; }
+
+        /// <summary>Quotation PDF template — {@link QuotationTemplateTypes}.</summary>
+        [Column("quotation_template")]
+        [MaxLength(32)]
+        public string QuotationTemplate { get; set; } = QuotationTemplateTypes.Standard;
+
+        /// <summary>JSON payload for template-specific fields (e.g. technical proposal meta).</summary>
+        [Column("template_payload_json")]
+        public string TemplatePayloadJson { get; set; } = string.Empty;
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
@@ -156,5 +197,10 @@ namespace CRM.models
 
         [JsonIgnore]
         public ICollection<QuotationLineItem> LineItems { get; set; } = new List<QuotationLineItem>();
+
+        [JsonIgnore]
+        public ICollection<QuotationAdditionalCharge> AdditionalCharges { get; set; } =
+            new List<QuotationAdditionalCharge>();
     }
 }
+

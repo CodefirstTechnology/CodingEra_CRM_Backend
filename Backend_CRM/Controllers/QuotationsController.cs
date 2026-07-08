@@ -14,11 +14,16 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly IQuotationService _quotationService;
+        private readonly IUserTargetService _userTargets;
 
-        public QuotationsController(TaskDbcontext context, IQuotationService quotationService)
+        public QuotationsController(
+            TaskDbcontext context,
+            IQuotationService quotationService,
+            IUserTargetService userTargets)
         {
             _context = context;
             _quotationService = quotationService;
+            _userTargets = userTargets;
         }
 
         [HttpGet("settings")]
@@ -175,6 +180,7 @@ namespace CRM.Controllers
                     x.Status,
                     x.GrandTotal,
                     x.CreatedBy,
+                    QuotationTemplate = x.QuotationTemplate,
                     CreatedByName = includeCreator
                         ? _context.Users
                             .Where(u => u.Id == x.CreatedBy)
@@ -193,7 +199,7 @@ namespace CRM.Controllers
                 x.DealId,
                 DealClosed = x.DealId is > 0
                     && !string.IsNullOrWhiteSpace(x.DealStatus)
-                    && DealStageValidationHelper.IsClosed(x.DealStatus, pipeline),
+                    && DealStageValidationHelper.IsDealDataLocked(x.DealStatus, pipeline),
                 x.CustomerName,
                 x.CompanyName,
                 x.ContactPerson,
@@ -205,6 +211,7 @@ namespace CRM.Controllers
                 x.Status,
                 x.GrandTotal,
                 x.CreatedBy,
+                x.QuotationTemplate,
                 x.CreatedByName,
                 x.CreatedAt,
                 x.UpdatedAt,
@@ -261,10 +268,10 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
-            var closedDealErr = await EnsureLinkedDealAllowsQuotationEditAsync(dto.DealId);
-            if (closedDealErr != null)
+            var generationErr = await EnsureLinkedDealAllowsQuotationGenerationAsync(dto.DealId);
+            if (generationErr != null)
             {
-                return closedDealErr;
+                return generationErr;
             }
 
             var entity = new Quotation { Id = 0 };
@@ -278,14 +285,24 @@ namespace CRM.Controllers
                 ? DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value)
                 : DateTime.UtcNow;
             var lines = QuotationMappingHelper.MapLineItems(0, dto.LineItems);
+            var customCharges = QuotationMappingHelper.MapCustomCharges(0, dto.CustomCharges);
             entity.LineItems = lines;
+            entity.AdditionalCharges = customCharges;
             QuotationMappingHelper.ApplyTotals(entity, lines);
 
             // Always assign on create — the UI preview number is not reserved until save.
             await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
 
             await _context.Quotations.AddAsync(entity);
+            await QuotationDealLockHelper.SyncDealAmountFromGrandTotalAsync(
+                _context,
+                entity.DealId,
+                entity.GrandTotal);
             await _context.SaveChangesAsync();
+            if (entity.DealId is > 0)
+            {
+                await _userTargets.RecalculateForDealAsync(entity.DealId.Value);
+            }
 
             var saved = await LoadQuotationAsync(entity.Id);
             return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
@@ -326,6 +343,7 @@ namespace CRM.Controllers
 
             var existing = await _context.Quotations
                 .Include(x => x.LineItems)
+                .Include(x => x.AdditionalCharges)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (existing == null)
             {
@@ -345,17 +363,34 @@ namespace CRM.Controllers
             }
 
             _context.QuotationLineItems.RemoveRange(existing.LineItems);
+            _context.QuotationAdditionalCharges.RemoveRange(existing.AdditionalCharges);
             var lines = QuotationMappingHelper.MapLineItems(id, dto.LineItems);
+            var customCharges = QuotationMappingHelper.MapCustomCharges(id, dto.CustomCharges);
             foreach (var line in lines)
             {
                 line.QuotationId = id;
                 await _context.QuotationLineItems.AddAsync(line);
             }
 
+            foreach (var charge in customCharges)
+            {
+                charge.QuotationId = id;
+                await _context.QuotationAdditionalCharges.AddAsync(charge);
+            }
+
             existing.LineItems = lines;
+            existing.AdditionalCharges = customCharges;
             QuotationMappingHelper.ApplyTotals(existing, lines);
 
+            await QuotationDealLockHelper.SyncDealAmountFromGrandTotalAsync(
+                _context,
+                existing.DealId,
+                existing.GrandTotal);
             await _context.SaveChangesAsync();
+            if (existing.DealId is > 0)
+            {
+                await _userTargets.RecalculateForDealAsync(existing.DealId.Value);
+            }
 
             var saved = await LoadQuotationAsync(id);
             return Ok(QuotationMappingHelper.ToUpsertDto(saved!));
@@ -452,13 +487,21 @@ namespace CRM.Controllers
                 line.Id = 0;
             }
 
+            foreach (var charge in dto.CustomCharges)
+            {
+                charge.Id = 0;
+            }
+
             var entity = new Quotation { Id = 0 };
             QuotationMappingHelper.ApplyHeader(entity, dto);
             entity.QuotationDate = dto.QuotationDate.HasValue
                 ? DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value)
                 : DateTime.UtcNow;
             var lines = QuotationMappingHelper.MapLineItems(0, dto.LineItems);
+            var customCharges = QuotationMappingHelper.MapCustomCharges(0, dto.CustomCharges);
             entity.LineItems = lines;
+            entity.AdditionalCharges = customCharges;
+            QuotationMappingHelper.ApplyTotals(entity, lines);
             await _quotationService.ReserveNextNumberAsync(entity, forceNewSequence: true);
 
             await _context.Quotations.AddAsync(entity);
@@ -485,6 +528,7 @@ namespace CRM.Controllers
 
             var existing = await _context.Quotations
                 .Include(x => x.LineItems)
+                .Include(x => x.AdditionalCharges)
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (existing == null)
             {
@@ -498,6 +542,7 @@ namespace CRM.Controllers
             }
 
             _context.QuotationLineItems.RemoveRange(existing.LineItems);
+            _context.QuotationAdditionalCharges.RemoveRange(existing.AdditionalCharges);
             _context.Quotations.Remove(existing);
             await _context.SaveChangesAsync();
 
@@ -514,9 +559,20 @@ namespace CRM.Controllers
             return null;
         }
 
+        private async Task<IActionResult?> EnsureLinkedDealAllowsQuotationGenerationAsync(int? dealId)
+        {
+            if (await QuotationDealLockHelper.IsQuotationGenerationBlockedAsync(_context, dealId))
+            {
+                return BadRequest(QuotationDealLockHelper.GenerationBlockedMessage);
+            }
+
+            return null;
+        }
+
         private async Task<Quotation?> LoadQuotationAsync(int id) =>
             await _context.Quotations.AsNoTracking()
                 .Include(x => x.LineItems.OrderBy(l => l.LineIndex))
+                .Include(x => x.AdditionalCharges.OrderBy(c => c.SortIndex))
                 .FirstOrDefaultAsync(x => x.Id == id);
 
         private static BadRequestObjectResult? ValidateRequired(QuotationUpsertDto dto)
@@ -533,11 +589,6 @@ namespace CRM.Controllers
             if (string.IsNullOrWhiteSpace(dto.CompanyName))
             {
                 errors.Add("Organization / company name is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(dto.EmailAddress))
-            {
-                errors.Add("Email address is required.");
             }
 
             if (errors.Count == 0)

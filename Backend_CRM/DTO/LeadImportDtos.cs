@@ -11,15 +11,19 @@ namespace CRM.DTO
         public string? LastName { get; set; }
         public string? Mobile { get; set; }
         public string? Email { get; set; }
+        public string? Gender { get; set; }
         public string? Organization { get; set; }
         public string? Industry { get; set; }
         public string? NoOfEmployees { get; set; }
         public string? AnnualRevenue { get; set; }
         public string? Website { get; set; }
+        public string? Gst { get; set; }
         public string? Territory { get; set; }
+        public string? Location { get; set; }
         public string? Status { get; set; }
         public string? LeadOwner { get; set; }
         public string? RequestType { get; set; }
+        public string? LeadDate { get; set; }
         public string? Requirement { get; set; }
         public string? AdditionalDetails { get; set; }
     }

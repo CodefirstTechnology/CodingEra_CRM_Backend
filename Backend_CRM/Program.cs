@@ -1,4 +1,5 @@
-    using CRM.Configuration;
+using System.Text.Json.Serialization;
+using CRM.Configuration;
 using CRM.DATA;
 using CRM.Helpers;
 using CRM.Services;
@@ -13,7 +14,11 @@ builder.Configuration.AddJsonFile(
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -36,11 +41,23 @@ builder.Services.AddDbContext<TaskDbcontext>(options =>
 
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
+builder.Services.Configure<LeadSyncIndiaMartOptions>(
+    builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
+builder.Services.AddHttpClient("LeadSyncIndiaMart");
+builder.Services.AddScoped<ILeadSyncRoundRobinService, LeadSyncRoundRobinService>();
+builder.Services.AddScoped<ILeadSyncManagementService, LeadSyncManagementService>();
+builder.Services.AddScoped<ILeadSyncExecutionService, LeadSyncExecutionService>();
+builder.Services.AddScoped<ILeadSyncProvider, LeadSyncIndiaMartProvider>();
+builder.Services.AddHostedService<LeadSyncAutoSyncHostedService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IMasterDataAdminService, MasterDataAdminService>();
 builder.Services.AddScoped<IQuotationService, QuotationService>();
+builder.Services.AddScoped<ICompanyProfileService, CompanyProfileService>();
+builder.Services.AddScoped<IItemMasterService, ItemMasterService>();
 builder.Services.AddScoped<ILeadImportService, LeadImportService>();
 builder.Services.AddScoped<ILeadImportFileParser, LeadImportFileParser>();
+builder.Services.AddScoped<IRbacService, RbacService>();
+builder.Services.AddScoped<IUserTargetService, UserTargetService>();
 
 var app = builder.Build();
 

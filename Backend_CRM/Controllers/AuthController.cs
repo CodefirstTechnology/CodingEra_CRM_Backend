@@ -2,6 +2,7 @@ using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
 using CRM.models;
+using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,12 @@ namespace CRM.Controllers
     public class AuthController : ControllerBase
     {
         private readonly TaskDbcontext _context;
+        private readonly IRbacService _rbac;
 
-        public AuthController(TaskDbcontext context)
+        public AuthController(TaskDbcontext context, IRbacService rbac)
         {
             _context = context;
+            _rbac = rbac;
         }
 
         [HttpPost("register")]
@@ -28,10 +31,11 @@ namespace CRM.Controllers
 
             if (userId is int auditUid && auditUid > 0)
             {
-                var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, auditUid);
-                if (auditErr != null)
+                var permErr = await RbacAuthorization.RequireAnyPermissionAsync(
+                    _context, _rbac, auditUid, "users.create", "settings.manage");
+                if (permErr != null)
                 {
-                    return auditErr;
+                    return permErr;
                 }
 
                 AuditUserValidation.SetAuditUser(_context, auditUid);
@@ -65,7 +69,7 @@ namespace CRM.Controllers
             await _context.SaveChangesAsync();
 
             await _context.Entry(user).Reference(u => u.Role).LoadAsync();
-            return Ok(ToSession(user));
+            return Ok(await ToSessionAsync(user));
         }
 
         [HttpPost("login")]
@@ -90,14 +94,21 @@ namespace CRM.Controllers
                 return Unauthorized("Account is inactive.");
             }
 
-            return Ok(ToSession(user));
+            return Ok(await ToSessionAsync(user));
         }
 
         /// <summary>All users for UI lists (password hash is never loaded or returned).</summary>
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers([FromQuery] int userId)
         {
-            _ = userId;
+            var err = await RbacAuthorization.RequireAnyPermissionAsync(
+                _context, _rbac, userId,
+                "users.view", "settings.manage", "leads.assign", "deals.assign");
+            if (err != null)
+            {
+                return err;
+            }
+
             var users = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.Role)
@@ -121,7 +132,22 @@ namespace CRM.Controllers
         [HttpGet("users/{id:int}")]
         public async Task<IActionResult> GetUser(int id, [FromQuery] int userId)
         {
-            _ = userId;
+            var err = await RbacAuthorization.RequireAnyPermissionAsync(
+                _context, _rbac, userId, "users.view", "settings.manage");
+            if (err != null && id != userId)
+            {
+                return err;
+            }
+
+            if (id != userId)
+            {
+                var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+                if (auditErr != null)
+                {
+                    return auditErr;
+                }
+            }
+
             var user = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.Role)
@@ -131,7 +157,61 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            return Ok(ToSession(user));
+            return Ok(await ToSessionAsync(user));
+        }
+
+        [HttpPut("users/{id:int}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromQuery] int userId, [FromBody] UpdateUserRequest req)
+        {
+            if (req == null)
+            {
+                return BadRequest();
+            }
+
+            var err = await RbacAuthorization.RequireAnyPermissionAsync(
+                _context, _rbac, userId, "users.edit", "settings.manage");
+            if (err != null)
+            {
+                return err;
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+
+            var user = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            if (!string.IsNullOrWhiteSpace(req.FullName))
+            {
+                user.FullName = req.FullName.Trim();
+            }
+
+            if (req.Phone != null)
+            {
+                user.Phone = req.Phone.Trim();
+            }
+
+            if (req.IsActive.HasValue)
+            {
+                user.IsActive = req.IsActive.Value;
+            }
+
+            if (req.RoleId is int newRoleId && newRoleId > 0)
+            {
+                if (!await _context.Roles.AnyAsync(r => r.Id == newRoleId && r.IsActive))
+                {
+                    return BadRequest($"Role id {newRoleId} does not exist or is inactive.");
+                }
+
+                user.RoleId = newRoleId;
+            }
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            await _context.Entry(user).Reference(u => u.Role).LoadAsync();
+            return Ok(await ToSessionAsync(user));
         }
 
         /// <summary>
@@ -150,10 +230,11 @@ namespace CRM.Controllers
                 return BadRequest("A valid acting user id is required.");
             }
 
-            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
-            if (auditErr != null)
+            var permErr = await RbacAuthorization.RequireAnyPermissionAsync(
+                _context, _rbac, userId, "users.delete", "settings.manage");
+            if (permErr != null)
             {
-                return auditErr;
+                return permErr;
             }
 
             var actingUser = await _context.Users
@@ -169,12 +250,6 @@ namespace CRM.Controllers
                 return Unauthorized("Incorrect password.");
             }
 
-            const int adminRoleId = 2;
-            if (actingUser.RoleId != adminRoleId)
-            {
-                return Forbid();
-            }
-
             if (id == userId)
             {
                 return BadRequest("You cannot delete your own account.");
@@ -186,10 +261,10 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
-            if (target.RoleId == adminRoleId)
+            if (target.RoleId == AdminUserValidation.AdminRoleId)
             {
                 var otherActiveAdmins = await _context.Users.CountAsync(u =>
-                    u.Id != id && u.IsActive && u.RoleId == adminRoleId);
+                    u.Id != id && u.IsActive && u.RoleId == AdminUserValidation.AdminRoleId);
                 if (otherActiveAdmins == 0)
                 {
                     return BadRequest("Cannot delete the last active admin account.");
@@ -222,14 +297,15 @@ namespace CRM.Controllers
             if (defaultRoleId == null)
             {
                 return (null, BadRequest(
-                    "No active role named 'user' exists. Create it via /api/MasterData/roles or send roleId."));
+                    "No active role named 'user' exists. Create it via /api/rbac/roles or send roleId."));
             }
 
             return (defaultRoleId, null);
         }
 
-        private static UserSessionDto ToSession(User u)
+        private async Task<UserSessionDto> ToSessionAsync(User u)
         {
+            var perms = await _rbac.GetUserPermissionsAsync(u.Id);
             return new UserSessionDto
             {
                 Id = u.Id,
@@ -238,7 +314,8 @@ namespace CRM.Controllers
                 Phone = u.Phone,
                 RoleId = u.RoleId,
                 Role = u.Role?.Name ?? string.Empty,
-                Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray())[..22]
+                Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray())[..22],
+                Permissions = perms,
             };
         }
     }

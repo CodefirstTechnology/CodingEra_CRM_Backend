@@ -47,6 +47,36 @@ namespace CRM.Helpers
                 ? DateTimeUtcHelper.ToUtc(dto.QuotationDate.Value)
                 : DateTime.UtcNow;
             entity.Remarks = (dto.Remarks ?? string.Empty).Trim();
+            entity.GstPercent = dto.GstPercent < 0 ? 0 : dto.GstPercent;
+            entity.TransportationCharges = dto.TransportationCharges < 0 ? 0 : dto.TransportationCharges;
+            entity.LoadingCharges = dto.LoadingCharges < 0 ? 0 : dto.LoadingCharges;
+            entity.ServiceCharges = dto.ServiceCharges < 0 ? 0 : dto.ServiceCharges;
+            entity.CustomizeTerms = dto.CustomizeTerms;
+            if (dto.CustomizeTerms)
+            {
+                entity.IntroText = (dto.IntroText ?? string.Empty).Trim();
+                entity.TransportationLabel = (dto.TransportationLabel ?? string.Empty).Trim();
+                entity.Jurisdiction = (dto.Jurisdiction ?? string.Empty).Trim();
+                entity.TermsConditionsJson = CompanyProfileMappingHelper.SerializeTerms(dto.Terms);
+            }
+            else
+            {
+                entity.IntroText = string.Empty;
+                entity.TransportationLabel = string.Empty;
+                entity.Jurisdiction = string.Empty;
+                entity.TermsConditionsJson = string.Empty;
+            }
+
+            entity.QuotationTemplate = QuotationTemplateTypes.Normalize(dto.QuotationTemplate);
+            if (entity.QuotationTemplate == QuotationTemplateTypes.TechnicalProposal)
+            {
+                entity.TemplatePayloadJson = QuotationTemplatePayloadHelper.SerializeTechnicalProposal(
+                    dto.TechnicalProposal);
+            }
+            else
+            {
+                entity.TemplatePayloadJson = string.Empty;
+            }
 
             var status = (dto.Status ?? QuotationStatuses.Draft).Trim();
             entity.Status = QuotationStatuses.All.Contains(status, StringComparer.OrdinalIgnoreCase)
@@ -66,19 +96,20 @@ namespace CRM.Helpers
             foreach (var dto in items.OrderBy(x => x.LineIndex).ThenBy(x => x.Id))
             {
                 var qty = dto.Quantity <= 0 ? 1 : dto.Quantity;
-                var rate = dto.Rate < 0 ? 0 : dto.Rate;
-                var weight = dto.Weight < 0 ? 0 : dto.Weight;
+                var steelRate = dto.SteelRate < 0 ? 0 : dto.SteelRate;
                 var unitWeight = dto.UnitWeight < 0 ? 0 : dto.UnitWeight;
+                var weight = dto.Weight < 0 ? 0 : dto.Weight;
                 var disc = dto.DiscountPercent < 0 ? 0 : dto.DiscountPercent;
-                var gst = dto.GstPercent < 0 ? 0 : dto.GstPercent;
+                var rate = QuotationLineCalculator.ResolveUnitRate(unitWeight, steelRate, dto.Rate);
 
-                var calc = QuotationLineCalculator.CalculateLine(qty, rate, disc, gst, weight, unitWeight);
+                var calc = QuotationLineCalculator.CalculateLine(qty, rate, disc, weight, unitWeight);
 
                 list.Add(new QuotationLineItem
                 {
                     Id = 0,
                     QuotationId = quotationId,
                     LineIndex = dto.LineIndex >= 0 ? dto.LineIndex : idx,
+                    ItemId = dto.ItemId,
                     ItemCode = (dto.ItemCode ?? string.Empty).Trim(),
                     ItemName = (dto.ItemName ?? string.Empty).Trim(),
                     Description = (dto.Description ?? string.Empty).Trim(),
@@ -87,10 +118,12 @@ namespace CRM.Helpers
                     Weight = weight,
                     UnitWeight = unitWeight,
                     Rate = rate,
+                    SteelRate = steelRate,
+                    ItemSnapshotJson = dto.ItemSnapshotJson ?? string.Empty,
                     DiscountPercent = disc,
-                    GstPercent = gst,
+                    GstPercent = 0,
                     Amount = calc.Amount,
-                    TaxAmount = calc.TaxAmount,
+                    TaxAmount = 0,
                     LineTotal = calc.LineTotal,
                 });
                 idx++;
@@ -99,20 +132,75 @@ namespace CRM.Helpers
             return list;
         }
 
-        public static QuotationLineCalculator.QuotationTotals ComputeTotals(IEnumerable<QuotationLineItem> lines)
+        public static List<QuotationAdditionalCharge> MapCustomCharges(
+            int quotationId,
+            IEnumerable<QuotationAdditionalChargeDto>? items)
+        {
+            var list = new List<QuotationAdditionalCharge>();
+            if (items == null)
+            {
+                return list;
+            }
+
+            var idx = 0;
+            foreach (var dto in items.OrderBy(x => x.SortIndex).ThenBy(x => x.Id))
+            {
+                var name = (dto.ChargeName ?? string.Empty).Trim();
+                var amount = dto.Amount < 0 ? 0 : dto.Amount;
+                if (string.IsNullOrWhiteSpace(name) && amount <= 0)
+                {
+                    continue;
+                }
+
+                list.Add(new QuotationAdditionalCharge
+                {
+                    Id = 0,
+                    QuotationId = quotationId,
+                    SortIndex = dto.SortIndex >= 0 ? dto.SortIndex : idx,
+                    ChargeName = name,
+                    Amount = amount,
+                });
+                idx++;
+            }
+
+            return list;
+        }
+
+        public static decimal ComputeAdditionalChargesTotal(Quotation entity) =>
+            QuotationLineCalculator.SumAdditionalCharges(
+                entity.TransportationCharges,
+                entity.LoadingCharges,
+                entity.ServiceCharges,
+                entity.AdditionalCharges.Select(c => c.Amount));
+
+        public static decimal ComputeAdditionalChargesTotal(QuotationUpsertDto dto) =>
+            QuotationLineCalculator.SumAdditionalCharges(
+                dto.TransportationCharges,
+                dto.LoadingCharges,
+                dto.ServiceCharges,
+                dto.CustomCharges?.Select(c => c.Amount < 0 ? 0 : c.Amount));
+
+        public static QuotationLineCalculator.QuotationTotals ComputeTotals(
+            IEnumerable<QuotationLineItem> lines,
+            decimal headerGstPercent,
+            decimal additionalChargesTotal)
         {
             var rows = lines.Select(l =>
             {
-                var calc = QuotationLineCalculator.CalculateLine(
-                    l.Quantity, l.Rate, l.DiscountPercent, l.GstPercent, l.Weight, l.UnitWeight);
+                var calc = l.GstPercent > 0
+                    ? QuotationLineCalculator.CalculateLineLegacy(
+                        l.Quantity, l.Rate, l.DiscountPercent, l.GstPercent, l.Weight, l.UnitWeight)
+                    : QuotationLineCalculator.CalculateLine(
+                        l.Quantity, l.Rate, l.DiscountPercent, l.Weight, l.UnitWeight);
                 return (l.Quantity, calc);
             });
-            return QuotationLineCalculator.AggregateLines(rows);
+            return QuotationLineCalculator.AggregateLines(rows, headerGstPercent, additionalChargesTotal);
         }
 
         public static void ApplyTotals(Quotation entity, IEnumerable<QuotationLineItem> lines)
         {
-            var totals = ComputeTotals(lines);
+            var additionalTotal = ComputeAdditionalChargesTotal(entity);
+            var totals = ComputeTotals(lines, entity.GstPercent, additionalTotal);
             entity.Subtotal = totals.Subtotal;
             entity.TaxTotal = totals.TaxTotal;
             entity.GrandTotal = totals.GrandTotal;
@@ -122,7 +210,8 @@ namespace CRM.Helpers
 
         public static QuotationUpsertDto ToUpsertDto(Quotation q)
         {
-            var totals = ComputeTotals(q.LineItems);
+            var additionalTotal = ComputeAdditionalChargesTotal(q);
+            var totals = ComputeTotals(q.LineItems, q.GstPercent, additionalTotal);
             return new QuotationUpsertDto
             {
                 Id = q.Id,
@@ -156,19 +245,42 @@ namespace CRM.Helpers
                 Remarks = q.Remarks,
                 Subtotal = totals.Subtotal,
                 TaxTotal = totals.TaxTotal,
+                GstPercent = q.GstPercent,
                 GrandTotal = totals.GrandTotal,
                 TotalQuantity = totals.TotalQuantity,
                 TotalWeight = totals.TotalWeight,
+                TransportationCharges = q.TransportationCharges,
+                LoadingCharges = q.LoadingCharges,
+                ServiceCharges = q.ServiceCharges,
+                CustomizeTerms = q.CustomizeTerms,
+                IntroText = q.IntroText ?? string.Empty,
+                TransportationLabel = q.TransportationLabel ?? string.Empty,
+                Jurisdiction = q.Jurisdiction ?? string.Empty,
+                Terms = CompanyProfileMappingHelper.ParseTerms(q.TermsConditionsJson),
+                CustomCharges = q.AdditionalCharges
+                    .OrderBy(c => c.SortIndex)
+                    .Select(c => new QuotationAdditionalChargeDto
+                    {
+                        Id = c.Id,
+                        SortIndex = c.SortIndex,
+                        ChargeName = c.ChargeName,
+                        Amount = c.Amount,
+                    })
+                    .ToList(),
                 LineItems = q.LineItems
                     .OrderBy(l => l.LineIndex)
                     .Select(l =>
                     {
-                        var calc = QuotationLineCalculator.CalculateLine(
-                            l.Quantity, l.Rate, l.DiscountPercent, l.GstPercent, l.Weight, l.UnitWeight);
+                        var calc = l.GstPercent > 0
+                            ? QuotationLineCalculator.CalculateLineLegacy(
+                                l.Quantity, l.Rate, l.DiscountPercent, l.GstPercent, l.Weight, l.UnitWeight)
+                            : QuotationLineCalculator.CalculateLine(
+                                l.Quantity, l.Rate, l.DiscountPercent, l.Weight, l.UnitWeight);
                         return new QuotationLineItemDto
                         {
                             Id = l.Id,
                             LineIndex = l.LineIndex,
+                            ItemId = l.ItemId,
                             ItemCode = l.ItemCode,
                             ItemName = l.ItemName,
                             Description = l.Description,
@@ -177,6 +289,8 @@ namespace CRM.Helpers
                             Weight = l.Weight,
                             UnitWeight = l.UnitWeight,
                             Rate = l.Rate,
+                            SteelRate = l.SteelRate,
+                            ItemSnapshotJson = l.ItemSnapshotJson,
                             DiscountPercent = l.DiscountPercent,
                             GstPercent = l.GstPercent,
                             Amount = calc.Amount,
@@ -185,6 +299,10 @@ namespace CRM.Helpers
                         };
                     })
                     .ToList(),
+                QuotationTemplate = q.QuotationTemplate,
+                TechnicalProposal = q.QuotationTemplate == QuotationTemplateTypes.TechnicalProposal
+                    ? QuotationTemplatePayloadHelper.ParseTechnicalProposal(q.TemplatePayloadJson)
+                    : null,
             };
         }
     }
