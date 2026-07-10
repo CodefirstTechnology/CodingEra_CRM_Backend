@@ -17,6 +17,7 @@ namespace CRM.Services
         Task UpdateAutoSyncAsync(int sourceId, LeadSyncUpdateAutoSyncDto dto, int actingUserId, CancellationToken cancellationToken = default);
         Task<LeadSyncCredentialsDto> GetCredentialsAsync(int sourceId, CancellationToken cancellationToken = default);
         Task<LeadSyncCredentialsDto> SaveCredentialsAsync(int sourceId, LeadSyncSaveCredentialsDto dto, int actingUserId, CancellationToken cancellationToken = default);
+        Task DisconnectSourceAsync(int sourceId, int actingUserId, CancellationToken cancellationToken = default);
         Task<LeadSyncExecutionResultDto> TestConnectionAsync(int sourceId, CancellationToken cancellationToken = default);
         Task<LeadSyncExecutionResultDto> RunManualSyncAsync(int sourceId, int userId, CancellationToken cancellationToken = default);
         Task RecordManualSyncLogAsync(int userId, LeadSyncManualLogDto dto, CancellationToken cancellationToken = default);
@@ -261,6 +262,12 @@ namespace CRM.Services
             await _credentials.RefreshIntegrationReadyAsync(sourceId, cancellationToken);
             return saved;
         }
+
+        public Task DisconnectSourceAsync(
+            int sourceId,
+            int actingUserId,
+            CancellationToken cancellationToken = default) =>
+            _credentials.ClearAsync(sourceId, actingUserId, cancellationToken);
 
         public async Task<LeadSyncExecutionResultDto> TestConnectionAsync(
             int sourceId,

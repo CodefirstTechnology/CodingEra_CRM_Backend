@@ -16,6 +16,7 @@ namespace CRM.Services
             LeadSyncSaveCredentialsDto dto,
             int actingUserId,
             CancellationToken cancellationToken = default);
+        Task ClearAsync(int sourceId, int actingUserId, CancellationToken cancellationToken = default);
         Task RefreshIntegrationReadyAsync(int sourceId, CancellationToken cancellationToken = default);
     }
 
@@ -129,6 +130,48 @@ namespace CRM.Services
             await _db.SaveChangesAsync(cancellationToken);
 
             return await GetMaskedAsync(sourceId, cancellationToken);
+        }
+
+        public async Task ClearAsync(
+            int sourceId,
+            int actingUserId,
+            CancellationToken cancellationToken = default)
+        {
+            var source = await _db.LeadSyncSources
+                .Include(s => s.Credentials)
+                .Include(s => s.Config)
+                .Include(s => s.Assignments)
+                .FirstOrDefaultAsync(s => s.Id == sourceId && s.IsActive, cancellationToken)
+                ?? throw new InvalidOperationException("Source not found.");
+
+            var now = DateTime.UtcNow;
+
+            if (source.Credentials != null)
+            {
+                source.Credentials.PullApiUrl = null;
+                source.Credentials.ApiKeyEncrypted = null;
+                source.Credentials.ConfiguredAt = null;
+                source.Credentials.ConfiguredBy = null;
+                source.Credentials.UpdatedAt = now;
+            }
+
+            if (source.Config != null)
+            {
+                source.Config.AutoSyncEnabled = false;
+                source.Config.IntervalOptionId = null;
+                source.Config.NextSyncAt = null;
+                source.Config.UpdatedAt = now;
+                source.Config.UpdatedBy = actingUserId;
+            }
+
+            if (source.Assignments.Count > 0)
+            {
+                _db.LeadSyncSourceAssignments.RemoveRange(source.Assignments);
+            }
+
+            source.ApiIntegrationReady = false;
+            source.UpdatedAt = now;
+            await _db.SaveChangesAsync(cancellationToken);
         }
 
         public async Task RefreshIntegrationReadyAsync(

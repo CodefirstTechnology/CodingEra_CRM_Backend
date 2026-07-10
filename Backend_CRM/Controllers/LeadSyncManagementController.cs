@@ -124,6 +124,23 @@ namespace CRM.Controllers
             }
         }
 
+        [HttpDelete("sources/{sourceId:int}/credentials")]
+        public async Task<IActionResult> DisconnectSource(int sourceId, [FromQuery] int userId)
+        {
+            var err = await RequireAdminAsync(userId);
+            if (err != null) return err;
+
+            try
+            {
+                await _leadSync.DisconnectSourceAsync(sourceId, userId);
+                return Ok(await _leadSync.ListSourcesForAdminAsync());
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPost("sources/{sourceId:int}/test")]
         public async Task<IActionResult> TestConnection(int sourceId, [FromQuery] int userId)
         {
