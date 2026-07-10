@@ -1344,6 +1344,10 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
 
+                    b.Property<decimal?>("DealAmount")
+                        .HasColumnType("numeric")
+                        .HasColumnName("deal_amount");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
