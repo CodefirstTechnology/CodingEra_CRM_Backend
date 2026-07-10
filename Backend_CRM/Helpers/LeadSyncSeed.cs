@@ -1,7 +1,6 @@
 using CRM.DATA;
 using CRM.models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace CRM.Helpers
 {
@@ -10,7 +9,6 @@ namespace CRM.Helpers
     {
         public static async Task EnsureAsync(
             TaskDbcontext db,
-            IConfiguration configuration,
             ILogger logger,
             CancellationToken cancellationToken = default)
         {
@@ -18,7 +16,7 @@ namespace CRM.Helpers
             {
                 var now = DateTime.UtcNow;
                 await EnsureIntervalsAsync(db, now, cancellationToken);
-                await EnsureSourcesAsync(db, configuration, now, cancellationToken);
+                await EnsureSourcesAsync(db, now, cancellationToken);
                 await NormalizeAutoSyncConfigsAsync(db, now, cancellationToken);
                 logger.LogInformation("Lead sync seed verified (sources + intervals).");
             }
@@ -99,17 +97,14 @@ namespace CRM.Helpers
 
         private static async Task EnsureSourcesAsync(
             TaskDbcontext db,
-            IConfiguration configuration,
             DateTime now,
             CancellationToken cancellationToken)
         {
-            var indiaMartReady = IsIndiaMartConfigured(configuration);
-
-            var seeds = new (string Code, string DisplayName, string MarkerName, int SortOrder, bool ApiReady)[]
+            var seeds = new (string Code, string DisplayName, string MarkerName, int SortOrder)[]
             {
-                ("indiamart", "IndiaMART", "IndiaMART", 1, indiaMartReady),
-                ("justdial", "Justdial", "Justdial", 2, false),
-                ("tradeindia", "TradeIndia", "TradeIndia", 3, false),
+                ("indiamart", "IndiaMART", "IndiaMART", 1),
+                ("justdial", "Justdial", "Justdial", 2),
+                ("tradeindia", "TradeIndia", "TradeIndia", 3),
             };
 
             foreach (var seed in seeds)
@@ -128,7 +123,7 @@ namespace CRM.Helpers
                         MarkerName = seed.MarkerName,
                         SortOrder = seed.SortOrder,
                         IsActive = true,
-                        ApiIntegrationReady = seed.ApiReady,
+                        ApiIntegrationReady = false,
                         CreatedAt = now,
                         UpdatedAt = now,
                     };
@@ -154,11 +149,6 @@ namespace CRM.Helpers
                     source.MarkerName = seed.MarkerName;
                     source.SortOrder = seed.SortOrder;
                     source.IsActive = true;
-                    if (seed.Code == "indiamart")
-                    {
-                        source.ApiIntegrationReady = seed.ApiReady;
-                    }
-
                     source.UpdatedAt = now;
 
                     if (source.Config == null)
@@ -184,14 +174,31 @@ namespace CRM.Helpers
             }
 
             await db.SaveChangesAsync(cancellationToken);
+            await RefreshIntegrationReadyFlagsAsync(db, now, cancellationToken);
         }
 
-        private static bool IsIndiaMartConfigured(IConfiguration configuration)
+        private static async Task RefreshIntegrationReadyFlagsAsync(
+            TaskDbcontext db,
+            DateTime now,
+            CancellationToken cancellationToken)
         {
-            var section = configuration.GetSection("LeadSync:IndiaMart");
-            var url = section["PullApiUrl"]?.Trim();
-            var key = section["ApiKey"]?.Trim();
-            return !string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(key);
+            var sources = await db.LeadSyncSources
+                .Include(s => s.Credentials)
+                .ToListAsync(cancellationToken);
+
+            foreach (var source in sources)
+            {
+                var configured = source.Credentials != null
+                    && !string.IsNullOrWhiteSpace(source.Credentials.PullApiUrl)
+                    && !string.IsNullOrWhiteSpace(source.Credentials.ApiKeyEncrypted);
+                if (source.ApiIntegrationReady != configured)
+                {
+                    source.ApiIntegrationReady = configured;
+                    source.UpdatedAt = now;
+                }
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
         }
     }
 }

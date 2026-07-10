@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260707122726_AddLeadSyncSourceCredentials")]
+    partial class AddLeadSyncSourceCredentials
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -347,17 +350,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("logo_content_type");
-
-                    b.Property<string>("FaviconBase64")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("favicon_base64");
-
-                    b.Property<string>("FaviconContentType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("favicon_content_type");
 
                     b.Property<string>("SignatoryMobile")
                         .IsRequired()
@@ -1354,10 +1346,6 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
-
-                    b.Property<decimal?>("DealAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("deal_amount");
 
                     b.Property<string>("Email")
                         .IsRequired()

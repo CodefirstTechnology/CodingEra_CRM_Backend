@@ -1,10 +1,9 @@
-using CRM.Configuration;
 using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
 using CRM.models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -14,8 +13,10 @@ namespace CRM.Services
     public interface ILeadSyncProvider
     {
         string SourceCode { get; }
-        bool IsConfigured();
-        Task<LeadSyncPullResult> PullLeadsAsync(CancellationToken cancellationToken = default);
+        bool IsConfigured(LeadSyncResolvedCredentials credentials);
+        Task<LeadSyncPullResult> PullLeadsAsync(
+            LeadSyncResolvedCredentials credentials,
+            CancellationToken cancellationToken = default);
     }
 
     public class LeadSyncPullResult
@@ -39,6 +40,11 @@ namespace CRM.Services
     public interface ILeadSyncExecutionService
     {
         Task<LeadSyncExecutionResult> ExecuteAutoSyncAsync(int sourceId, CancellationToken cancellationToken = default);
+        Task<LeadSyncExecutionResult> ExecuteManualSyncAsync(
+            int sourceId,
+            int userId,
+            CancellationToken cancellationToken = default);
+        Task<LeadSyncExecutionResult> TestConnectionAsync(int sourceId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<int>> GetDueAutoSyncSourceIdsAsync(CancellationToken cancellationToken = default);
     }
 
@@ -55,17 +61,20 @@ namespace CRM.Services
     {
         private readonly TaskDbcontext _db;
         private readonly ILeadSyncRoundRobinService _roundRobin;
+        private readonly ILeadSyncCredentialService _credentials;
         private readonly IEnumerable<ILeadSyncProvider> _providers;
         private readonly ILogger<LeadSyncExecutionService> _logger;
 
         public LeadSyncExecutionService(
             TaskDbcontext db,
             ILeadSyncRoundRobinService roundRobin,
+            ILeadSyncCredentialService credentials,
             IEnumerable<ILeadSyncProvider> providers,
             ILogger<LeadSyncExecutionService> logger)
         {
             _db = db;
             _roundRobin = roundRobin;
+            _credentials = credentials;
             _providers = providers;
             _logger = logger;
         }
@@ -78,14 +87,32 @@ namespace CRM.Services
                 .Where(c => c.AutoSyncEnabled
                     && (c.NextSyncAt == null || c.NextSyncAt <= now))
                 .Join(
-                    _db.LeadSyncSources.Where(s => s.IsActive && s.ApiIntegrationReady),
+                    _db.LeadSyncSources.Where(s => s.IsActive),
                     c => c.SourceId,
                     s => s.Id,
-                    (c, s) => c.SourceId)
+                    (c, s) => new { c.SourceId, s.Id })
+                .Join(
+                    _db.LeadSyncSourceCredentials.Where(cr =>
+                        cr.PullApiUrl != null && cr.PullApiUrl != ""
+                        && cr.ApiKeyEncrypted != null && cr.ApiKeyEncrypted != ""),
+                    x => x.Id,
+                    cr => cr.SourceId,
+                    (x, cr) => x.SourceId)
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<LeadSyncExecutionResult> ExecuteAutoSyncAsync(
+        public Task<LeadSyncExecutionResult> ExecuteAutoSyncAsync(
+            int sourceId,
+            CancellationToken cancellationToken = default) =>
+            ExecuteSyncAsync(sourceId, LeadSyncType.Auto, null, cancellationToken);
+
+        public Task<LeadSyncExecutionResult> ExecuteManualSyncAsync(
+            int sourceId,
+            int userId,
+            CancellationToken cancellationToken = default) =>
+            ExecuteSyncAsync(sourceId, LeadSyncType.Manual, userId, cancellationToken);
+
+        public async Task<LeadSyncExecutionResult> TestConnectionAsync(
             int sourceId,
             CancellationToken cancellationToken = default)
         {
@@ -93,31 +120,84 @@ namespace CRM.Services
                 .FirstOrDefaultAsync(s => s.Id == sourceId && s.IsActive, cancellationToken);
             if (source == null)
             {
-                return new LeadSyncExecutionResult
-                {
-                    ErrorMessage = "Source not found.",
-                    Status = LeadSyncStatus.Failed,
-                };
+                return Failed("Source not found.");
+            }
+
+            var resolved = await _credentials.ResolveAsync(sourceId, cancellationToken);
+            if (resolved == null)
+            {
+                return Failed("API connection is not configured. Add the pull URL and API key first.");
             }
 
             var provider = _providers.FirstOrDefault(p =>
                 string.Equals(p.SourceCode, source.Code, StringComparison.OrdinalIgnoreCase));
-            if (provider == null || !provider.IsConfigured())
+            if (provider == null || !provider.IsConfigured(resolved))
             {
+                return Failed("No integration handler is available for this lead source.");
+            }
+
+            try
+            {
+                var pull = await provider.PullLeadsAsync(resolved, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(pull.ErrorMessage))
+                {
+                    return new LeadSyncExecutionResult
+                    {
+                        TotalReceived = pull.Leads.Count,
+                        ErrorMessage = pull.ErrorMessage,
+                        Status = LeadSyncStatus.Failed,
+                        FailedCount = 1,
+                    };
+                }
+
                 return new LeadSyncExecutionResult
                 {
-                    ErrorMessage = "API integration is not configured for this source.",
-                    Status = LeadSyncStatus.Failed,
+                    TotalReceived = pull.Leads.Count,
+                    TotalCreated = 0,
+                    Status = LeadSyncStatus.Completed,
                 };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lead sync test failed for source {SourceId}", sourceId);
+                return Failed(ex.Message);
+            }
+        }
+
+        private async Task<LeadSyncExecutionResult> ExecuteSyncAsync(
+            int sourceId,
+            LeadSyncType syncType,
+            int? triggeredByUserId,
+            CancellationToken cancellationToken)
+        {
+            var source = await _db.LeadSyncSources.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == sourceId && s.IsActive, cancellationToken);
+            if (source == null)
+            {
+                return Failed("Source not found.");
+            }
+
+            var resolved = await _credentials.ResolveAsync(sourceId, cancellationToken);
+            if (resolved == null)
+            {
+                return Failed("API connection is not configured. Add the pull URL and API key in Advanced Settings → Lead Sync.");
+            }
+
+            var provider = _providers.FirstOrDefault(p =>
+                string.Equals(p.SourceCode, source.Code, StringComparison.OrdinalIgnoreCase));
+            if (provider == null || !provider.IsConfigured(resolved))
+            {
+                return Failed("No integration handler is available for this lead source.");
             }
 
             var startedAt = DateTime.UtcNow;
             var log = new LeadSyncLog
             {
                 SourceId = sourceId,
-                SyncType = LeadSyncType.Auto,
+                SyncType = syncType,
                 StartedAt = startedAt,
                 Status = LeadSyncStatus.Running,
+                TriggeredByUserId = triggeredByUserId,
                 CreatedAt = startedAt,
             };
             _db.LeadSyncLogs.Add(log);
@@ -126,7 +206,7 @@ namespace CRM.Services
             LeadSyncExecutionResult result;
             try
             {
-                var pull = await provider.PullLeadsAsync(cancellationToken);
+                var pull = await provider.PullLeadsAsync(resolved, cancellationToken);
                 if (!string.IsNullOrWhiteSpace(pull.ErrorMessage))
                 {
                     result = new LeadSyncExecutionResult
@@ -143,12 +223,8 @@ namespace CRM.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Auto sync failed for source {SourceId}", sourceId);
-                result = new LeadSyncExecutionResult
-                {
-                    ErrorMessage = ex.Message,
-                    Status = LeadSyncStatus.Failed,
-                };
+                _logger.LogError(ex, "Lead sync failed for source {SourceId}", sourceId);
+                result = Failed(ex.Message);
             }
 
             var endedAt = DateTime.UtcNow;
@@ -164,6 +240,9 @@ namespace CRM.Services
 
             return result;
         }
+
+        private static LeadSyncExecutionResult Failed(string message) =>
+            new() { ErrorMessage = message, Status = LeadSyncStatus.Failed, FailedCount = 1 };
 
         private async Task<LeadSyncExecutionResult> PersistIncomingLeadsAsync(
             LeadSyncSource source,
@@ -295,7 +374,6 @@ namespace CRM.Services
             CancellationToken cancellationToken)
         {
             var config = await _db.LeadSyncSourceConfigs
-                .Include(c => c.IntervalOption)
                 .FirstOrDefaultAsync(c => c.SourceId == sourceId, cancellationToken);
             if (config == null)
             {
@@ -303,15 +381,7 @@ namespace CRM.Services
             }
 
             config.LastSyncAt = endedAt;
-            if (config.AutoSyncEnabled)
-            {
-                config.NextSyncAt = endedAt;
-            }
-            else
-            {
-                config.NextSyncAt = null;
-            }
-
+            config.NextSyncAt = config.AutoSyncEnabled ? endedAt : null;
             config.UpdatedAt = endedAt;
         }
     }
@@ -319,32 +389,23 @@ namespace CRM.Services
     public class LeadSyncIndiaMartProvider : ILeadSyncProvider
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly LeadSyncIndiaMartOptions _options;
 
-        public LeadSyncIndiaMartProvider(
-            IHttpClientFactory httpClientFactory,
-            IOptions<LeadSyncIndiaMartOptions> options)
+        public LeadSyncIndiaMartProvider(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
-            _options = options.Value;
         }
 
         public string SourceCode => "indiamart";
 
-        public bool IsConfigured()
-        {
-            return !string.IsNullOrWhiteSpace(_options.PullApiUrl)
-                && !string.IsNullOrWhiteSpace(_options.ApiKey);
-        }
+        public bool IsConfigured(LeadSyncResolvedCredentials credentials) =>
+            !string.IsNullOrWhiteSpace(credentials.PullApiUrl)
+            && !string.IsNullOrWhiteSpace(credentials.ApiKey);
 
-        public async Task<LeadSyncPullResult> PullLeadsAsync(CancellationToken cancellationToken = default)
+        public async Task<LeadSyncPullResult> PullLeadsAsync(
+            LeadSyncResolvedCredentials credentials,
+            CancellationToken cancellationToken = default)
         {
-            if (!IsConfigured())
-            {
-                return new LeadSyncPullResult { ErrorMessage = "IndiaMART API is not configured." };
-            }
-
-            var url = BuildPullUrl();
+            var url = LeadSyncPullHelpers.BuildIndiaMartPullUrl(credentials);
             var client = _httpClientFactory.CreateClient("LeadSyncIndiaMart");
             JsonElement body;
             try
@@ -356,168 +417,182 @@ namespace CRM.Services
                 return new LeadSyncPullResult { ErrorMessage = ex.Message };
             }
 
-            var err = TryGetIndiaMartError(body);
+            var err = LeadSyncPullHelpers.TryGetIndiaMartError(body);
             if (err != null)
             {
                 return new LeadSyncPullResult { ErrorMessage = err };
             }
 
-            var leads = MapIndiaMartResponse(body);
+            var leads = LeadSyncPullHelpers.ExtractLeadArray(body)
+                .Select(row => LeadSyncPullHelpers.MapGenericMarketplaceRow(row, "IndiaMART", "IndiaMART"))
+                .Where(l => l != null)
+                .Cast<LeadSyncIncomingLead>()
+                .ToList();
+
             return new LeadSyncPullResult { Leads = leads };
         }
+    }
 
-        private string BuildPullUrl()
+    public class LeadSyncTradeIndiaProvider : ILeadSyncProvider
+    {
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        public LeadSyncTradeIndiaProvider(IHttpClientFactory httpClientFactory)
         {
-            var baseUrl = _options.PullApiUrl.Trim();
-            var key = Uri.EscapeDataString(_options.ApiKey.Trim());
-            var separator = baseUrl.Contains('?') ? '&' : '?';
-            if (baseUrl.Contains("glusr_crm_key=", StringComparison.OrdinalIgnoreCase))
-            {
-                return baseUrl;
-            }
-
-            return $"{baseUrl}{separator}glusr_crm_key={key}";
+            _httpClientFactory = httpClientFactory;
         }
 
-        private static string? TryGetIndiaMartError(JsonElement body)
+        public string SourceCode => "tradeindia";
+
+        public bool IsConfigured(LeadSyncResolvedCredentials credentials)
         {
-            if (body.ValueKind != JsonValueKind.Object)
+            if (string.IsNullOrWhiteSpace(credentials.ApiKey))
             {
-                return "Unexpected IndiaMART response.";
+                return false;
             }
 
-            if (body.TryGetProperty("STATUS", out var status) && status.ValueKind == JsonValueKind.String)
-            {
-                var s = status.GetString()?.Trim();
-                if (!string.Equals(s, "SUCCESS", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (body.TryGetProperty("MESSAGE", out var msg))
-                    {
-                        return msg.GetString() ?? s;
-                    }
-
-                    return s;
-                }
-            }
-
-            return null;
+            var sanitized = LeadSyncPullHelpers.SanitizeTradeIndiaPullUrl(
+                credentials.PullApiUrl,
+                out _,
+                out _);
+            return sanitized != null;
         }
 
-        private static IReadOnlyList<LeadSyncIncomingLead> MapIndiaMartResponse(JsonElement body)
+        public async Task<LeadSyncPullResult> PullLeadsAsync(
+            LeadSyncResolvedCredentials credentials,
+            CancellationToken cancellationToken = default)
         {
-            var results = new List<LeadSyncIncomingLead>();
-            if (!body.TryGetProperty("RESPONSE", out var response))
+            if (!IsConfigured(credentials))
             {
-                return results;
-            }
-
-            JsonElement array;
-            if (response.ValueKind == JsonValueKind.Array)
-            {
-                array = response;
-            }
-            else if (response.TryGetProperty("DATA", out var data) && data.ValueKind == JsonValueKind.Array)
-            {
-                array = data;
-            }
-            else
-            {
-                return results;
-            }
-
-            foreach (var row in array.EnumerateArray())
-            {
-                var mapped = MapIndiaMartRow(row);
-                if (mapped != null)
+                return new LeadSyncPullResult
                 {
-                    results.Add(mapped);
-                }
-            }
-
-            return results;
-        }
-
-        private static LeadSyncIncomingLead? MapIndiaMartRow(JsonElement row)
-        {
-            static string S(JsonElement el, string name)
-            {
-                if (!el.TryGetProperty(name, out var v))
-                {
-                    return string.Empty;
-                }
-
-                return v.ValueKind switch
-                {
-                    JsonValueKind.String => v.GetString()?.Trim() ?? string.Empty,
-                    JsonValueKind.Number => v.GetRawText(),
-                    _ => string.Empty,
+                    ErrorMessage =
+                        "TradeIndia URL must be https://www.tradeindia.com/... with userid and profile_id. "
+                        + "Save the API key in the API key field (not in the URL).",
                 };
             }
 
-            var name = S(row, "SENDERNAME");
-            if (string.IsNullOrWhiteSpace(name))
+            string url;
+            try
             {
-                name = S(row, "sendername");
+                url = LeadSyncPullHelpers.BuildTradeIndiaPullUrl(credentials);
+            }
+            catch (Exception ex)
+            {
+                return new LeadSyncPullResult { ErrorMessage = ex.Message };
             }
 
-            var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var firstName = parts.Length > 0 ? parts[0] : "Lead";
-            var lastName = parts.Length > 1 ? string.Join(' ', parts.Skip(1)) : "Contact";
+            var client = _httpClientFactory.CreateClient("LeadSyncMarketplace");
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            var mobile = S(row, "SENDERMOBILE");
-            if (string.IsNullOrWhiteSpace(mobile))
+            HttpResponseMessage response;
+            try
             {
-                mobile = S(row, "MOBILE");
+                response = await client.SendAsync(request, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                return new LeadSyncPullResult { ErrorMessage = ex.Message };
             }
 
-            var email = S(row, "SENDEREMAIL");
-            var query = S(row, "QUERY_MESSAGE");
-            if (string.IsNullOrWhiteSpace(query))
+            if (!response.IsSuccessStatusCode)
             {
-                query = S(row, "SUBJECT");
+                return new LeadSyncPullResult
+                {
+                    ErrorMessage = LeadSyncPullHelpers.FormatMarketplaceHttpError(
+                        "TradeIndia",
+                        response.StatusCode),
+                };
             }
 
-            var product = S(row, "PRODUCT_NAME");
-            var city = S(row, "SENDER_CITY");
-            var extRef = S(row, "UNIQUE_QUERY_ID");
-            if (string.IsNullOrWhiteSpace(extRef))
+            string raw;
+            try
             {
-                extRef = S(row, "QUERY_ID");
+                raw = await response.Content.ReadAsStringAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                return new LeadSyncPullResult { ErrorMessage = ex.Message };
             }
 
-            if (string.IsNullOrWhiteSpace(extRef))
+            if (!LeadSyncPullHelpers.TryParseJsonElement(raw, out var body, out var parseError))
             {
-                extRef = $"{email}|{mobile}".ToLowerInvariant();
+                return new LeadSyncPullResult { ErrorMessage = parseError };
             }
 
-            var notesLines = new List<string>();
-            if (!string.IsNullOrWhiteSpace(query))
+            var leads = LeadSyncPullHelpers.ExtractLeadArray(body)
+                .Select(row => LeadSyncPullHelpers.MapGenericMarketplaceRow(row, "TradeIndia", "TradeIndia"))
+                .Where(l => l != null)
+                .Cast<LeadSyncIncomingLead>()
+                .ToList();
+
+            return new LeadSyncPullResult { Leads = leads };
+        }
+    }
+
+    public class LeadSyncJustdialProvider : ILeadSyncProvider
+    {
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        public LeadSyncJustdialProvider(IHttpClientFactory httpClientFactory)
+        {
+            _httpClientFactory = httpClientFactory;
+        }
+
+        public string SourceCode => "justdial";
+
+        public bool IsConfigured(LeadSyncResolvedCredentials credentials) =>
+            !string.IsNullOrWhiteSpace(credentials.PullApiUrl)
+            && !string.IsNullOrWhiteSpace(credentials.ApiKey);
+
+        public async Task<LeadSyncPullResult> PullLeadsAsync(
+            LeadSyncResolvedCredentials credentials,
+            CancellationToken cancellationToken = default)
+        {
+            var url = LeadSyncPullHelpers.BuildBearerPullUrl(credentials);
+            var client = _httpClientFactory.CreateClient("LeadSyncMarketplace");
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credentials.ApiKey.Trim());
+
+            HttpResponseMessage response;
+            try
             {
-                notesLines.Add(query);
+                response = await client.SendAsync(request, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                return new LeadSyncPullResult { ErrorMessage = ex.Message };
             }
 
-            if (!string.IsNullOrWhiteSpace(product))
+            if (!response.IsSuccessStatusCode)
             {
-                notesLines.Add($"Product: {product}");
+                return new LeadSyncPullResult
+                {
+                    ErrorMessage = LeadSyncPullHelpers.FormatMarketplaceHttpError(
+                        "Justdial",
+                        response.StatusCode),
+                };
             }
 
-            if (!string.IsNullOrWhiteSpace(city))
+            JsonElement body;
+            try
             {
-                notesLines.Add($"City: {city}");
+                body = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                return new LeadSyncPullResult { ErrorMessage = ex.Message };
             }
 
-            notesLines.Add($"[crm-ext:IndiaMART:{extRef}]");
+            var leads = LeadSyncPullHelpers.ExtractLeadArray(body)
+                .Select(row => LeadSyncPullHelpers.MapGenericMarketplaceRow(row, "Justdial", "Justdial"))
+                .Where(l => l != null)
+                .Cast<LeadSyncIncomingLead>()
+                .ToList();
 
-            return new LeadSyncIncomingLead
-            {
-                ExternalKey = extRef,
-                FirstName = firstName,
-                LastName = lastName,
-                Email = email,
-                Mobile = mobile,
-                Requirement = query,
-                Notes = string.Join('\n', notesLines),
-            };
+            return new LeadSyncPullResult { Leads = leads };
         }
     }
 }
