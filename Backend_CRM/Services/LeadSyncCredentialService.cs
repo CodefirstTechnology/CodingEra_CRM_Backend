@@ -69,12 +69,25 @@ namespace CRM.Services
             int sourceId,
             CancellationToken cancellationToken = default)
         {
-            var row = await _db.LeadSyncSourceCredentials.AsNoTracking()
-                .FirstOrDefaultAsync(c => c.SourceId == sourceId, cancellationToken);
+            var source = await _db.LeadSyncSources.AsNoTracking()
+                .Include(s => s.Credentials)
+                .FirstOrDefaultAsync(s => s.Id == sourceId, cancellationToken);
+            var row = source?.Credentials;
+            var pullUrl = row?.PullApiUrl;
+
+            if (string.Equals(source?.Code, "tradeindia", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(pullUrl))
+            {
+                var sanitized = LeadSyncPullHelpers.SanitizeTradeIndiaPullUrl(pullUrl, out _, out _);
+                if (sanitized != null)
+                {
+                    pullUrl = sanitized;
+                }
+            }
 
             return new LeadSyncCredentialsDto
             {
-                PullApiUrl = row?.PullApiUrl,
+                PullApiUrl = pullUrl,
                 HasApiKey = IsConfigured(row),
                 ApiKeyMasked = MaskApiKey(row),
                 ConfiguredAt = row?.ConfiguredAt,
@@ -101,7 +114,24 @@ namespace CRM.Services
             }
 
             var pullUrl = dto.PullApiUrl?.Trim();
-            if (!string.IsNullOrWhiteSpace(pullUrl))
+            string? keyFromUrl = null;
+            var isTradeIndia = string.Equals(source.Code, "tradeindia", StringComparison.OrdinalIgnoreCase);
+
+            if (isTradeIndia)
+            {
+                var sourceUrl = !string.IsNullOrWhiteSpace(pullUrl) ? pullUrl : row.PullApiUrl;
+                var sanitized = LeadSyncPullHelpers.SanitizeTradeIndiaPullUrl(
+                    sourceUrl,
+                    out keyFromUrl,
+                    out var urlError);
+                if (sanitized == null)
+                {
+                    throw new InvalidOperationException(urlError ?? "Invalid TradeIndia pull URL.");
+                }
+
+                row.PullApiUrl = sanitized;
+            }
+            else if (!string.IsNullOrWhiteSpace(pullUrl))
             {
                 row.PullApiUrl = pullUrl;
             }
@@ -111,6 +141,12 @@ namespace CRM.Services
             }
 
             var apiKey = dto.ApiKey?.Trim();
+            if (string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(keyFromUrl))
+            {
+                // If admin pasted key into the URL, move it into encrypted storage.
+                apiKey = keyFromUrl;
+            }
+
             if (!string.IsNullOrWhiteSpace(apiKey))
             {
                 row.ApiKeyEncrypted = _protector.Protect(apiKey);

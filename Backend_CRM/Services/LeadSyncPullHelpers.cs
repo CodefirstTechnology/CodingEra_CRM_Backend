@@ -216,21 +216,145 @@ namespace CRM.Services
 
         /// <summary>
         /// TradeIndia inquiry pull uses query params: userid, profile_id, key, from_date, to_date.
-        /// userid/profile_id must already be present on the saved URL; key may come from URL or credentials.
+        /// Stored URL must only keep userid/profile_id; key is always taken from encrypted credentials.
         /// </summary>
         public static string BuildTradeIndiaPullUrl(LeadSyncResolvedCredentials credentials)
         {
-            var url = credentials.PullApiUrl.Trim();
-            var hasKey = url.Contains("key=", StringComparison.OrdinalIgnoreCase);
-            if (!hasKey && !string.IsNullOrWhiteSpace(credentials.ApiKey))
+            var sanitized = SanitizeTradeIndiaPullUrl(credentials.PullApiUrl, out _, out var error);
+            if (sanitized == null)
             {
-                url = AppendQueryParam(url, "key", credentials.ApiKey.Trim());
+                throw new InvalidOperationException(error ?? "Invalid TradeIndia pull URL.");
             }
 
+            var url = AppendQueryParam(sanitized, "key", credentials.ApiKey.Trim());
             var (fromDate, toDate) = GetTodayIstDateRangeYmd();
             url = AppendQueryParam(url, "from_date", fromDate);
             url = AppendQueryParam(url, "to_date", toDate);
             return url;
+        }
+
+        /// <summary>
+        /// Validates TradeIndia host and required ids, strips secret query params (key/api_key).
+        /// Returns sanitized URL without secrets, and any key found in the original URL.
+        /// </summary>
+        public static string? SanitizeTradeIndiaPullUrl(
+            string? rawUrl,
+            out string? keyFromUrl,
+            out string? errorMessage)
+        {
+            keyFromUrl = null;
+            errorMessage = null;
+
+            if (string.IsNullOrWhiteSpace(rawUrl))
+            {
+                errorMessage = "Lead pull API URL is required.";
+                return null;
+            }
+
+            if (!Uri.TryCreate(rawUrl.Trim(), UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+            {
+                errorMessage = "TradeIndia pull URL must be a valid http(s) URL.";
+                return null;
+            }
+
+            if (!IsAllowedTradeIndiaHost(uri.Host))
+            {
+                errorMessage = "TradeIndia pull URL host must be tradeindia.com.";
+                return null;
+            }
+
+            var query = ParseQuery(uri.Query);
+            if (query.TryGetValue("key", out var keyVal) && !string.IsNullOrWhiteSpace(keyVal))
+            {
+                keyFromUrl = keyVal.Trim();
+            }
+            else if (query.TryGetValue("api_key", out var apiKeyVal) && !string.IsNullOrWhiteSpace(apiKeyVal))
+            {
+                keyFromUrl = apiKeyVal.Trim();
+            }
+
+            query.Remove("key");
+            query.Remove("api_key");
+            query.Remove("apikey");
+
+            if (!query.TryGetValue("userid", out var userId) || string.IsNullOrWhiteSpace(userId))
+            {
+                errorMessage = "TradeIndia pull URL must include userid.";
+                return null;
+            }
+
+            if (!query.TryGetValue("profile_id", out var profileId) || string.IsNullOrWhiteSpace(profileId))
+            {
+                errorMessage = "TradeIndia pull URL must include profile_id.";
+                return null;
+            }
+
+            // Keep only identity params in stored URL (dates/key are added at pull time).
+            var kept = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["userid"] = userId.Trim(),
+                ["profile_id"] = profileId.Trim(),
+            };
+
+            var builder = new UriBuilder(uri)
+            {
+                Query = string.Empty,
+                Fragment = string.Empty,
+            };
+            var path = string.IsNullOrWhiteSpace(builder.Path) ? "/" : builder.Path;
+            builder.Path = path;
+
+            var qs = string.Join(
+                '&',
+                kept.Select(kv =>
+                    $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+            return $"{builder.Uri.GetLeftPart(UriPartial.Path)}?{qs}";
+        }
+
+        public static bool IsAllowedTradeIndiaHost(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                return false;
+            }
+
+            var h = host.Trim().TrimEnd('.').ToLowerInvariant();
+            return h == "tradeindia.com" || h.EndsWith(".tradeindia.com", StringComparison.Ordinal);
+        }
+
+        private static Dictionary<string, string> ParseQuery(string query)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return map;
+            }
+
+            var q = query.StartsWith('?') ? query[1..] : query;
+            foreach (var part in q.Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var idx = part.IndexOf('=');
+                string name;
+                string value;
+                if (idx < 0)
+                {
+                    name = Uri.UnescapeDataString(part);
+                    value = string.Empty;
+                }
+                else
+                {
+                    name = Uri.UnescapeDataString(part[..idx]);
+                    value = Uri.UnescapeDataString(part[(idx + 1)..]);
+                }
+
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    map[name] = value;
+                }
+            }
+
+            return map;
         }
 
         public static (string fromDate, string toDate) GetTodayIstDateRangeYmd()

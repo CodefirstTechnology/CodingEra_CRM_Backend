@@ -446,17 +446,16 @@ namespace CRM.Services
 
         public bool IsConfigured(LeadSyncResolvedCredentials credentials)
         {
-            if (string.IsNullOrWhiteSpace(credentials.PullApiUrl))
+            if (string.IsNullOrWhiteSpace(credentials.ApiKey))
             {
                 return false;
             }
 
-            var url = credentials.PullApiUrl;
-            var hasUserId = url.Contains("userid=", StringComparison.OrdinalIgnoreCase);
-            var hasProfileId = url.Contains("profile_id=", StringComparison.OrdinalIgnoreCase);
-            var hasKey = url.Contains("key=", StringComparison.OrdinalIgnoreCase)
-                || !string.IsNullOrWhiteSpace(credentials.ApiKey);
-            return hasUserId && hasProfileId && hasKey;
+            var sanitized = LeadSyncPullHelpers.SanitizeTradeIndiaPullUrl(
+                credentials.PullApiUrl,
+                out _,
+                out _);
+            return sanitized != null;
         }
 
         public async Task<LeadSyncPullResult> PullLeadsAsync(
@@ -468,12 +467,21 @@ namespace CRM.Services
                 return new LeadSyncPullResult
                 {
                     ErrorMessage =
-                        "TradeIndia URL must include userid and profile_id. "
-                        + "Save key in the API key field (or include key= on the URL).",
+                        "TradeIndia URL must be https://www.tradeindia.com/... with userid and profile_id. "
+                        + "Save the API key in the API key field (not in the URL).",
                 };
             }
 
-            var url = LeadSyncPullHelpers.BuildTradeIndiaPullUrl(credentials);
+            string url;
+            try
+            {
+                url = LeadSyncPullHelpers.BuildTradeIndiaPullUrl(credentials);
+            }
+            catch (Exception ex)
+            {
+                return new LeadSyncPullResult { ErrorMessage = ex.Message };
+            }
+
             var client = _httpClientFactory.CreateClient("LeadSyncMarketplace");
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));

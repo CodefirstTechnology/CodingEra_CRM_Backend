@@ -401,6 +401,17 @@ namespace CRM.Services
                 && !string.IsNullOrWhiteSpace(s.Credentials.PullApiUrl)
                 && !string.IsNullOrWhiteSpace(s.Credentials.ApiKeyEncrypted);
 
+            var pullApiUrl = s.Credentials?.PullApiUrl;
+            if (string.Equals(s.Code, "tradeindia", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(pullApiUrl))
+            {
+                var sanitized = LeadSyncPullHelpers.SanitizeTradeIndiaPullUrl(pullApiUrl, out _, out _);
+                if (sanitized != null)
+                {
+                    pullApiUrl = sanitized;
+                }
+            }
+
             return new LeadSyncSourceDto
             {
                 Id = s.Id,
@@ -409,7 +420,7 @@ namespace CRM.Services
                 MarkerName = s.MarkerName,
                 ApiIntegrationReady = configured || s.ApiIntegrationReady,
                 IsConfigured = configured,
-                PullApiUrl = s.Credentials?.PullApiUrl,
+                PullApiUrl = pullApiUrl,
                 AutoSyncEnabled = s.Config?.AutoSyncEnabled ?? false,
                 IntervalOptionId = s.Config?.IntervalOptionId,
                 IntervalHours = s.Config?.IntervalOption?.Hours,
