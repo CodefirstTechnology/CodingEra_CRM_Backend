@@ -15,6 +15,11 @@ namespace CRM.Services
         Task<bool> IsUserAssignedToSourceAsync(int userId, int sourceId, CancellationToken cancellationToken = default);
         Task UpdateAssignmentsAsync(int sourceId, IReadOnlyList<int> userIds, int actingUserId, CancellationToken cancellationToken = default);
         Task UpdateAutoSyncAsync(int sourceId, LeadSyncUpdateAutoSyncDto dto, int actingUserId, CancellationToken cancellationToken = default);
+        Task<LeadSyncCredentialsDto> GetCredentialsAsync(int sourceId, CancellationToken cancellationToken = default);
+        Task<LeadSyncCredentialsDto> SaveCredentialsAsync(int sourceId, LeadSyncSaveCredentialsDto dto, int actingUserId, CancellationToken cancellationToken = default);
+        Task DisconnectSourceAsync(int sourceId, int actingUserId, CancellationToken cancellationToken = default);
+        Task<LeadSyncExecutionResultDto> TestConnectionAsync(int sourceId, CancellationToken cancellationToken = default);
+        Task<LeadSyncExecutionResultDto> RunManualSyncAsync(int sourceId, int userId, CancellationToken cancellationToken = default);
         Task RecordManualSyncLogAsync(int userId, LeadSyncManualLogDto dto, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<LeadSyncLogDto>> ListLogsAsync(LeadSyncLogQueryDto query, CancellationToken cancellationToken = default);
     }
@@ -23,11 +28,19 @@ namespace CRM.Services
     {
         private readonly TaskDbcontext _db;
         private readonly IRbacService _rbac;
+        private readonly ILeadSyncCredentialService _credentials;
+        private readonly ILeadSyncExecutionService _execution;
 
-        public LeadSyncManagementService(TaskDbcontext db, IRbacService rbac)
+        public LeadSyncManagementService(
+            TaskDbcontext db,
+            IRbacService rbac,
+            ILeadSyncCredentialService credentials,
+            ILeadSyncExecutionService execution)
         {
             _db = db;
             _rbac = rbac;
+            _credentials = credentials;
+            _execution = execution;
         }
 
         public async Task<IReadOnlyList<LeadSyncIntervalOptionDto>> ListIntervalsAsync(
@@ -85,6 +98,7 @@ namespace CRM.Services
                 .Where(s => s.IsActive)
                 .Include(s => s.Config!)
                     .ThenInclude(c => c!.IntervalOption)
+                .Include(s => s.Credentials)
                 .Include(s => s.Assignments)
                     .ThenInclude(a => a.User)
                 .OrderBy(s => s.SortOrder)
@@ -112,7 +126,8 @@ namespace CRM.Services
             IQueryable<LeadSyncSource> q = _db.LeadSyncSources.AsNoTracking()
                 .Where(s => s.IsActive)
                 .Include(s => s.Config!)
-                    .ThenInclude(c => c!.IntervalOption);
+                    .ThenInclude(c => c!.IntervalOption)
+                .Include(s => s.Credentials);
 
             if (!isAdmin)
             {
@@ -135,12 +150,17 @@ namespace CRM.Services
                 Code = s.Code,
                 DisplayName = s.DisplayName,
                 SyncButtonLabel = $"Sync {s.DisplayName}",
-                ApiIntegrationReady = s.ApiIntegrationReady,
+                ApiIntegrationReady = IsSourceConfigured(s),
                 AutoSyncEnabled = s.Config?.AutoSyncEnabled ?? false,
                 LastSyncAt = s.Config?.LastSyncAt,
                 NextSyncAt = s.Config?.NextSyncAt,
             }).ToList();
         }
+
+        private static bool IsSourceConfigured(LeadSyncSource s) =>
+            s.Credentials != null
+            && !string.IsNullOrWhiteSpace(s.Credentials.PullApiUrl)
+            && !string.IsNullOrWhiteSpace(s.Credentials.ApiKeyEncrypted);
 
         public async Task<bool> IsUserAssignedToSourceAsync(
             int userId,
@@ -225,6 +245,55 @@ namespace CRM.Services
             }
 
             await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        public Task<LeadSyncCredentialsDto> GetCredentialsAsync(
+            int sourceId,
+            CancellationToken cancellationToken = default) =>
+            _credentials.GetMaskedAsync(sourceId, cancellationToken);
+
+        public async Task<LeadSyncCredentialsDto> SaveCredentialsAsync(
+            int sourceId,
+            LeadSyncSaveCredentialsDto dto,
+            int actingUserId,
+            CancellationToken cancellationToken = default)
+        {
+            var saved = await _credentials.SaveAsync(sourceId, dto, actingUserId, cancellationToken);
+            await _credentials.RefreshIntegrationReadyAsync(sourceId, cancellationToken);
+            return saved;
+        }
+
+        public Task DisconnectSourceAsync(
+            int sourceId,
+            int actingUserId,
+            CancellationToken cancellationToken = default) =>
+            _credentials.ClearAsync(sourceId, actingUserId, cancellationToken);
+
+        public async Task<LeadSyncExecutionResultDto> TestConnectionAsync(
+            int sourceId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _execution.TestConnectionAsync(sourceId, cancellationToken);
+            return MapExecutionResult(result, isTest: true);
+        }
+
+        public async Task<LeadSyncExecutionResultDto> RunManualSyncAsync(
+            int sourceId,
+            int userId,
+            CancellationToken cancellationToken = default)
+        {
+            var isAdmin = await _rbac.IsAdminUserAsync(userId);
+            if (!isAdmin)
+            {
+                var assigned = await IsUserAssignedToSourceAsync(userId, sourceId, cancellationToken);
+                if (!assigned)
+                {
+                    throw new UnauthorizedAccessException("User is not assigned to this source.");
+                }
+            }
+
+            var result = await _execution.ExecuteManualSyncAsync(sourceId, userId, cancellationToken);
+            return MapExecutionResult(result, isTest: false);
         }
 
         public async Task RecordManualSyncLogAsync(
@@ -328,13 +397,30 @@ namespace CRM.Services
                 })
                 .ToList();
 
+            var configured = s.Credentials != null
+                && !string.IsNullOrWhiteSpace(s.Credentials.PullApiUrl)
+                && !string.IsNullOrWhiteSpace(s.Credentials.ApiKeyEncrypted);
+
+            var pullApiUrl = s.Credentials?.PullApiUrl;
+            if (string.Equals(s.Code, "tradeindia", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(pullApiUrl))
+            {
+                var sanitized = LeadSyncPullHelpers.SanitizeTradeIndiaPullUrl(pullApiUrl, out _, out _);
+                if (sanitized != null)
+                {
+                    pullApiUrl = sanitized;
+                }
+            }
+
             return new LeadSyncSourceDto
             {
                 Id = s.Id,
                 Code = s.Code,
                 DisplayName = s.DisplayName,
                 MarkerName = s.MarkerName,
-                ApiIntegrationReady = s.ApiIntegrationReady,
+                ApiIntegrationReady = configured || s.ApiIntegrationReady,
+                IsConfigured = configured,
+                PullApiUrl = pullApiUrl,
                 AutoSyncEnabled = s.Config?.AutoSyncEnabled ?? false,
                 IntervalOptionId = s.Config?.IntervalOptionId,
                 IntervalHours = s.Config?.IntervalOption?.Hours,
@@ -342,6 +428,20 @@ namespace CRM.Services
                 LastSyncAt = s.Config?.LastSyncAt,
                 NextSyncAt = s.Config?.NextSyncAt,
                 Assignments = assignments,
+            };
+        }
+
+        private static LeadSyncExecutionResultDto MapExecutionResult(
+            LeadSyncExecutionResult result,
+            bool isTest)
+        {
+            return new LeadSyncExecutionResultDto
+            {
+                TotalReceived = result.TotalReceived,
+                TotalCreated = isTest ? 0 : result.TotalCreated,
+                FailedCount = result.FailedCount,
+                ErrorMessage = result.ErrorMessage,
+                Status = result.Status.ToString(),
             };
         }
     }

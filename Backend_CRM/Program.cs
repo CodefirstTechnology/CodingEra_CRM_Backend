@@ -43,11 +43,16 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<LeadSyncIndiaMartOptions>(
     builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
+builder.Services.AddDataProtection();
 builder.Services.AddHttpClient("LeadSyncIndiaMart");
+builder.Services.AddHttpClient("LeadSyncMarketplace");
+builder.Services.AddScoped<ILeadSyncCredentialService, LeadSyncCredentialService>();
 builder.Services.AddScoped<ILeadSyncRoundRobinService, LeadSyncRoundRobinService>();
 builder.Services.AddScoped<ILeadSyncManagementService, LeadSyncManagementService>();
 builder.Services.AddScoped<ILeadSyncExecutionService, LeadSyncExecutionService>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncIndiaMartProvider>();
+builder.Services.AddScoped<ILeadSyncProvider, LeadSyncTradeIndiaProvider>();
+builder.Services.AddScoped<ILeadSyncProvider, LeadSyncJustdialProvider>();
 builder.Services.AddHostedService<LeadSyncAutoSyncHostedService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IMasterDataAdminService, MasterDataAdminService>();

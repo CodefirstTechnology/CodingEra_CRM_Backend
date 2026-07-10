@@ -96,6 +96,75 @@ namespace CRM.Controllers
             }
         }
 
+        [HttpGet("sources/{sourceId:int}/credentials")]
+        public async Task<IActionResult> GetCredentials(int sourceId, [FromQuery] int userId)
+        {
+            var err = await RequireAdminAsync(userId);
+            if (err != null) return err;
+            return Ok(await _leadSync.GetCredentialsAsync(sourceId));
+        }
+
+        [HttpPut("sources/{sourceId:int}/credentials")]
+        public async Task<IActionResult> SaveCredentials(
+            int sourceId,
+            [FromQuery] int userId,
+            [FromBody] LeadSyncSaveCredentialsDto body)
+        {
+            var err = await RequireAdminAsync(userId);
+            if (err != null) return err;
+
+            try
+            {
+                var saved = await _leadSync.SaveCredentialsAsync(sourceId, body, userId);
+                return Ok(await _leadSync.ListSourcesForAdminAsync());
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("sources/{sourceId:int}/credentials")]
+        public async Task<IActionResult> DisconnectSource(int sourceId, [FromQuery] int userId)
+        {
+            var err = await RequireAdminAsync(userId);
+            if (err != null) return err;
+
+            try
+            {
+                await _leadSync.DisconnectSourceAsync(sourceId, userId);
+                return Ok(await _leadSync.ListSourcesForAdminAsync());
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("sources/{sourceId:int}/test")]
+        public async Task<IActionResult> TestConnection(int sourceId, [FromQuery] int userId)
+        {
+            var err = await RequireAdminAsync(userId);
+            if (err != null) return err;
+            return Ok(await _leadSync.TestConnectionAsync(sourceId));
+        }
+
+        [HttpPost("sources/{sourceId:int}/sync")]
+        public async Task<IActionResult> RunSync(int sourceId, [FromQuery] int userId)
+        {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
+            if (permErr != null) return permErr;
+
+            try
+            {
+                return Ok(await _leadSync.RunManualSyncAsync(sourceId, userId));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+        }
+
         [HttpPost("manual-log")]
         public async Task<IActionResult> RecordManualLog(
             [FromQuery] int userId,

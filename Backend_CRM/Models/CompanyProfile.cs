@@ -33,6 +33,13 @@ namespace CRM.models
         [Column("logo_base64")]
         public string LogoBase64 { get; set; } = string.Empty;
 
+        [Column("favicon_content_type")]
+        [MaxLength(64)]
+        public string FaviconContentType { get; set; } = string.Empty;
+
+        [Column("favicon_base64")]
+        public string FaviconBase64 { get; set; } = string.Empty;
+
         [Column("gstin")]
         [MaxLength(32)]
         public string Gstin { get; set; } = string.Empty;

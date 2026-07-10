@@ -24,6 +24,10 @@ namespace CRM.Helpers
                 LogoBase64 = includeLogoPayload && !string.IsNullOrWhiteSpace(row.LogoBase64)
                     ? row.LogoBase64
                     : null,
+                FaviconContentType = row.FaviconContentType ?? string.Empty,
+                FaviconBase64 = includeLogoPayload && !string.IsNullOrWhiteSpace(row.FaviconBase64)
+                    ? row.FaviconBase64
+                    : null,
                 Gstin = row.Gstin ?? string.Empty,
                 CinNumber = row.CinNumber ?? string.Empty,
                 Address = row.Address ?? string.Empty,
@@ -54,6 +58,8 @@ namespace CRM.Helpers
                 Tagline = row.Tagline ?? string.Empty,
                 LogoContentType = row.LogoContentType ?? string.Empty,
                 LogoBase64 = string.IsNullOrWhiteSpace(row.LogoBase64) ? null : row.LogoBase64,
+                FaviconContentType = row.FaviconContentType ?? string.Empty,
+                FaviconBase64 = string.IsNullOrWhiteSpace(row.FaviconBase64) ? null : row.FaviconBase64,
             };
         }
 
@@ -94,6 +100,21 @@ namespace CRM.Helpers
             else if (!string.IsNullOrWhiteSpace(dto.LogoContentType))
             {
                 row.LogoContentType = dto.LogoContentType.Trim();
+            }
+
+            if (dto.RemoveFavicon)
+            {
+                row.FaviconBase64 = string.Empty;
+                row.FaviconContentType = string.Empty;
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.FaviconBase64))
+            {
+                row.FaviconBase64 = dto.FaviconBase64.Trim();
+                row.FaviconContentType = (dto.FaviconContentType ?? string.Empty).Trim();
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.FaviconContentType))
+            {
+                row.FaviconContentType = dto.FaviconContentType.Trim();
             }
 
             row.UpdatedAt = DateTime.UtcNow;

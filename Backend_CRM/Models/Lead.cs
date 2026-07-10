@@ -48,6 +48,8 @@ namespace CRM.models
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public Organization? Organization { get; set; }
 
+        [Column("deal_amount")]
+        public decimal? DealAmount { get; set; }
 
         [Column("lead_status_id")]
         public int? LeadStatusId { get; set; }

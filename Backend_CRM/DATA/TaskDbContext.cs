@@ -107,6 +107,8 @@ namespace CRM.DATA
 
         public DbSet<LeadSyncLog> LeadSyncLogs { get; set; }
 
+        public DbSet<LeadSyncSourceCredentials> LeadSyncSourceCredentials { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Quotation>()
@@ -836,6 +838,12 @@ namespace CRM.DATA
 
             modelBuilder.Entity<LeadSyncSourceConfig>()
                 .HasIndex(c => c.NextSyncAt);
+
+            modelBuilder.Entity<LeadSyncSourceCredentials>()
+                .HasOne(c => c.Source)
+                .WithOne(s => s.Credentials)
+                .HasForeignKey<LeadSyncSourceCredentials>(c => c.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<LeadSyncRoundRobinState>()
                 .HasOne(r => r.Source)

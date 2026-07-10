@@ -35,13 +35,14 @@ namespace CRM.Helpers
                 await db.Database.MigrateAsync();
                 logger.LogInformation("Database schema is up to date.");
 
+                await LeadDealAmountSchemaEnsure.EnsureAsync(db, logger);
+                await CompanyProfileFaviconSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTemplateSchemaEnsure.EnsureAsync(db, logger);
                 await DealPipelineStageSeed.EnsureAsync(db, logger);
                 await RbacSeed.EnsureAsync(db, logger);
 
-                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-                await LeadSyncSeed.EnsureAsync(db, configuration, logger);
+                await LeadSyncSeed.EnsureAsync(db, logger);
             }
             catch (Exception ex)
             {
