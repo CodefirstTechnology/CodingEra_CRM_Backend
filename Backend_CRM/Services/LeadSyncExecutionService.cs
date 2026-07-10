@@ -444,27 +444,39 @@ namespace CRM.Services
 
         public string SourceCode => "tradeindia";
 
-        public bool IsConfigured(LeadSyncResolvedCredentials credentials) =>
-            !string.IsNullOrWhiteSpace(credentials.PullApiUrl)
-            && !string.IsNullOrWhiteSpace(credentials.ApiKey);
+        public bool IsConfigured(LeadSyncResolvedCredentials credentials)
+        {
+            if (string.IsNullOrWhiteSpace(credentials.PullApiUrl))
+            {
+                return false;
+            }
+
+            var url = credentials.PullApiUrl;
+            var hasUserId = url.Contains("userid=", StringComparison.OrdinalIgnoreCase);
+            var hasProfileId = url.Contains("profile_id=", StringComparison.OrdinalIgnoreCase);
+            var hasKey = url.Contains("key=", StringComparison.OrdinalIgnoreCase)
+                || !string.IsNullOrWhiteSpace(credentials.ApiKey);
+            return hasUserId && hasProfileId && hasKey;
+        }
 
         public async Task<LeadSyncPullResult> PullLeadsAsync(
             LeadSyncResolvedCredentials credentials,
             CancellationToken cancellationToken = default)
         {
-            return await PullGenericAsync(credentials, "TradeIndia", cancellationToken);
-        }
+            if (!IsConfigured(credentials))
+            {
+                return new LeadSyncPullResult
+                {
+                    ErrorMessage =
+                        "TradeIndia URL must include userid and profile_id. "
+                        + "Save key in the API key field (or include key= on the URL).",
+                };
+            }
 
-        private async Task<LeadSyncPullResult> PullGenericAsync(
-            LeadSyncResolvedCredentials credentials,
-            string markerName,
-            CancellationToken cancellationToken)
-        {
-            var url = LeadSyncPullHelpers.BuildBearerPullUrl(credentials);
+            var url = LeadSyncPullHelpers.BuildTradeIndiaPullUrl(credentials);
             var client = _httpClientFactory.CreateClient("LeadSyncMarketplace");
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credentials.ApiKey.Trim());
 
             HttpResponseMessage response;
             try
@@ -481,23 +493,28 @@ namespace CRM.Services
                 return new LeadSyncPullResult
                 {
                     ErrorMessage = LeadSyncPullHelpers.FormatMarketplaceHttpError(
-                        markerName,
+                        "TradeIndia",
                         response.StatusCode),
                 };
             }
 
-            JsonElement body;
+            string raw;
             try
             {
-                body = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
+                raw = await response.Content.ReadAsStringAsync(cancellationToken);
             }
             catch (Exception ex)
             {
                 return new LeadSyncPullResult { ErrorMessage = ex.Message };
             }
 
+            if (!LeadSyncPullHelpers.TryParseJsonElement(raw, out var body, out var parseError))
+            {
+                return new LeadSyncPullResult { ErrorMessage = parseError };
+            }
+
             var leads = LeadSyncPullHelpers.ExtractLeadArray(body)
-                .Select(row => LeadSyncPullHelpers.MapGenericMarketplaceRow(row, markerName, markerName))
+                .Select(row => LeadSyncPullHelpers.MapGenericMarketplaceRow(row, "TradeIndia", "TradeIndia"))
                 .Where(l => l != null)
                 .Cast<LeadSyncIncomingLead>()
                 .ToList();

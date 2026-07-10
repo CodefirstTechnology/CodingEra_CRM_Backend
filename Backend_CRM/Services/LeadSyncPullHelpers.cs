@@ -214,6 +214,67 @@ namespace CRM.Services
             return $"{url}{separator}api_key={Uri.EscapeDataString(credentials.ApiKey.Trim())}";
         }
 
+        /// <summary>
+        /// TradeIndia inquiry pull uses query params: userid, profile_id, key, from_date, to_date.
+        /// userid/profile_id must already be present on the saved URL; key may come from URL or credentials.
+        /// </summary>
+        public static string BuildTradeIndiaPullUrl(LeadSyncResolvedCredentials credentials)
+        {
+            var url = credentials.PullApiUrl.Trim();
+            var hasKey = url.Contains("key=", StringComparison.OrdinalIgnoreCase);
+            if (!hasKey && !string.IsNullOrWhiteSpace(credentials.ApiKey))
+            {
+                url = AppendQueryParam(url, "key", credentials.ApiKey.Trim());
+            }
+
+            var (fromDate, toDate) = GetTodayIstDateRangeYmd();
+            url = AppendQueryParam(url, "from_date", fromDate);
+            url = AppendQueryParam(url, "to_date", toDate);
+            return url;
+        }
+
+        public static (string fromDate, string toDate) GetTodayIstDateRangeYmd()
+        {
+            var ist = TimeZoneInfo.FindSystemTimeZoneById(
+                OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata");
+            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ist);
+            var day = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return (day, day);
+        }
+
+        public static bool TryParseJsonElement(string raw, out JsonElement body, out string? errorMessage)
+        {
+            body = default;
+            errorMessage = null;
+            var text = (raw ?? string.Empty).TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+            if (text.Length == 0)
+            {
+                errorMessage = "API returned an empty response.";
+                return false;
+            }
+
+            if (text[0] is not ('{' or '['))
+            {
+                var preview = text.Length > 160 ? text[..160] + "…" : text;
+                errorMessage =
+                    "API did not return JSON. Check userid, profile_id, and key on the pull URL. "
+                    + $"Response starts with: {preview}";
+                return false;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(text);
+                body = doc.RootElement.Clone();
+                return true;
+            }
+            catch (JsonException ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+        }
+
         public static string FormatMarketplaceHttpError(string providerName, HttpStatusCode statusCode)
         {
             return statusCode switch
