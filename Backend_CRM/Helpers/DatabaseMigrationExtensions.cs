@@ -36,6 +36,7 @@ namespace CRM.Helpers
                 logger.LogInformation("Database schema is up to date.");
 
                 await LeadDealAmountSchemaEnsure.EnsureAsync(db, logger);
+                await CompanyProfileFaviconSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTemplateSchemaEnsure.EnsureAsync(db, logger);
                 await DealPipelineStageSeed.EnsureAsync(db, logger);

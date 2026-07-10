@@ -348,6 +348,17 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("logo_content_type");
 
+                    b.Property<string>("FaviconBase64")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("favicon_base64");
+
+                    b.Property<string>("FaviconContentType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("favicon_content_type");
+
                     b.Property<string>("SignatoryMobile")
                         .IsRequired()
                         .HasMaxLength(64)
