@@ -49,6 +49,12 @@ namespace CRM.Services
                 throw new InvalidOperationException("Logo file is too large.");
             }
 
+            if (!dto.RemoveFavicon && !string.IsNullOrWhiteSpace(dto.FaviconBase64) &&
+                dto.FaviconBase64.Length > MaxLogoBase64Length)
+            {
+                throw new InvalidOperationException("Browser tab icon file is too large.");
+            }
+
             var row = await EnsureRowAsync(ct);
             CompanyProfileMappingHelper.Apply(row, dto);
             await _db.SaveChangesAsync(ct);

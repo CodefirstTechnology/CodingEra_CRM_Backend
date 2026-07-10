@@ -329,6 +329,7 @@ namespace CRM.Controllers
             to.LeadOwnerId = from.LeadOwnerId;
             to.LeadSource = from.LeadSource;
             to.CreatedAt = from.CreatedAt;
+            to.DealAmount = from.DealAmount;
         }
 
         private async Task<IActionResult?> ApplyLeadMastersFromDtoAsync(LeadUpsertDto dto, Lead lead, bool isCreate)

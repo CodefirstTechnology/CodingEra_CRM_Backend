@@ -15,6 +15,9 @@ namespace CRM.DTO
         public string LogoContentType { get; set; } = string.Empty;
         /// <summary>Base64 payload without data-URL prefix; omit on GET when empty.</summary>
         public string? LogoBase64 { get; set; }
+        public string FaviconContentType { get; set; } = string.Empty;
+        /// <summary>Browser tab icon base64; omit on GET when empty.</summary>
+        public string? FaviconBase64 { get; set; }
         public string Gstin { get; set; } = string.Empty;
         public string CinNumber { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
@@ -43,6 +46,8 @@ namespace CRM.DTO
         public string Tagline { get; set; } = string.Empty;
         public string LogoContentType { get; set; } = string.Empty;
         public string? LogoBase64 { get; set; }
+        public string FaviconContentType { get; set; } = string.Empty;
+        public string? FaviconBase64 { get; set; }
     }
 
     public class CompanyProfileUpsertDto
@@ -55,6 +60,10 @@ namespace CRM.DTO
         public string? LogoBase64 { get; set; }
         /// <summary>When true, clears stored logo.</summary>
         public bool RemoveLogo { get; set; }
+        public string FaviconContentType { get; set; } = string.Empty;
+        public string? FaviconBase64 { get; set; }
+        /// <summary>When true, clears stored browser tab icon.</summary>
+        public bool RemoveFavicon { get; set; }
         public string Gstin { get; set; } = string.Empty;
         public string CinNumber { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;

@@ -33,6 +33,8 @@ namespace CRM.DTO
         public string DisplayName { get; set; } = string.Empty;
         public string MarkerName { get; set; } = string.Empty;
         public bool ApiIntegrationReady { get; set; }
+        public bool IsConfigured { get; set; }
+        public string? PullApiUrl { get; set; }
         public bool AutoSyncEnabled { get; set; }
         public int? IntervalOptionId { get; set; }
         public int? IntervalHours { get; set; }
@@ -63,6 +65,30 @@ namespace CRM.DTO
     {
         public bool AutoSyncEnabled { get; set; }
         public int? IntervalOptionId { get; set; }
+    }
+
+    public class LeadSyncCredentialsDto
+    {
+        public string? PullApiUrl { get; set; }
+        public bool HasApiKey { get; set; }
+        public string? ApiKeyMasked { get; set; }
+        public DateTime? ConfiguredAt { get; set; }
+    }
+
+    public class LeadSyncSaveCredentialsDto
+    {
+        public string? PullApiUrl { get; set; }
+        /// <summary>When empty, the existing stored key is kept.</summary>
+        public string? ApiKey { get; set; }
+    }
+
+    public class LeadSyncExecutionResultDto
+    {
+        public int TotalReceived { get; set; }
+        public int TotalCreated { get; set; }
+        public int FailedCount { get; set; }
+        public string? ErrorMessage { get; set; }
+        public string Status { get; set; } = string.Empty;
     }
 
     public class LeadSyncManualLogDto

@@ -24,6 +24,8 @@ namespace CRM.DTO
         /// </summary>
         public string? OrganizationName { get; set; }
 
+        public decimal? DealAmount { get; set; }
+
         /// <summary>FK to <see cref="CRM.models.LeadStatus"/>.</summary>
         public int? LeadStatusId { get; set; }
 

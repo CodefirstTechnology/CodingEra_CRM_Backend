@@ -46,6 +46,9 @@ namespace CRM.models
         public LeadSyncSourceConfig? Config { get; set; }
 
         [JsonIgnore]
+        public LeadSyncSourceCredentials? Credentials { get; set; }
+
+        [JsonIgnore]
         public ICollection<LeadSyncSourceAssignment> Assignments { get; set; } = new List<LeadSyncSourceAssignment>();
 
         [JsonIgnore]
