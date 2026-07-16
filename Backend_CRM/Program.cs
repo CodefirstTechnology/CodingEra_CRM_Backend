@@ -48,6 +48,7 @@ builder.Services.AddHttpClient("LeadSyncIndiaMart");
 builder.Services.AddHttpClient("LeadSyncMarketplace");
 builder.Services.AddScoped<ILeadSyncCredentialService, LeadSyncCredentialService>();
 builder.Services.AddScoped<ILeadSyncRoundRobinService, LeadSyncRoundRobinService>();
+builder.Services.AddScoped<IMarketplaceLeadPersistenceService, MarketplaceLeadPersistenceService>();
 builder.Services.AddScoped<ILeadSyncManagementService, LeadSyncManagementService>();
 builder.Services.AddScoped<ILeadSyncExecutionService, LeadSyncExecutionService>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncIndiaMartProvider>();
@@ -61,6 +62,7 @@ builder.Services.AddScoped<ICompanyProfileService, CompanyProfileService>();
 builder.Services.AddScoped<IItemMasterService, ItemMasterService>();
 builder.Services.AddScoped<ILeadImportService, LeadImportService>();
 builder.Services.AddScoped<ILeadImportFileParser, LeadImportFileParser>();
+builder.Services.AddScoped<IJustdialWebhookService, JustdialWebhookService>();
 builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<IUserTargetService, UserTargetService>();
 
