@@ -299,7 +299,9 @@ namespace CRM.Services
                     Email = item.Email?.Trim() ?? string.Empty,
                     Mobile = item.Mobile?.Trim() ?? string.Empty,
                     Notes = notes ?? string.Empty,
-                    LeadSource = "Website",
+                    LeadSource = string.IsNullOrWhiteSpace(source.MarkerName)
+                        ? source.DisplayName
+                        : source.MarkerName,
                     LeadStatusId = defaultStatusId > 0 ? defaultStatusId : null,
                     LeadDate = DateTime.UtcNow.Date,
                     CreatedAt = item.CreatedAt ?? DateTime.UtcNow,
@@ -381,7 +383,26 @@ namespace CRM.Services
             }
 
             config.LastSyncAt = endedAt;
-            config.NextSyncAt = config.AutoSyncEnabled ? endedAt : null;
+            if (config.AutoSyncEnabled)
+            {
+                if (config.IntervalOptionId == null)
+                {
+                    config.IntervalOptionId = await LeadSyncScheduleHelper.GetDefaultIntervalOptionIdAsync(
+                        _db,
+                        cancellationToken);
+                }
+
+                var minutes = await LeadSyncScheduleHelper.ResolveIntervalMinutesAsync(
+                    _db,
+                    config.IntervalOptionId,
+                    cancellationToken);
+                config.NextSyncAt = LeadSyncScheduleHelper.ComputeNextSyncAt(endedAt, minutes);
+            }
+            else
+            {
+                config.NextSyncAt = null;
+            }
+
             config.UpdatedAt = endedAt;
         }
     }

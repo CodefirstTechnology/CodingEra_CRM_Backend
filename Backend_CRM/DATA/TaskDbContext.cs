@@ -827,7 +827,7 @@ namespace CRM.DATA
                 .IsUnique();
 
             modelBuilder.Entity<LeadSyncIntervalOption>()
-                .HasIndex(o => o.Hours)
+                .HasIndex(o => o.Minutes)
                 .IsUnique();
 
             modelBuilder.Entity<LeadSyncSourceConfig>()
