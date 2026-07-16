@@ -18,5 +18,8 @@ namespace CRM.Helpers
             var m = ExtMarkerRegex.Match(notes);
             return m.Success ? m.Groups[1].Value.Trim() : null;
         }
+
+        public static string FormatExtMarker(string markerName, string externalKey) =>
+            $"[crm-ext:{markerName.Trim()}:{externalKey.Trim()}]";
     }
 }

@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260708071212_sales")]
+    partial class sales
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -313,17 +316,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)")
                         .HasColumnName("email");
-
-                    b.Property<string>("FaviconBase64")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("favicon_base64");
-
-                    b.Property<string>("FaviconContentType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("favicon_content_type");
 
                     b.Property<string>("Gstin")
                         .IsRequired()
@@ -1355,10 +1347,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
 
-                    b.Property<decimal?>("DealAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("deal_amount");
-
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -1899,40 +1887,6 @@ namespace Backend_CRM.Migrations
                     b.HasIndex("UpdatedBy");
 
                     b.ToTable("lead_sync_source_configs");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSourceCredentials", b =>
-                {
-                    b.Property<int>("SourceId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_id");
-
-                    b.Property<string>("ApiKeyEncrypted")
-                        .HasColumnType("text")
-                        .HasColumnName("api_key_encrypted");
-
-                    b.Property<DateTime?>("ConfiguredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("configured_at");
-
-                    b.Property<int?>("ConfiguredBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("configured_by");
-
-                    b.Property<string>("PullApiUrl")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("pull_api_url");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("SourceId");
-
-                    b.HasIndex("ConfiguredBy");
-
-                    b.ToTable("lead_sync_source_credentials");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -3703,23 +3657,6 @@ namespace Backend_CRM.Migrations
                     b.Navigation("UpdatedByUser");
                 });
 
-            modelBuilder.Entity("CRM.models.LeadSyncSourceCredentials", b =>
-                {
-                    b.HasOne("CRM.models.User", "ConfiguredByUser")
-                        .WithMany()
-                        .HasForeignKey("ConfiguredBy");
-
-                    b.HasOne("CRM.models.LeadSyncSource", "Source")
-                        .WithOne("Credentials")
-                        .HasForeignKey("CRM.models.LeadSyncSourceCredentials", "SourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ConfiguredByUser");
-
-                    b.Navigation("Source");
-                });
-
             modelBuilder.Entity("CRM.models.Note", b =>
                 {
                     b.HasOne("CRM.models.User", null)
@@ -4001,8 +3938,6 @@ namespace Backend_CRM.Migrations
                     b.Navigation("Assignments");
 
                     b.Navigation("Config");
-
-                    b.Navigation("Credentials");
 
                     b.Navigation("RoundRobinState");
                 });

@@ -1,12 +1,10 @@
 using CRM.DATA;
 using CRM.DTO;
-using CRM.Helpers;
 using CRM.models;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace CRM.Services
 {
@@ -60,21 +58,21 @@ namespace CRM.Services
     public class LeadSyncExecutionService : ILeadSyncExecutionService
     {
         private readonly TaskDbcontext _db;
-        private readonly ILeadSyncRoundRobinService _roundRobin;
         private readonly ILeadSyncCredentialService _credentials;
+        private readonly IMarketplaceLeadPersistenceService _marketplacePersistence;
         private readonly IEnumerable<ILeadSyncProvider> _providers;
         private readonly ILogger<LeadSyncExecutionService> _logger;
 
         public LeadSyncExecutionService(
             TaskDbcontext db,
-            ILeadSyncRoundRobinService roundRobin,
             ILeadSyncCredentialService credentials,
+            IMarketplaceLeadPersistenceService marketplacePersistence,
             IEnumerable<ILeadSyncProvider> providers,
             ILogger<LeadSyncExecutionService> logger)
         {
             _db = db;
-            _roundRobin = roundRobin;
             _credentials = credentials;
+            _marketplacePersistence = marketplacePersistence;
             _providers = providers;
             _logger = logger;
         }
@@ -249,123 +247,22 @@ namespace CRM.Services
             IReadOnlyList<LeadSyncIncomingLead> incoming,
             CancellationToken cancellationToken)
         {
-            var existingKeys = await BuildExistingKeySetAsync(source.MarkerName, cancellationToken);
-            var defaultStatusId = await _db.LeadStatuses.AsNoTracking()
-                .Where(s => s.IsActive && s.Name.ToLower() == "new")
-                .Select(s => s.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (defaultStatusId <= 0)
-            {
-                defaultStatusId = await _db.LeadStatuses.AsNoTracking()
-                    .Where(s => s.IsActive)
-                    .OrderBy(s => s.Id)
-                    .Select(s => s.Id)
-                    .FirstOrDefaultAsync(cancellationToken);
-            }
-
-            var created = 0;
-            var failed = 0;
-            string? lastError = null;
-
-            foreach (var item in incoming)
-            {
-                var key = $"{source.MarkerName}|ext:{item.ExternalKey}";
-                if (existingKeys.Contains(key))
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(item.Email) && string.IsNullOrWhiteSpace(item.Mobile))
-                {
-                    failed++;
-                    lastError = "Lead requires email or mobile.";
-                    continue;
-                }
-
-                var notes = item.Notes;
-                if (!string.IsNullOrWhiteSpace(item.Requirement)
-                    && (notes == null || !notes.Contains(item.Requirement, StringComparison.Ordinal)))
-                {
-                    notes = string.IsNullOrWhiteSpace(notes)
-                        ? item.Requirement.Trim()
-                        : $"{item.Requirement.Trim()}\n{notes}";
-                }
-
-                var lead = new Lead
-                {
-                    FirstName = item.FirstName,
-                    LastName = item.LastName,
-                    Email = item.Email?.Trim() ?? string.Empty,
-                    Mobile = item.Mobile?.Trim() ?? string.Empty,
-                    Notes = notes ?? string.Empty,
-                    LeadSource = "Website",
-                    LeadStatusId = defaultStatusId > 0 ? defaultStatusId : null,
-                    LeadDate = DateTime.UtcNow.Date,
-                    CreatedAt = item.CreatedAt ?? DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                };
-
-                await _roundRobin.TryApplyOwnerForSyncLeadAsync(lead, cancellationToken);
-
-                try
-                {
-                    _db.Leads.Add(lead);
-                    await LeadContactSyncHelper.TryAddContactFromLeadAsync(_db, lead);
-                    await _db.SaveChangesAsync(cancellationToken);
-                    created++;
-                    existingKeys.Add(key);
-                }
-                catch (Exception ex)
-                {
-                    failed++;
-                    lastError = ex.Message;
-                    _logger.LogWarning(ex, "Failed to persist sync lead for source {Source}", source.Code);
-                }
-            }
-
-            var status = failed > 0 && created > 0
-                ? LeadSyncStatus.Partial
-                : failed > 0
-                    ? LeadSyncStatus.Failed
-                    : LeadSyncStatus.Completed;
+            // Pull sync keeps LeadSource = "Website" for existing dashboard/filter compatibility.
+            // Identity for dedupe/RR remains [crm-ext:{MarkerName}:{ExternalKey}] in Notes.
+            var batch = await _marketplacePersistence.PersistAsync(
+                source.MarkerName,
+                "Website",
+                incoming,
+                cancellationToken);
 
             return new LeadSyncExecutionResult
             {
-                TotalReceived = incoming.Count,
-                TotalCreated = created,
-                FailedCount = failed,
-                ErrorMessage = lastError,
-                Status = status,
+                TotalReceived = batch.TotalReceived,
+                TotalCreated = batch.TotalCreated,
+                FailedCount = batch.FailedCount,
+                ErrorMessage = batch.ErrorMessage,
+                Status = batch.Status,
             };
-        }
-
-        private async Task<HashSet<string>> BuildExistingKeySetAsync(
-            string markerName,
-            CancellationToken cancellationToken)
-        {
-            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var leads = await _db.Leads.AsNoTracking()
-                .Where(l => l.Notes != null && l.Notes.Contains("[crm-ext:"))
-                .Select(l => l.Notes!)
-                .ToListAsync(cancellationToken);
-
-            foreach (var notes in leads)
-            {
-                var marker = LeadSyncNotesHelper.TryExtractMarkerName(notes);
-                if (marker == null || !string.Equals(marker, markerName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var m = Regex.Match(notes, @"\[crm-ext:[^:\]]+:([^\]]+)\]");
-                if (m.Success)
-                {
-                    keys.Add($"{markerName}|ext:{m.Groups[1].Value.Trim()}");
-                }
-            }
-
-            return keys;
         }
 
         private async Task UpdateSyncTimestampsAsync(

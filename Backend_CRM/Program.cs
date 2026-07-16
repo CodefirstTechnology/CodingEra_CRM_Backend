@@ -43,11 +43,14 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<LeadSyncIndiaMartOptions>(
     builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
+builder.Services.Configure<JustdialWebhookOptions>(
+    builder.Configuration.GetSection(JustdialWebhookOptions.SectionName));
 builder.Services.AddDataProtection();
 builder.Services.AddHttpClient("LeadSyncIndiaMart");
 builder.Services.AddHttpClient("LeadSyncMarketplace");
 builder.Services.AddScoped<ILeadSyncCredentialService, LeadSyncCredentialService>();
 builder.Services.AddScoped<ILeadSyncRoundRobinService, LeadSyncRoundRobinService>();
+builder.Services.AddScoped<IMarketplaceLeadPersistenceService, MarketplaceLeadPersistenceService>();
 builder.Services.AddScoped<ILeadSyncManagementService, LeadSyncManagementService>();
 builder.Services.AddScoped<ILeadSyncExecutionService, LeadSyncExecutionService>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncIndiaMartProvider>();
@@ -61,6 +64,9 @@ builder.Services.AddScoped<ICompanyProfileService, CompanyProfileService>();
 builder.Services.AddScoped<IItemMasterService, ItemMasterService>();
 builder.Services.AddScoped<ILeadImportService, LeadImportService>();
 builder.Services.AddScoped<ILeadImportFileParser, LeadImportFileParser>();
+builder.Services.AddSingleton<IJustdialWebhookMetrics, JustdialWebhookMetrics>();
+builder.Services.AddScoped<IJustdialWebhookSecurityService, JustdialWebhookSecurityService>();
+builder.Services.AddScoped<IJustdialWebhookService, JustdialWebhookService>();
 builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<IUserTargetService, UserTargetService>();
 

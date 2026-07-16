@@ -3,6 +3,7 @@ using System;
 using CRM.DATA;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend_CRM.Migrations
 {
     [DbContext(typeof(TaskDbcontext))]
-    partial class TaskDbcontextModelSnapshot : ModelSnapshot
+    [Migration("20260604124622_news")]
+    partial class news
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -243,166 +246,6 @@ namespace Backend_CRM.Migrations
                     b.ToTable("comments");
                 });
 
-            modelBuilder.Entity("CRM.models.CompanyProfile", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AccountNumber")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("account_number");
-
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("address");
-
-                    b.Property<string>("BankName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("bank_name");
-
-                    b.Property<string>("BranchName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("branch_name");
-
-                    b.Property<string>("BrandName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("brand_name");
-
-                    b.Property<string>("BusinessLine")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("business_line");
-
-                    b.Property<string>("CinNumber")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("cin_number");
-
-                    b.Property<string>("CompanyName")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("company_name");
-
-                    b.Property<string>("ContactNumber")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("contact_number");
-
-                    b.Property<decimal>("DefaultGstPercent")
-                        .HasColumnType("numeric")
-                        .HasColumnName("default_gst_percent");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("email");
-
-                    b.Property<string>("FaviconBase64")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("favicon_base64");
-
-                    b.Property<string>("FaviconContentType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("favicon_content_type");
-
-                    b.Property<string>("Gstin")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("gstin");
-
-                    b.Property<string>("IfscCode")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("ifsc_code");
-
-                    b.Property<string>("IntroText")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("intro_text");
-
-                    b.Property<string>("Jurisdiction")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("jurisdiction");
-
-                    b.Property<string>("LogoBase64")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("logo_base64");
-
-                    b.Property<string>("LogoContentType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("logo_content_type");
-
-                    b.Property<string>("SignatoryMobile")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("signatory_mobile");
-
-                    b.Property<string>("SignatoryName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("signatory_name");
-
-                    b.Property<string>("Tagline")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("tagline");
-
-                    b.Property<string>("TermsConditionsJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("terms_conditions_json");
-
-                    b.Property<string>("TransportationLabel")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("transportation_label");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("Website")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("website");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("company_profiles");
-                });
-
             modelBuilder.Entity("CRM.models.Contact", b =>
                 {
                     b.Property<int>("Id")
@@ -533,10 +376,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
 
-                    b.Property<decimal?>("DealAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("deal_amount");
-
                     b.Property<int?>("DealOwnerId")
                         .HasColumnType("integer")
                         .HasColumnName("deal_owner_id");
@@ -594,11 +433,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("last_name");
-
-                    b.Property<string>("LostReason")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("lost_reason");
 
                     b.Property<string>("Mobile")
                         .IsRequired()
@@ -765,14 +599,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
-                    b.Property<bool>("IsLost")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_lost");
-
-                    b.Property<bool>("IsWon")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_won");
-
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_modified");
@@ -782,10 +608,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -999,345 +821,6 @@ namespace Backend_CRM.Migrations
                     b.ToTable("industries");
                 });
 
-            modelBuilder.Entity("CRM.models.Item", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("HasVariants")
-                        .HasColumnType("boolean")
-                        .HasColumnName("has_variants");
-
-                    b.Property<string>("ItemCode")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("item_code");
-
-                    b.Property<int?>("ItemGroupId")
-                        .HasColumnType("integer")
-                        .HasColumnName("item_group_id");
-
-                    b.Property<string>("ItemName")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("item_name");
-
-                    b.Property<int?>("ParentItemId")
-                        .HasColumnType("integer")
-                        .HasColumnName("parent_item_id");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<decimal>("SteelRate")
-                        .HasColumnType("numeric")
-                        .HasColumnName("steel_rate");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("ItemCode")
-                        .IsUnique();
-
-                    b.HasIndex("ItemGroupId");
-
-                    b.HasIndex("ParentItemId");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.ToTable("items");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemAttribute", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<bool>("IsVariantAttribute")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_variant_attribute");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
-
-                    b.Property<int>("ValueType")
-                        .HasColumnType("integer")
-                        .HasColumnName("value_type");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.ToTable("item_attributes");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemAttributeValue", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttributeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("attribute_id");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("value");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttributeId");
-
-                    b.ToTable("item_attribute_values");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemGroup", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("name");
-
-                    b.Property<int?>("ParentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("parent_id");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("Name");
-
-                    b.HasIndex("ParentId");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.ToTable("item_groups");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemSpecification", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ItemId")
-                        .HasColumnType("integer")
-                        .HasColumnName("item_id");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<string>("SpecName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("spec_name");
-
-                    b.Property<string>("SpecValue")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("spec_value");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ItemId");
-
-                    b.ToTable("item_specifications");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemTemplateAttribute", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttributeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("attribute_id");
-
-                    b.Property<int>("ItemId")
-                        .HasColumnType("integer")
-                        .HasColumnName("item_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttributeId");
-
-                    b.HasIndex("ItemId", "AttributeId")
-                        .IsUnique();
-
-                    b.ToTable("item_template_attributes");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemVariantAttributeValue", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttributeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("attribute_id");
-
-                    b.Property<int?>("AttributeValueId")
-                        .HasColumnType("integer")
-                        .HasColumnName("attribute_value_id");
-
-                    b.Property<string>("CustomValue")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("custom_value");
-
-                    b.Property<int>("ItemId")
-                        .HasColumnType("integer")
-                        .HasColumnName("item_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttributeId");
-
-                    b.HasIndex("AttributeValueId");
-
-                    b.HasIndex("ItemId");
-
-                    b.ToTable("item_variant_attribute_values");
-                });
-
             modelBuilder.Entity("CRM.models.Lead", b =>
                 {
                     b.Property<int>("Id")
@@ -1354,10 +837,6 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
-
-                    b.Property<decimal?>("DealAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("deal_amount");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -1387,10 +866,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("last_name");
 
-                    b.Property<DateTime?>("LeadDate")
-                        .HasColumnType("date")
-                        .HasColumnName("lead_date");
-
                     b.Property<int?>("LeadOwnerId")
                         .HasColumnType("integer")
                         .HasColumnName("lead_owner_id");
@@ -1404,11 +879,6 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("LeadStatusId")
                         .HasColumnType("integer")
                         .HasColumnName("lead_status_id");
-
-                    b.Property<string>("Location")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("address");
 
                     b.Property<string>("Mobile")
                         .IsRequired()
@@ -1509,10 +979,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("last_name");
 
-                    b.Property<DateTime?>("LeadDate")
-                        .HasColumnType("date")
-                        .HasColumnName("lead_date");
-
                     b.Property<int>("LeadId")
                         .HasColumnType("integer")
                         .HasColumnName("lead_id");
@@ -1530,11 +996,6 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("LeadStatusId")
                         .HasColumnType("integer")
                         .HasColumnName("lead_status_id");
-
-                    b.Property<string>("Location")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("address");
 
                     b.Property<string>("Mobile")
                         .IsRequired()
@@ -1632,307 +1093,6 @@ namespace Backend_CRM.Migrations
                     b.HasIndex("UpdatedBy");
 
                     b.ToTable("lead_statuses");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncIntervalOption", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("Hours")
-                        .HasColumnType("integer")
-                        .HasColumnName("hours");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("label");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Hours")
-                        .IsUnique();
-
-                    b.ToTable("lead_sync_interval_options");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("EndedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("ended_at");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("error_message");
-
-                    b.Property<int>("FailedCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("failed_count");
-
-                    b.Property<int>("SourceId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_id");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("started_at");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<int>("SyncType")
-                        .HasColumnType("integer")
-                        .HasColumnName("sync_type");
-
-                    b.Property<int>("TotalCreated")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_created");
-
-                    b.Property<int>("TotalReceived")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_received");
-
-                    b.Property<int?>("TriggeredByUserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("triggered_by_user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TriggeredByUserId");
-
-                    b.HasIndex("SourceId", "StartedAt");
-
-                    b.ToTable("lead_sync_logs");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncRoundRobinState", b =>
-                {
-                    b.Property<int>("SourceId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_id");
-
-                    b.Property<int>("NextIndex")
-                        .HasColumnType("integer")
-                        .HasColumnName("next_index");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("SourceId");
-
-                    b.ToTable("lead_sync_round_robin_states");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSource", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("ApiIntegrationReady")
-                        .HasColumnType("boolean")
-                        .HasColumnName("api_integration_ready");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("display_name");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("MarkerName")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("marker_name");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("MarkerName")
-                        .IsUnique();
-
-                    b.ToTable("lead_sync_sources");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSourceAssignment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<int>("SourceId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_id");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("SourceId", "SortOrder");
-
-                    b.HasIndex("SourceId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("lead_sync_source_assignments");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSourceConfig", b =>
-                {
-                    b.Property<int>("SourceId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_id");
-
-                    b.Property<bool>("AutoSyncEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("auto_sync_enabled");
-
-                    b.Property<int?>("IntervalOptionId")
-                        .HasColumnType("integer")
-                        .HasColumnName("interval_option_id");
-
-                    b.Property<DateTime?>("LastSyncAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_sync_at");
-
-                    b.Property<DateTime?>("NextSyncAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("next_sync_at");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("SourceId");
-
-                    b.HasIndex("IntervalOptionId");
-
-                    b.HasIndex("NextSyncAt");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.ToTable("lead_sync_source_configs");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSourceCredentials", b =>
-                {
-                    b.Property<int>("SourceId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_id");
-
-                    b.Property<string>("ApiKeyEncrypted")
-                        .HasColumnType("text")
-                        .HasColumnName("api_key_encrypted");
-
-                    b.Property<DateTime?>("ConfiguredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("configured_at");
-
-                    b.Property<int?>("ConfiguredBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("configured_by");
-
-                    b.Property<string>("PullApiUrl")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("pull_api_url");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("SourceId");
-
-                    b.HasIndex("ConfiguredBy");
-
-                    b.ToTable("lead_sync_source_credentials");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -2151,50 +1311,6 @@ namespace Backend_CRM.Migrations
                     b.ToTable("organizations");
                 });
 
-            modelBuilder.Entity("CRM.models.Permission", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("action");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Module")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("module");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("crm_permissions");
-                });
-
             modelBuilder.Entity("CRM.models.Quotation", b =>
                 {
                     b.Property<int>("Id")
@@ -2239,10 +1355,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("customer_name");
-
-                    b.Property<bool>("CustomizeTerms")
-                        .HasColumnType("boolean")
-                        .HasColumnName("customize_terms");
 
                     b.Property<int?>("DealId")
                         .HasColumnType("integer")
@@ -2294,36 +1406,17 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("gst");
 
-                    b.Property<decimal>("GstPercent")
-                        .HasColumnType("numeric")
-                        .HasColumnName("gst_percent");
-
                     b.Property<string>("Industry")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("industry");
 
-                    b.Property<string>("IntroText")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("intro_text");
-
-                    b.Property<string>("Jurisdiction")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("jurisdiction");
-
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("last_name");
-
-                    b.Property<decimal>("LoadingCharges")
-                        .HasColumnType("numeric")
-                        .HasColumnName("loading_charges");
 
                     b.Property<string>("MobileNumber")
                         .IsRequired()
@@ -2345,12 +1438,6 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("quotation_number");
-
-                    b.Property<string>("QuotationTemplate")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("quotation_template");
 
                     b.Property<DateTime?>("ReferenceDate")
                         .HasColumnType("timestamp with time zone")
@@ -2377,10 +1464,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("sequence_number");
 
-                    b.Property<decimal>("ServiceCharges")
-                        .HasColumnType("numeric")
-                        .HasColumnName("service_charges");
-
                     b.Property<string>("SiteAddress")
                         .IsRequired()
                         .HasColumnType("text")
@@ -2400,16 +1483,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("tax_total");
 
-                    b.Property<string>("TemplatePayloadJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("template_payload_json");
-
-                    b.Property<string>("TermsConditionsJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("terms_conditions_json");
-
                     b.Property<string>("Territory")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -2423,16 +1496,6 @@ namespace Backend_CRM.Migrations
                     b.Property<decimal>("TotalWeight")
                         .HasColumnType("numeric")
                         .HasColumnName("total_weight");
-
-                    b.Property<decimal>("TransportationCharges")
-                        .HasColumnType("numeric")
-                        .HasColumnName("transportation_charges");
-
-                    b.Property<string>("TransportationLabel")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("transportation_label");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -2455,40 +1518,6 @@ namespace Backend_CRM.Migrations
                     b.HasIndex("CompanyCode", "FiscalYearLabel", "SequenceNumber");
 
                     b.ToTable("quotations");
-                });
-
-            modelBuilder.Entity("CRM.models.QuotationAdditionalCharge", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("amount");
-
-                    b.Property<string>("ChargeName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("charge_name");
-
-                    b.Property<int>("QuotationId")
-                        .HasColumnType("integer")
-                        .HasColumnName("quotation_id");
-
-                    b.Property<int>("SortIndex")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_index");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuotationId");
-
-                    b.ToTable("quotation_additional_charges");
                 });
 
             modelBuilder.Entity("CRM.models.QuotationFiscalSequence", b =>
@@ -2606,20 +1635,11 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("item_code");
 
-                    b.Property<int?>("ItemId")
-                        .HasColumnType("integer")
-                        .HasColumnName("item_id");
-
                     b.Property<string>("ItemName")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("item_name");
-
-                    b.Property<string>("ItemSnapshotJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("item_snapshot_json");
 
                     b.Property<int>("LineIndex")
                         .HasColumnType("integer")
@@ -2640,10 +1660,6 @@ namespace Backend_CRM.Migrations
                     b.Property<decimal>("Rate")
                         .HasColumnType("numeric")
                         .HasColumnName("rate");
-
-                    b.Property<decimal>("SteelRate")
-                        .HasColumnType("numeric")
-                        .HasColumnName("steel_rate");
 
                     b.Property<decimal>("TaxAmount")
                         .HasColumnType("numeric")
@@ -2810,27 +1826,6 @@ namespace Backend_CRM.Migrations
                     b.HasIndex("UpdatedBy");
 
                     b.ToTable("crm_roles");
-                });
-
-            modelBuilder.Entity("CRM.models.RolePermission", b =>
-                {
-                    b.Property<int>("RoleId")
-                        .HasColumnType("integer")
-                        .HasColumnName("role_id");
-
-                    b.Property<int>("PermissionId")
-                        .HasColumnType("integer")
-                        .HasColumnName("permission_id");
-
-                    b.Property<int>("AccessScope")
-                        .HasColumnType("integer")
-                        .HasColumnName("access_scope");
-
-                    b.HasKey("RoleId", "PermissionId");
-
-                    b.HasIndex("PermissionId");
-
-                    b.ToTable("crm_role_permissions");
                 });
 
             modelBuilder.Entity("CRM.models.Salutation", b =>
@@ -3094,143 +2089,6 @@ namespace Backend_CRM.Migrations
                     b.ToTable("users");
                 });
 
-            modelBuilder.Entity("CRM.models.UserTarget", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("AchievedAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("achieved_amount");
-
-                    b.Property<DateTime?>("AchievedCalculatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("achieved_calculated_at");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<DateOnly>("EndDate")
-                        .HasColumnType("date")
-                        .HasColumnName("end_date");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTime>("LastModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_modified");
-
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("date")
-                        .HasColumnName("start_date");
-
-                    b.Property<decimal>("TargetAmount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("target_amount");
-
-                    b.Property<int>("TargetTypeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("target_type_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("TargetTypeId");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.HasIndex("UserId", "TargetTypeId", "StartDate", "EndDate");
-
-                    b.ToTable("user_targets");
-                });
-
-            modelBuilder.Entity("CRM.models.UserTargetType", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("created_by");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTime>("LastModified")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_modified");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("integer")
-                        .HasColumnName("updated_by");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.ToTable("user_target_types");
-                });
-
             modelBuilder.Entity("CRM.models.CallLog", b =>
                 {
                     b.HasOne("CRM.models.Contact", null)
@@ -3297,7 +2155,7 @@ namespace Backend_CRM.Migrations
 
             modelBuilder.Entity("CRM.models.Deal", b =>
                 {
-                    b.HasOne("CRM.models.User", "AssignedToUser")
+                    b.HasOne("CRM.models.User", null)
                         .WithMany()
                         .HasForeignKey("AssignedToUserId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3312,7 +2170,7 @@ namespace Backend_CRM.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.User", "DealOwner")
+                    b.HasOne("CRM.models.User", null)
                         .WithMany()
                         .HasForeignKey("DealOwnerId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3341,10 +2199,6 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("AssignedToUser");
-
-                    b.Navigation("DealOwner");
 
                     b.Navigation("DealStatus");
                 });
@@ -3420,133 +2274,6 @@ namespace Backend_CRM.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
-            modelBuilder.Entity("CRM.models.Item", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.ItemGroup", "ItemGroup")
-                        .WithMany()
-                        .HasForeignKey("ItemGroupId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Item", "ParentItem")
-                        .WithMany("Variants")
-                        .HasForeignKey("ParentItemId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ItemGroup");
-
-                    b.Navigation("ParentItem");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemAttribute", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.ItemAttributeValue", b =>
-                {
-                    b.HasOne("CRM.models.ItemAttribute", "Attribute")
-                        .WithMany("Values")
-                        .HasForeignKey("AttributeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attribute");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemGroup", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.ItemGroup", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemSpecification", b =>
-                {
-                    b.HasOne("CRM.models.Item", "Item")
-                        .WithMany("Specifications")
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Item");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemTemplateAttribute", b =>
-                {
-                    b.HasOne("CRM.models.ItemAttribute", "Attribute")
-                        .WithMany()
-                        .HasForeignKey("AttributeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CRM.models.Item", "Item")
-                        .WithMany("TemplateAttributes")
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attribute");
-
-                    b.Navigation("Item");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemVariantAttributeValue", b =>
-                {
-                    b.HasOne("CRM.models.ItemAttribute", "Attribute")
-                        .WithMany()
-                        .HasForeignKey("AttributeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CRM.models.ItemAttributeValue", "AttributeValue")
-                        .WithMany()
-                        .HasForeignKey("AttributeValueId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.Item", "Item")
-                        .WithMany("VariantAttributeValues")
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attribute");
-
-                    b.Navigation("AttributeValue");
-
-                    b.Navigation("Item");
-                });
-
             modelBuilder.Entity("CRM.models.Lead", b =>
                 {
                     b.HasOne("CRM.models.User", null)
@@ -3554,7 +2281,7 @@ namespace Backend_CRM.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("CRM.models.User", "LeadOwner")
+                    b.HasOne("CRM.models.User", null)
                         .WithMany()
                         .HasForeignKey("LeadOwnerId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -3583,8 +2310,6 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("LeadOwner");
 
                     b.Navigation("LeadStatus");
 
@@ -3625,99 +2350,6 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncLog", b =>
-                {
-                    b.HasOne("CRM.models.LeadSyncSource", "Source")
-                        .WithMany()
-                        .HasForeignKey("SourceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CRM.models.User", "TriggeredByUser")
-                        .WithMany()
-                        .HasForeignKey("TriggeredByUserId");
-
-                    b.Navigation("Source");
-
-                    b.Navigation("TriggeredByUser");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncRoundRobinState", b =>
-                {
-                    b.HasOne("CRM.models.LeadSyncSource", "Source")
-                        .WithOne("RoundRobinState")
-                        .HasForeignKey("CRM.models.LeadSyncRoundRobinState", "SourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Source");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSourceAssignment", b =>
-                {
-                    b.HasOne("CRM.models.User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedBy");
-
-                    b.HasOne("CRM.models.LeadSyncSource", "Source")
-                        .WithMany("Assignments")
-                        .HasForeignKey("SourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CRM.models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("Source");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSourceConfig", b =>
-                {
-                    b.HasOne("CRM.models.LeadSyncIntervalOption", "IntervalOption")
-                        .WithMany()
-                        .HasForeignKey("IntervalOptionId");
-
-                    b.HasOne("CRM.models.LeadSyncSource", "Source")
-                        .WithOne("Config")
-                        .HasForeignKey("CRM.models.LeadSyncSourceConfig", "SourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CRM.models.User", "UpdatedByUser")
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy");
-
-                    b.Navigation("IntervalOption");
-
-                    b.Navigation("Source");
-
-                    b.Navigation("UpdatedByUser");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSourceCredentials", b =>
-                {
-                    b.HasOne("CRM.models.User", "ConfiguredByUser")
-                        .WithMany()
-                        .HasForeignKey("ConfiguredBy");
-
-                    b.HasOne("CRM.models.LeadSyncSource", "Source")
-                        .WithOne("Credentials")
-                        .HasForeignKey("CRM.models.LeadSyncSourceCredentials", "SourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ConfiguredByUser");
-
-                    b.Navigation("Source");
                 });
 
             modelBuilder.Entity("CRM.models.Note", b =>
@@ -3792,17 +2424,6 @@ namespace Backend_CRM.Migrations
                     b.Navigation("Territory");
                 });
 
-            modelBuilder.Entity("CRM.models.QuotationAdditionalCharge", b =>
-                {
-                    b.HasOne("CRM.models.Quotation", "Quotation")
-                        .WithMany("AdditionalCharges")
-                        .HasForeignKey("QuotationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Quotation");
-                });
-
             modelBuilder.Entity("CRM.models.QuotationLineItem", b =>
                 {
                     b.HasOne("CRM.models.Quotation", "Quotation")
@@ -3838,25 +2459,6 @@ namespace Backend_CRM.Migrations
                         .WithMany()
                         .HasForeignKey("UpdatedBy")
                         .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.RolePermission", b =>
-                {
-                    b.HasOne("CRM.models.Permission", "Permission")
-                        .WithMany()
-                        .HasForeignKey("PermissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CRM.models.Role", "Role")
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Permission");
-
-                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("CRM.models.Salutation", b =>
@@ -3933,84 +2535,8 @@ namespace Backend_CRM.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("CRM.models.UserTarget", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.UserTargetType", "TargetType")
-                        .WithMany()
-                        .HasForeignKey("TargetTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("TargetType");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CRM.models.UserTargetType", b =>
-                {
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("CRM.models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
-            modelBuilder.Entity("CRM.models.Item", b =>
-                {
-                    b.Navigation("Specifications");
-
-                    b.Navigation("TemplateAttributes");
-
-                    b.Navigation("VariantAttributeValues");
-
-                    b.Navigation("Variants");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemAttribute", b =>
-                {
-                    b.Navigation("Values");
-                });
-
-            modelBuilder.Entity("CRM.models.ItemGroup", b =>
-                {
-                    b.Navigation("Children");
-                });
-
-            modelBuilder.Entity("CRM.models.LeadSyncSource", b =>
-                {
-                    b.Navigation("Assignments");
-
-                    b.Navigation("Config");
-
-                    b.Navigation("Credentials");
-
-                    b.Navigation("RoundRobinState");
-                });
-
             modelBuilder.Entity("CRM.models.Quotation", b =>
                 {
-                    b.Navigation("AdditionalCharges");
-
                     b.Navigation("LineItems");
                 });
 #pragma warning restore 612, 618
