@@ -32,7 +32,10 @@ namespace CRM.Services
         public string LastName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Mobile { get; set; } = string.Empty;
+        /// <summary>Product / inquiry text shown as Requirement in the CRM UI (stored in notes).</summary>
         public string? Requirement { get; set; }
+        /// <summary>Buyer company name → linked <see cref="Organization"/>.</summary>
+        public string? OrganizationName { get; set; }
         public string Notes { get; set; } = string.Empty;
         public DateTime? CreatedAt { get; set; }
     }
@@ -292,6 +295,14 @@ namespace CRM.Services
                         : $"{item.Requirement.Trim()}\n{notes}";
                 }
 
+                int? organizationId = null;
+                if (!string.IsNullOrWhiteSpace(item.OrganizationName))
+                {
+                    organizationId = await FindOrCreateOrganizationIdAsync(
+                        item.OrganizationName.Trim(),
+                        cancellationToken);
+                }
+
                 var lead = new Lead
                 {
                     FirstName = item.FirstName,
@@ -299,6 +310,7 @@ namespace CRM.Services
                     Email = item.Email?.Trim() ?? string.Empty,
                     Mobile = item.Mobile?.Trim() ?? string.Empty,
                     Notes = notes ?? string.Empty,
+                    OrganizationId = organizationId,
                     LeadSource = string.IsNullOrWhiteSpace(source.MarkerName)
                         ? source.DisplayName
                         : source.MarkerName,
@@ -340,6 +352,41 @@ namespace CRM.Services
                 ErrorMessage = lastError,
                 Status = status,
             };
+        }
+
+        private async Task<int?> FindOrCreateOrganizationIdAsync(
+            string organizationName,
+            CancellationToken cancellationToken)
+        {
+            var trimmed = organizationName.Trim();
+            if (trimmed.Length == 0)
+            {
+                return null;
+            }
+
+            var tl = trimmed.ToLowerInvariant();
+            var existingId = await _db.Organizations.AsNoTracking()
+                .Where(o => o.Name.ToLower() == tl)
+                .OrderBy(o => o.Id)
+                .Select(o => (int?)o.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (existingId is > 0)
+            {
+                return existingId;
+            }
+
+            var now = DateTime.UtcNow;
+            var org = new Organization
+            {
+                Name = trimmed,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+                LastModified = now,
+            };
+            _db.Organizations.Add(org);
+            await _db.SaveChangesAsync(cancellationToken);
+            return org.Id;
         }
 
         private async Task<HashSet<string>> BuildExistingKeySetAsync(
@@ -543,7 +590,7 @@ namespace CRM.Services
             }
 
             var leads = LeadSyncPullHelpers.ExtractLeadArray(body)
-                .Select(row => LeadSyncPullHelpers.MapGenericMarketplaceRow(row, "TradeIndia", "TradeIndia"))
+                .Select(LeadSyncPullHelpers.MapTradeIndiaRow)
                 .Where(l => l != null)
                 .Cast<LeadSyncIncomingLead>()
                 .ToList();
