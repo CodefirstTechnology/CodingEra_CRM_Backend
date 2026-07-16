@@ -1,4 +1,3 @@
-using System.Text.Json;
 using CRM.Configuration;
 using CRM.DTO;
 using CRM.Services;
@@ -15,11 +14,6 @@ namespace CRM.Controllers
     [ApiController]
     public class JustdialWebhookController : ControllerBase
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true
-        };
-
         private readonly IJustdialWebhookService _service;
         private readonly IJustdialWebhookSecurityService _security;
         private readonly IJustdialWebhookMetrics _metrics;
@@ -42,92 +36,81 @@ namespace CRM.Controllers
 
         /// <summary>Justdial GET push (query string parameters).</summary>
         [HttpGet("leads")]
+        [Produces("text/plain")]
         public Task<IActionResult> Get([FromQuery] JustdialWebhookLeadDto dto, CancellationToken cancellationToken)
         {
             return ProcessAsync(dto, isMalformed: false, cancellationToken);
         }
 
-        /// <summary>Justdial POST push with JSON body.</summary>
+        /// <summary>
+        /// Justdial POST push (JSON). Use this action in Swagger Try it out.
+        /// Required fields: leadid, name, mobile.
+        /// </summary>
+        /// <remarks>
+        /// Sample request body:
+        ///
+        ///     {
+        ///       "leadid": "PRELIVE-001",
+        ///       "leadtype": "enquiry",
+        ///       "prefix": "Mr",
+        ///       "name": "Test User",
+        ///       "mobile": "9876543210",
+        ///       "phone": "02212345678",
+        ///       "email": "test.justdial@example.com",
+        ///       "date": "2026-07-16",
+        ///       "category": "Software",
+        ///       "city": "Pune",
+        ///       "area": "Kothrud",
+        ///       "brancharea": "West",
+        ///       "dncmobile": "0",
+        ///       "dncphone": "0",
+        ///       "company": "Codefirst Test Co",
+        ///       "pincode": "411038",
+        ///       "time": "17:00",
+        ///       "branchpin": "411001",
+        ///       "parentid": "0"
+        ///     }
+        ///
+        /// </remarks>
         [HttpPost("leads")]
         [Consumes("application/json")]
-        public async Task<IActionResult> PostJson(CancellationToken cancellationToken)
+        [Produces("text/plain")]
+        public Task<IActionResult> PostJson(
+            [FromBody] JustdialWebhookLeadDto? dto,
+            CancellationToken cancellationToken)
         {
-            JustdialWebhookLeadDto? dto = null;
-            var malformed = false;
-
-            try
+            if (_options.MaxRequestBodyBytes > 0
+                && Request.ContentLength is long length
+                && length > _options.MaxRequestBodyBytes)
             {
-                if (_options.MaxRequestBodyBytes > 0
-                    && Request.ContentLength is long length
-                    && length > _options.MaxRequestBodyBytes)
-                {
-                    return Reject(JustdialWebhookSecurityStatus.PayloadTooLarge, "Request body exceeds configured size limit.");
-                }
-
-                using var reader = new StreamReader(Request.Body);
-                var body = await reader.ReadToEndAsync(cancellationToken);
-
-                if (_options.MaxRequestBodyBytes > 0
-                    && body.Length > _options.MaxRequestBodyBytes)
-                {
-                    return Reject(JustdialWebhookSecurityStatus.PayloadTooLarge, "Request body exceeds configured size limit.");
-                }
-
-                if (!string.IsNullOrWhiteSpace(body))
-                {
-                    dto = JsonSerializer.Deserialize<JustdialWebhookLeadDto>(body, JsonOptions);
-                    if (dto == null)
-                    {
-                        malformed = true;
-                    }
-                }
-            }
-            catch (JsonException ex)
-            {
-                malformed = true;
-                _logger.LogWarning(ex, "Malformed Justdial JSON webhook payload.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Exception while deserializing Justdial JSON webhook payload.");
-                // Preserve contract for unexpected read errors after auth would have passed.
-                return await ProcessAsync(null, isMalformed: false, cancellationToken);
+                return Task.FromResult(
+                    Reject(JustdialWebhookSecurityStatus.PayloadTooLarge, "Request body exceeds configured size limit."));
             }
 
-            if (malformed)
-            {
-                return Reject(JustdialWebhookSecurityStatus.Malformed, "Malformed JSON payload.");
-            }
-
-            return await ProcessAsync(dto, isMalformed: false, cancellationToken);
+            return ProcessAsync(dto, isMalformed: false, cancellationToken);
         }
 
-        /// <summary>Justdial POST push with form-urlencoded body.</summary>
+        /// <summary>
+        /// Justdial POST push (form-urlencoded). Hidden from Swagger to avoid duplicate path docs;
+        /// runtime support remains for Justdial.
+        /// </summary>
         [HttpPost("leads")]
         [Consumes("application/x-www-form-urlencoded")]
-        public async Task<IActionResult> PostForm(CancellationToken cancellationToken)
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [Produces("text/plain")]
+        public Task<IActionResult> PostForm(
+            [FromForm] JustdialWebhookLeadDto dto,
+            CancellationToken cancellationToken)
         {
-            JustdialWebhookLeadDto? dto;
-
-            try
+            if (_options.MaxRequestBodyBytes > 0
+                && Request.ContentLength is long length
+                && length > _options.MaxRequestBodyBytes)
             {
-                if (_options.MaxRequestBodyBytes > 0
-                    && Request.ContentLength is long length
-                    && length > _options.MaxRequestBodyBytes)
-                {
-                    return Reject(JustdialWebhookSecurityStatus.PayloadTooLarge, "Request body exceeds configured size limit.");
-                }
-
-                var form = await Request.ReadFormAsync(cancellationToken);
-                dto = MapFromForm(form);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Exception while reading Justdial form-urlencoded webhook payload.");
-                return await ProcessAsync(null, isMalformed: false, cancellationToken);
+                return Task.FromResult(
+                    Reject(JustdialWebhookSecurityStatus.PayloadTooLarge, "Request body exceeds configured size limit."));
             }
 
-            return await ProcessAsync(dto, isMalformed: false, cancellationToken);
+            return ProcessAsync(dto, isMalformed: false, cancellationToken);
         }
 
         /// <summary>
@@ -283,41 +266,6 @@ namespace CRM.Controllers
             }
 
             return Guid.NewGuid().ToString("N");
-        }
-
-        private static JustdialWebhookLeadDto MapFromForm(IFormCollection form) =>
-            new()
-            {
-                Leadid = GetFormValue(form, "leadid"),
-                Leadtype = GetFormValue(form, "leadtype"),
-                Prefix = GetFormValue(form, "prefix"),
-                Name = GetFormValue(form, "name"),
-                Mobile = GetFormValue(form, "mobile"),
-                Phone = GetFormValue(form, "phone"),
-                Email = GetFormValue(form, "email"),
-                Date = GetFormValue(form, "date"),
-                Category = GetFormValue(form, "category"),
-                City = GetFormValue(form, "city"),
-                Area = GetFormValue(form, "area"),
-                Brancharea = GetFormValue(form, "brancharea"),
-                Dncmobile = GetFormValue(form, "dncmobile"),
-                Dncphone = GetFormValue(form, "dncphone"),
-                Company = GetFormValue(form, "company"),
-                Pincode = GetFormValue(form, "pincode"),
-                Time = GetFormValue(form, "time"),
-                Branchpin = GetFormValue(form, "branchpin"),
-                Parentid = GetFormValue(form, "parentid")
-            };
-
-        private static string? GetFormValue(IFormCollection form, string key)
-        {
-            if (!form.TryGetValue(key, out var value))
-            {
-                return null;
-            }
-
-            var text = value.ToString();
-            return string.IsNullOrWhiteSpace(text) ? null : text;
         }
     }
 }
