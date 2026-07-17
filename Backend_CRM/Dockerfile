@@ -1,4 +1,4 @@
-GNU nano 7.2                           Dockerfile
+#GNU nano 7.2                           Dockerfile
 # See https://aka.ms/customizecontainer to learn how to customize your debug container>
 
 # This stage is used when running from VS in fast mode (Default for Debug configuratio>
