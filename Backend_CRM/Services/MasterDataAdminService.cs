@@ -63,7 +63,7 @@ namespace CRM.Services
             entity.Trim().ToLowerInvariant() switch
             {
                 "salutations" => ListCore(_context.Salutations, activeOnly, ct),
-                "lead-statuses" => ListCore(_context.LeadStatuses, activeOnly, ct),
+                "lead-statuses" => ListLeadStatusesAsync(activeOnly, ct),
                 "deal-statuses" => ListDealStatusesAsync(activeOnly, ct),
                 "request-types" => ListCore(_context.RequestTypes, activeOnly, ct),
                 "industries" => ListCore(_context.Industries, activeOnly, ct),
@@ -76,7 +76,7 @@ namespace CRM.Services
             entity.Trim().ToLowerInvariant() switch
             {
                 "salutations" => GetByIdCore(_context.Salutations, id, ct),
-                "lead-statuses" => GetByIdCore(_context.LeadStatuses, id, ct),
+                "lead-statuses" => GetLeadStatusByIdAsync(id, ct),
                 "deal-statuses" => GetDealStatusByIdAsync(id, ct),
                 "request-types" => GetByIdCore(_context.RequestTypes, id, ct),
                 "industries" => GetByIdCore(_context.Industries, id, ct),
@@ -92,7 +92,7 @@ namespace CRM.Services
             entity.Trim().ToLowerInvariant() switch
             {
                 "salutations" => CreateCore(_context.Salutations, () => new Salutation(), dto, ct),
-                "lead-statuses" => CreateCore(_context.LeadStatuses, () => new LeadStatus(), dto, ct),
+                "lead-statuses" => CreateLeadStatusAsync(dto, ct),
                 "deal-statuses" => CreateDealStatusAsync(dto, ct),
                 "request-types" => CreateCore(_context.RequestTypes, () => new RequestType(), dto, ct),
                 "industries" => CreateCore(_context.Industries, () => new Industry(), dto, ct),
@@ -109,7 +109,7 @@ namespace CRM.Services
             entity.Trim().ToLowerInvariant() switch
             {
                 "salutations" => UpdateCore(_context.Salutations, id, dto, ct),
-                "lead-statuses" => UpdateCore(_context.LeadStatuses, id, dto, ct),
+                "lead-statuses" => UpdateLeadStatusAsync(id, dto, ct),
                 "deal-statuses" => UpdateDealStatusAsync(id, dto, ct),
                 "request-types" => UpdateCore(_context.RequestTypes, id, dto, ct),
                 "industries" => UpdateCore(_context.Industries, id, dto, ct),
@@ -178,6 +178,137 @@ namespace CRM.Services
             var row = await set.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
             return row == null ? null : ToDto(row);
         }
+
+        private async Task<(MasterDataRowDto? Row, string? Error)> CreateLeadStatusAsync(
+            MasterDataUpsertDto dto,
+            CancellationToken ct)
+        {
+            var name = (dto.Name ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return (null, "Name is required.");
+            }
+
+            if (await NameExistsAsync(_context.LeadStatuses, name, excludeId: null, ct))
+            {
+                return (null, "A record with this name already exists.");
+            }
+
+            var isConversion =
+                dto.IsConversionStatus == true ||
+                LeadStatusMovedToDealSeed.IsConversionStatusName(name);
+
+            if (isConversion && await _context.LeadStatuses.AnyAsync(x => x.IsConversionStatus, ct))
+            {
+                return (null, "Only one lead status can be marked as the lead→deal conversion status.");
+            }
+
+            var entity = new LeadStatus
+            {
+                Id = 0,
+                Name = name,
+                Description = string.IsNullOrWhiteSpace(dto.Description)
+                    ? (isConversion
+                        ? "Lead has been converted into a deal (not Won / not revenue)."
+                        : string.Empty)
+                    : dto.Description.Trim(),
+                IsActive = dto.IsActive,
+                IsConversionStatus = isConversion,
+            };
+            await _context.LeadStatuses.AddAsync(entity, ct);
+            await _context.SaveChangesAsync(ct);
+            return (ToLeadStatusDto(entity), null);
+        }
+
+        private async Task<(MasterDataRowDto? Row, string? Error, bool NotFound)> UpdateLeadStatusAsync(
+            int id,
+            MasterDataUpsertDto dto,
+            CancellationToken ct)
+        {
+            if (dto.Id != 0 && dto.Id != id)
+            {
+                return (null, "Route id and body id must match when the body includes an id.", false);
+            }
+
+            var name = (dto.Name ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return (null, "Name is required.", false);
+            }
+
+            var existing = await _context.LeadStatuses.FindAsync([id], ct);
+            if (existing == null)
+            {
+                return (null, null, true);
+            }
+
+            if (await NameExistsAsync(_context.LeadStatuses, name, excludeId: id, ct))
+            {
+                return (null, "A record with this name already exists.", false);
+            }
+
+            var isConversion = dto.IsConversionStatus ?? existing.IsConversionStatus;
+            if (LeadStatusMovedToDealSeed.IsConversionStatusName(name) && dto.IsConversionStatus != false)
+            {
+                isConversion = true;
+            }
+
+            if (isConversion)
+            {
+                var others = await _context.LeadStatuses
+                    .Where(x => x.IsConversionStatus && x.Id != id)
+                    .ToListAsync(ct);
+                foreach (var o in others)
+                {
+                    o.IsConversionStatus = false;
+                }
+            }
+
+            existing.Name = name;
+            existing.Description = dto.Description?.Trim() ?? string.Empty;
+            existing.IsActive = dto.IsActive;
+            existing.IsConversionStatus = isConversion;
+            await _context.SaveChangesAsync(ct);
+            return (ToLeadStatusDto(existing), null, false);
+        }
+
+        private async Task<IReadOnlyList<MasterDataRowDto>> ListLeadStatusesAsync(bool activeOnly, CancellationToken ct)
+        {
+            var q = _context.LeadStatuses.AsNoTracking();
+            if (activeOnly)
+            {
+                q = q.Where(x => x.IsActive);
+            }
+
+            return await q
+                .OrderBy(x => x.Name)
+                .Select(x => new MasterDataRowDto
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Description = x.Description,
+                    IsActive = x.IsActive,
+                    CreatedAt = x.CreatedAt == default ? null : x.CreatedAt,
+                    IsConversionStatus = x.IsConversionStatus,
+                })
+                .ToListAsync(ct);
+        }
+
+        private async Task<MasterDataRowDto?> GetLeadStatusByIdAsync(int id, CancellationToken ct)
+        {
+            var row = await _context.LeadStatuses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+            return row == null ? null : ToLeadStatusDto(row);
+        }
+
+        private static MasterDataRowDto ToLeadStatusDto(LeadStatus row) => new()
+        {
+            Id = row.Id,
+            Name = row.Name,
+            Description = row.Description,
+            IsActive = row.IsActive,
+            CreatedAt = row.CreatedAt == default ? null : row.CreatedAt,
+            IsConversionStatus = row.IsConversionStatus,
+        };
 
         private async Task<(MasterDataRowDto? Row, string? Error)> CreateCore<T>(
             DbSet<T> set,

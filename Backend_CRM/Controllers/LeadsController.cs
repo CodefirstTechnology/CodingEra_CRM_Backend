@@ -75,9 +75,21 @@ namespace CRM.Controllers
                 else
                 {
                     var st = status.Trim();
+                    var names = (await LeadStatusMovedToDealSeed.ConversionStatusLookupNamesAsync(_context, st))
+                        .Select(n => n.ToLowerInvariant())
+                        .ToList();
+
+                    // Also match by conversion flag when filtering for that status.
+                    var matchConversionFlag =
+                        LeadStatusMovedToDealSeed.IsConversionStatusName(st) ||
+                        await _context.LeadStatuses.AsNoTracking().AnyAsync(ls =>
+                            ls.IsConversionStatus && ls.Name.ToLower() == st.ToLower());
+
                     q = q.Where(l =>
                         _context.LeadStatuses.Any(ls =>
-                            ls.Id == l.LeadStatusId && ls.Name.ToLower() == st.ToLower()));
+                            ls.Id == l.LeadStatusId &&
+                            (names.Contains(ls.Name.ToLower()) ||
+                             (matchConversionFlag && ls.IsConversionStatus))));
                 }
             }
 
@@ -361,7 +373,7 @@ namespace CRM.Controllers
             }
             else if (!string.IsNullOrWhiteSpace(dto.Status))
             {
-                lead.LeadStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, dto.Status, requireActive: true);
+                lead.LeadStatusId = await ResolveLeadStatusNameToIdAsync(dto.Status, requireActive: true);
             }
             else if (isCreate)
             {
@@ -439,6 +451,53 @@ namespace CRM.Controllers
                 .OrderBy(o => o.Id)
                 .Select(o => (int?)o.Id)
                 .FirstOrDefaultAsync();
+        }
+
+        private async Task<int?> ResolveLeadStatusNameToIdAsync(string? name, bool requireActive)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return null;
+            }
+
+            var req = name.Trim();
+
+            // Always prefer an exact master name match first (e.g. Qualified must not
+            // resolve to the flagged conversion status).
+            var direct = await ResolveNameToIdAsync(_context.LeadStatuses, req, requireActive);
+            if (direct is > 0)
+            {
+                return direct;
+            }
+
+            // Legacy aliases ("Converted" / "Moved to Deal") → flagged conversion status.
+            if (!LeadStatusMovedToDealSeed.IsConversionStatusName(req))
+            {
+                return null;
+            }
+
+            var flaggedQ = _context.LeadStatuses.AsNoTracking().Where(s => s.IsConversionStatus);
+            if (requireActive)
+            {
+                flaggedQ = flaggedQ.Where(s => s.IsActive);
+            }
+
+            var flaggedId = await flaggedQ
+                .OrderBy(s => s.Id)
+                .Select(s => (int?)s.Id)
+                .FirstOrDefaultAsync();
+            if (flaggedId is > 0)
+            {
+                return flaggedId;
+            }
+
+            foreach (var candidate in LeadStatusMovedToDealSeed.ConversionStatusLookupNames(req))
+            {
+                var id = await ResolveNameToIdAsync(_context.LeadStatuses, candidate, requireActive);
+                if (id is > 0) return id;
+            }
+
+            return null;
         }
 
         private static async Task<int?> ResolveNameToIdAsync<TEntity>(
