@@ -21,6 +21,9 @@ namespace CRM.DTO
 
         /// <summary>Terminal lost flag (<c>deal-statuses</c> only).</summary>
         public bool? IsLost { get; set; }
+
+        /// <summary>Lead → deal conversion status flag (<c>lead-statuses</c> only). Name is free-form.</summary>
+        public bool? IsConversionStatus { get; set; }
     }
 
     /// <summary>PATCH body for toggling <c>is_active</c> on master-data rows.</summary>
@@ -40,6 +43,7 @@ namespace CRM.DTO
         public int? SortOrder { get; set; }
         public bool? IsWon { get; set; }
         public bool? IsLost { get; set; }
+        public bool? IsConversionStatus { get; set; }
     }
 
     public class DealStatusReorderItemDto

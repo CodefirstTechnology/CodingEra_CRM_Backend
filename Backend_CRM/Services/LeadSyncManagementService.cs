@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using CRM.Services;
 using Microsoft.EntityFrameworkCore;
@@ -52,7 +53,7 @@ namespace CRM.Services
                 .Select(o => new LeadSyncIntervalOptionDto
                 {
                     Id = o.Id,
-                    Hours = o.Hours,
+                    Minutes = o.Minutes,
                     Label = o.Label,
                     SortOrder = o.SortOrder,
                 })
@@ -235,12 +236,37 @@ namespace CRM.Services
 
             if (dto.AutoSyncEnabled)
             {
-                config.IntervalOptionId = null;
+                var intervalOptionId = dto.IntervalOptionId;
+                if (intervalOptionId is null or <= 0)
+                {
+                    intervalOptionId = await LeadSyncScheduleHelper.GetDefaultIntervalOptionIdAsync(
+                        _db,
+                        cancellationToken);
+                }
+                else
+                {
+                    var valid = await _db.LeadSyncIntervalOptions.AsNoTracking()
+                        .AnyAsync(
+                            o => o.Id == intervalOptionId.Value && o.IsActive && o.Minutes > 0,
+                            cancellationToken);
+                    if (!valid)
+                    {
+                        throw new InvalidOperationException("Selected sync interval is not valid.");
+                    }
+                }
+
+                if (intervalOptionId is null or <= 0)
+                {
+                    throw new InvalidOperationException(
+                        "No active sync interval options are configured.");
+                }
+
+                config.IntervalOptionId = intervalOptionId;
+                // First run soon; subsequent runs advance NextSyncAt by the selected interval.
                 config.NextSyncAt = DateTime.UtcNow;
             }
             else
             {
-                config.IntervalOptionId = null;
                 config.NextSyncAt = null;
             }
 
@@ -334,10 +360,15 @@ namespace CRM.Services
                 .FirstOrDefaultAsync(c => c.SourceId == dto.SourceId, cancellationToken);
             if (config != null)
             {
-                config.LastSyncAt = log.EndedAt ?? log.StartedAt;
+                var endedAt = log.EndedAt ?? log.StartedAt;
+                config.LastSyncAt = endedAt;
                 if (config.AutoSyncEnabled)
                 {
-                    config.NextSyncAt = DateTime.UtcNow;
+                    var minutes = await LeadSyncScheduleHelper.ResolveIntervalMinutesAsync(
+                        _db,
+                        config.IntervalOptionId,
+                        cancellationToken);
+                    config.NextSyncAt = LeadSyncScheduleHelper.ComputeNextSyncAt(endedAt, minutes);
                 }
 
                 config.UpdatedAt = DateTime.UtcNow;
@@ -423,7 +454,7 @@ namespace CRM.Services
                 PullApiUrl = pullApiUrl,
                 AutoSyncEnabled = s.Config?.AutoSyncEnabled ?? false,
                 IntervalOptionId = s.Config?.IntervalOptionId,
-                IntervalHours = s.Config?.IntervalOption?.Hours,
+                IntervalMinutes = s.Config?.IntervalOption?.Minutes,
                 IntervalLabel = s.Config?.IntervalOption?.Label,
                 LastSyncAt = s.Config?.LastSyncAt,
                 NextSyncAt = s.Config?.NextSyncAt,

@@ -39,7 +39,9 @@ namespace CRM.Helpers
                 await CompanyProfileFaviconSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTemplateSchemaEnsure.EnsureAsync(db, logger);
+                await LeadSyncIntervalSchemaEnsure.EnsureAsync(db, logger);
                 await DealPipelineStageSeed.EnsureAsync(db, logger);
+                await LeadStatusMovedToDealSeed.EnsureAsync(db, logger);
                 await RbacSeed.EnsureAsync(db, logger);
 
                 await LeadSyncSeed.EnsureAsync(db, logger);

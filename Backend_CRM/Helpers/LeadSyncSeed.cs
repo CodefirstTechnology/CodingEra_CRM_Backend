@@ -31,26 +31,30 @@ namespace CRM.Helpers
             DateTime now,
             CancellationToken cancellationToken)
         {
-            var seeds = new (int Hours, string Label, int SortOrder)[]
+            // SortOrder 1 = default when auto sync is enabled without an explicit choice.
+            var seeds = new (int Minutes, string Label, int SortOrder)[]
             {
-                (1, "Every 1 Hour", 1),
-                (2, "Every 2 Hours", 2),
-                (3, "Every 3 Hours", 3),
-                (4, "Every 4 Hours", 4),
-                (6, "Every 6 Hours", 5),
-                (12, "Every 12 Hours", 6),
-                (24, "Every 24 Hours", 7),
+                (10, "Every 10 Minutes", 1),
+                (15, "Every 15 Minutes", 2),
+                (30, "Every 30 Minutes", 3),
+                (60, "Every 1 Hour", 4),
+                (120, "Every 2 Hours", 5),
+                (180, "Every 3 Hours", 6),
+                (240, "Every 4 Hours", 7),
+                (360, "Every 6 Hours", 8),
+                (720, "Every 12 Hours", 9),
+                (1440, "Every 24 Hours", 10),
             };
 
             foreach (var seed in seeds)
             {
                 var existing = await db.LeadSyncIntervalOptions
-                    .FirstOrDefaultAsync(o => o.Hours == seed.Hours, cancellationToken);
+                    .FirstOrDefaultAsync(o => o.Minutes == seed.Minutes, cancellationToken);
                 if (existing == null)
                 {
                     db.LeadSyncIntervalOptions.Add(new LeadSyncIntervalOption
                     {
-                        Hours = seed.Hours,
+                        Minutes = seed.Minutes,
                         Label = seed.Label,
                         SortOrder = seed.SortOrder,
                         IsActive = true,
@@ -58,7 +62,7 @@ namespace CRM.Helpers
                         UpdatedAt = now,
                     });
                 }
-                else if (!existing.IsActive || existing.Label != seed.Label)
+                else if (!existing.IsActive || existing.Label != seed.Label || existing.SortOrder != seed.SortOrder)
                 {
                     existing.Label = seed.Label;
                     existing.SortOrder = seed.SortOrder;
@@ -70,26 +74,50 @@ namespace CRM.Helpers
             await db.SaveChangesAsync(cancellationToken);
         }
 
+        /// <summary>
+        /// Fills missing interval / next-sync values for enabled configs.
+        /// Does not force NextSyncAt = now (avoids restart stampede).
+        /// </summary>
         private static async Task NormalizeAutoSyncConfigsAsync(
             TaskDbcontext db,
             DateTime now,
             CancellationToken cancellationToken)
         {
+            var defaultIntervalId = await LeadSyncScheduleHelper.GetDefaultIntervalOptionIdAsync(
+                db,
+                cancellationToken);
+            if (defaultIntervalId == null)
+            {
+                return;
+            }
+
             var enabled = await db.LeadSyncSourceConfigs
                 .Where(c => c.AutoSyncEnabled)
                 .ToListAsync(cancellationToken);
 
+            var changed = false;
             foreach (var config in enabled)
             {
-                if (config.IntervalOptionId != null || config.NextSyncAt == null || config.NextSyncAt > now)
+                if (config.IntervalOptionId == null)
                 {
-                    config.IntervalOptionId = null;
-                    config.NextSyncAt = now;
+                    config.IntervalOptionId = defaultIntervalId;
                     config.UpdatedAt = now;
+                    changed = true;
+                }
+
+                if (config.NextSyncAt == null)
+                {
+                    var minutes = await LeadSyncScheduleHelper.ResolveIntervalMinutesAsync(
+                        db,
+                        config.IntervalOptionId,
+                        cancellationToken);
+                    config.NextSyncAt = LeadSyncScheduleHelper.ComputeNextSyncAt(now, minutes);
+                    config.UpdatedAt = now;
+                    changed = true;
                 }
             }
 
-            if (enabled.Count > 0)
+            if (changed)
             {
                 await db.SaveChangesAsync(cancellationToken);
             }

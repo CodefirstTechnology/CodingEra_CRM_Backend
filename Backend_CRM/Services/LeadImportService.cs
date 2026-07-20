@@ -268,7 +268,12 @@ namespace CRM.Services
         {
             if (!string.IsNullOrWhiteSpace(status))
             {
-                return ResolveMasterId(masters.LeadStatuses, status);
+                var id = ResolveMasterId(masters.LeadStatuses, status);
+                if (id is > 0) return id;
+                if (TryResolveConversionStatusAlias(status, masters.LeadStatuses, out var aliasId))
+                {
+                    return aliasId;
+                }
             }
 
             if (masters.LeadStatuses.TryGetValue(NormalizeKey(DefaultLeadStatusName), out var newStatusId))
@@ -279,6 +284,25 @@ namespace CRM.Services
             return masters.LeadStatuses.Values.FirstOrDefault() is int fallback && fallback > 0
                 ? fallback
                 : null;
+        }
+
+        /// <summary>Accepts legacy conversion status aliases when resolving import status.</summary>
+        private static bool TryResolveConversionStatusAlias(
+            string status,
+            Dictionary<string, int> leadStatuses,
+            out int id)
+        {
+            id = 0;
+            if (!LeadStatusMovedToDealSeed.IsConversionStatusName(status)) return false;
+            foreach (var candidate in LeadStatusMovedToDealSeed.ConversionStatusLookupNames(status))
+            {
+                if (leadStatuses.TryGetValue(NormalizeKey(candidate), out id) && id > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static int ResolveLeadOwnerId(string? leadOwnerText, int importingUserId, UserLookups users)
@@ -451,7 +475,8 @@ namespace CRM.Services
             {
                 errors.Add("Status is required");
             }
-            else if (!masters.LeadStatuses.ContainsKey(NormalizeKey(row.Status)))
+            else if (!masters.LeadStatuses.ContainsKey(NormalizeKey(row.Status)) &&
+                     !TryResolveConversionStatusAlias(row.Status, masters.LeadStatuses, out _))
             {
                 errors.Add("Invalid Status");
             }

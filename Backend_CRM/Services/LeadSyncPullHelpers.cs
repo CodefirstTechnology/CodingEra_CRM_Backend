@@ -148,6 +148,219 @@ namespace CRM.Services
             };
         }
 
+        /// <summary>
+        /// TradeIndia inquiry fields: sender_*, product_name, message, sender_co, rfi_id.
+        /// Requirement = product; Organization = company (sender_co); full message stays in notes.
+        /// </summary>
+        public static LeadSyncIncomingLead? MapTradeIndiaRow(JsonElement row)
+        {
+            var rawMessage = PickString(row,
+                "message", "Message", "MESSAGE", "inquiry_message", "enquiry_text", "inquiry_text");
+            var parsed = ParseTradeIndiaInquiryMessage(rawMessage);
+
+            var customerName = PickString(row,
+                "sender_name", "SENDER_NAME", "sendername", "name", "buyer_name", "customer_name", "customerName");
+            var mobile = PickString(row,
+                "sender_mobile", "SENDER_MOBILE", "mobile", "MOBILE", "phone", "contact_number");
+            if (string.IsNullOrWhiteSpace(mobile) && !string.IsNullOrWhiteSpace(parsed.Mobile))
+            {
+                mobile = parsed.Mobile!;
+            }
+
+            var email = PickString(row,
+                "sender_email", "SENDER_EMAIL", "email", "Email", "EMAIL", "buyer_email");
+            var city = PickString(row,
+                "sender_city", "SENDER_CITY", "city", "City", "location");
+            if (string.IsNullOrWhiteSpace(city) && !string.IsNullOrWhiteSpace(parsed.City))
+            {
+                city = parsed.City!;
+            }
+
+            var company = PickString(row,
+                "sender_co", "SENDER_CO", "company", "company_name", "Company Name", "CompanyName", "organization");
+            if (string.IsNullOrWhiteSpace(company) && !string.IsNullOrWhiteSpace(parsed.CompanyName))
+            {
+                company = parsed.CompanyName!;
+            }
+
+            var product = PickString(row,
+                "product_name", "PRODUCT_NAME", "product", "Product", "subject", "category");
+            if (string.IsNullOrWhiteSpace(product) && !string.IsNullOrWhiteSpace(parsed.Product))
+            {
+                product = parsed.Product!;
+            }
+
+            var extRef = PickString(row,
+                "rfi_id", "RFI_ID", "enquiry_id", "inquiry_id", "tradeindia_lead_id", "ti_lead_id",
+                "external_ref", "id", "unique_id");
+
+            if (string.IsNullOrWhiteSpace(customerName)
+                && string.IsNullOrWhiteSpace(email)
+                && string.IsNullOrWhiteSpace(mobile)
+                && string.IsNullOrWhiteSpace(company))
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(extRef))
+            {
+                extRef = $"{email}|{mobile}".ToLowerInvariant();
+            }
+
+            // Never use mobile/email as Name — TradeIndia often omits sender_name.
+            var displayName = ResolveTradeIndiaCustomerName(customerName, company);
+            var parts = displayName
+                .Trim()
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var firstName = parts.Length > 0 ? parts[0] : "Buyer";
+            var lastName = parts.Length > 1 ? string.Join(' ', parts.Skip(1)) : string.Empty;
+
+            // Requirement = product only (not the full inquiry template blob).
+            var requirement = !string.IsNullOrWhiteSpace(product) ? product : string.Empty;
+
+            var notesLines = new List<string>();
+            if (!string.IsNullOrWhiteSpace(requirement))
+            {
+                notesLines.Add($"Product: {requirement}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(company))
+            {
+                notesLines.Add($"Company: {company}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                notesLines.Add($"City: {city}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(rawMessage)
+                && !string.Equals(rawMessage, requirement, StringComparison.OrdinalIgnoreCase))
+            {
+                notesLines.Add(rawMessage);
+            }
+
+            notesLines.Add($"[crm-ext:TradeIndia:{extRef}]");
+
+            return new LeadSyncIncomingLead
+            {
+                ExternalKey = extRef,
+                FirstName = firstName,
+                LastName = lastName,
+                Email = email,
+                Mobile = mobile,
+                Requirement = requirement,
+                OrganizationName = company,
+                Notes = string.Join('\n', notesLines),
+            };
+        }
+
+        /// <summary>
+        /// Prefer a real person name; never fall back to mobile/email.
+        /// When TradeIndia omits sender_name, use company name, then "Buyer".
+        /// </summary>
+        public static string ResolveTradeIndiaCustomerName(string? senderName, string? companyName)
+        {
+            var raw = (senderName ?? string.Empty).Trim();
+            if (raw.Length > 0 && !LooksLikePhoneNumber(raw) && !LooksLikeEmailAddress(raw))
+            {
+                return raw;
+            }
+
+            var company = (companyName ?? string.Empty).Trim();
+            if (company.Length > 0)
+            {
+                return company;
+            }
+
+            return "Buyer";
+        }
+
+        public static bool LooksLikePhoneNumber(string? value)
+        {
+            var t = (value ?? string.Empty).Trim();
+            if (t.Length == 0)
+            {
+                return false;
+            }
+
+            var digits = Regex.Replace(t, @"\D", "");
+            if (digits.Length < 8)
+            {
+                return false;
+            }
+
+            return Regex.IsMatch(t, @"^[+\d\s().-]+$");
+        }
+
+        public static bool LooksLikeEmailAddress(string? value)
+        {
+            var t = (value ?? string.Empty).Trim();
+            return t.Contains('@') && Regex.IsMatch(t, @"^[^\s@]+@[^\s@]+\.[^\s@]+$");
+        }
+
+        /// <summary>
+        /// Parses TradeIndia template messages like:
+        /// "… inquiry regarding products Pure Bamboo Scaffold Ladder. Below is the details of Buyer:
+        ///  Mobile - +91… Company Name - Acme Country - New Delhi - Delhi - IN"
+        /// </summary>
+        public static (string? Product, string? CompanyName, string? Mobile, string? City) ParseTradeIndiaInquiryMessage(
+            string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return (null, null, null, null);
+            }
+
+            var text = message.Trim();
+            string? product = null;
+            var productMatch = Regex.Match(
+                text,
+                @"inquiry regarding products?\s+(.+?)\s*\.\s*Below",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (productMatch.Success)
+            {
+                product = productMatch.Groups[1].Value.Trim();
+            }
+
+            string? company = null;
+            var companyMatch = Regex.Match(
+                text,
+                @"Company\s*Name\s*-\s*(.+?)(?:\s+Country\s*-|$)",
+                RegexOptions.IgnoreCase);
+            if (companyMatch.Success)
+            {
+                company = companyMatch.Groups[1].Value.Trim();
+            }
+
+            string? mobile = null;
+            var mobileMatch = Regex.Match(
+                text,
+                @"Mobile\s*-\s*([+\d][\d\s-]*)",
+                RegexOptions.IgnoreCase);
+            if (mobileMatch.Success)
+            {
+                mobile = Regex.Replace(mobileMatch.Groups[1].Value.Trim(), @"\s+", "");
+            }
+
+            string? city = null;
+            var countryMatch = Regex.Match(
+                text,
+                @"Country\s*-\s*(.+)$",
+                RegexOptions.IgnoreCase);
+            if (countryMatch.Success)
+            {
+                var location = countryMatch.Groups[1].Value.Trim();
+                var firstPart = location.Split('-', 2)[0].Trim();
+                if (!string.IsNullOrWhiteSpace(firstPart))
+                {
+                    city = firstPart;
+                }
+            }
+
+            return (product, company, mobile, city);
+        }
+
         public static string? TryGetIndiaMartError(JsonElement body)
         {
             if (body.ValueKind != JsonValueKind.Object)
