@@ -67,12 +67,26 @@ namespace CRM.Controllers.Masters
                 return Conflict("A lead status with this name already exists.");
             }
 
+            var isConversion =
+                dto.IsConversionStatus == true ||
+                LeadStatusMovedToDealSeed.IsConversionStatusName(name);
+
+            if (isConversion && await _context.LeadStatuses.AnyAsync(x => x.IsConversionStatus))
+            {
+                return Conflict("Only one lead status can be marked as the lead→deal conversion status.");
+            }
+
             var entity = new LeadStatus
             {
                 Id = 0,
                 Name = name,
-                Description = dto.Description?.Trim() ?? string.Empty,
+                Description = string.IsNullOrWhiteSpace(dto.Description)
+                    ? (isConversion
+                        ? "Lead has been converted into a deal (not Won / not revenue)."
+                        : string.Empty)
+                    : dto.Description.Trim(),
                 IsActive = dto.IsActive,
+                IsConversionStatus = isConversion,
             };
             await _context.LeadStatuses.AddAsync(entity);
             await _context.SaveChangesAsync();
@@ -117,9 +131,27 @@ namespace CRM.Controllers.Masters
                 return Conflict("A lead status with this name already exists.");
             }
 
+            var isConversion = dto.IsConversionStatus ?? existing.IsConversionStatus;
+            if (LeadStatusMovedToDealSeed.IsConversionStatusName(name) && dto.IsConversionStatus != false)
+            {
+                isConversion = true;
+            }
+
+            if (isConversion)
+            {
+                var others = await _context.LeadStatuses
+                    .Where(x => x.IsConversionStatus && x.Id != id)
+                    .ToListAsync();
+                foreach (var o in others)
+                {
+                    o.IsConversionStatus = false;
+                }
+            }
+
             existing.Name = name;
             existing.Description = dto.Description?.Trim() ?? string.Empty;
             existing.IsActive = dto.IsActive;
+            existing.IsConversionStatus = isConversion;
             await _context.SaveChangesAsync();
             return Ok(existing);
         }
