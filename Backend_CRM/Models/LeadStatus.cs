@@ -22,6 +22,13 @@ namespace CRM.models
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// System flag: set automatically when a lead is converted to a deal.
+        /// Name is display-only and can be renamed in Master Forms.
+        /// </summary>
+        [Column("is_conversion_status")]
+        public bool IsConversionStatus { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 

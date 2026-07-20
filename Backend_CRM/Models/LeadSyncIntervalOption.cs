@@ -11,8 +11,9 @@ namespace CRM.models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
-        [Column("hours")]
-        public int Hours { get; set; }
+        /// <summary>Auto-sync gap in minutes (e.g. 10 = every 10 minutes).</summary>
+        [Column("minutes")]
+        public int Minutes { get; set; }
 
         [Column("label")]
         [MaxLength(64)]

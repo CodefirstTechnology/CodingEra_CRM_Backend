@@ -1647,10 +1647,6 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("Hours")
-                        .HasColumnType("integer")
-                        .HasColumnName("hours");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -1660,6 +1656,10 @@ namespace Backend_CRM.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("label");
+
+                    b.Property<int>("Minutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("minutes");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer")
@@ -1671,7 +1671,7 @@ namespace Backend_CRM.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Hours")
+                    b.HasIndex("Minutes")
                         .IsUnique();
 
                     b.ToTable("lead_sync_interval_options");

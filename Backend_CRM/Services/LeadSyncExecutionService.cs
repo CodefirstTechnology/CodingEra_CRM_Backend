@@ -1,5 +1,6 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Helpers;
 using CRM.models;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
@@ -30,7 +31,10 @@ namespace CRM.Services
         public string LastName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Mobile { get; set; } = string.Empty;
+        /// <summary>Product / inquiry text shown as Requirement in the CRM UI (stored in notes).</summary>
         public string? Requirement { get; set; }
+        /// <summary>Buyer company name → linked <see cref="Organization"/>.</summary>
+        public string? OrganizationName { get; set; }
         public string Notes { get; set; } = string.Empty;
         public DateTime? CreatedAt { get; set; }
     }
@@ -178,7 +182,7 @@ namespace CRM.Services
             var resolved = await _credentials.ResolveAsync(sourceId, cancellationToken);
             if (resolved == null)
             {
-                return Failed("API connection is not configured. Add the pull URL and API key in Advanced Settings → Lead Sync.");
+                return Failed("API connection is not configured. Add the pull URL and API key in Advanced Settings â†’ Lead Sync.");
             }
 
             var provider = _providers.FirstOrDefault(p =>
@@ -278,7 +282,26 @@ namespace CRM.Services
             }
 
             config.LastSyncAt = endedAt;
-            config.NextSyncAt = config.AutoSyncEnabled ? endedAt : null;
+            if (config.AutoSyncEnabled)
+            {
+                if (config.IntervalOptionId == null)
+                {
+                    config.IntervalOptionId = await LeadSyncScheduleHelper.GetDefaultIntervalOptionIdAsync(
+                        _db,
+                        cancellationToken);
+                }
+
+                var minutes = await LeadSyncScheduleHelper.ResolveIntervalMinutesAsync(
+                    _db,
+                    config.IntervalOptionId,
+                    cancellationToken);
+                config.NextSyncAt = LeadSyncScheduleHelper.ComputeNextSyncAt(endedAt, minutes);
+            }
+            else
+            {
+                config.NextSyncAt = null;
+            }
+
             config.UpdatedAt = endedAt;
         }
     }

@@ -216,6 +216,14 @@ namespace CRM.Services
                     : $"{item.Requirement.Trim()}\n{notes}";
             }
 
+            int? organizationId = null;
+            if (!string.IsNullOrWhiteSpace(item.OrganizationName))
+            {
+                organizationId = await FindOrCreateOrganizationIdAsync(
+                    item.OrganizationName.Trim(),
+                    cancellationToken);
+            }
+
             var lead = new Lead
             {
                 FirstName = item.FirstName,
@@ -223,6 +231,7 @@ namespace CRM.Services
                 Email = item.Email?.Trim() ?? string.Empty,
                 Mobile = item.Mobile?.Trim() ?? string.Empty,
                 Notes = notes ?? string.Empty,
+                OrganizationId = organizationId,
                 LeadSource = leadSource,
                 LeadStatusId = defaultStatusId > 0 ? defaultStatusId : null,
                 LeadDate = DateTime.UtcNow.Date,
@@ -343,6 +352,41 @@ namespace CRM.Services
             }
 
             return keys;
+        }
+
+        private async Task<int?> FindOrCreateOrganizationIdAsync(
+            string organizationName,
+            CancellationToken cancellationToken)
+        {
+            var trimmed = organizationName.Trim();
+            if (trimmed.Length == 0)
+            {
+                return null;
+            }
+
+            var tl = trimmed.ToLowerInvariant();
+            var existingId = await _db.Organizations.AsNoTracking()
+                .Where(o => o.Name.ToLower() == tl)
+                .OrderBy(o => o.Id)
+                .Select(o => (int?)o.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (existingId is > 0)
+            {
+                return existingId;
+            }
+
+            var now = DateTime.UtcNow;
+            var org = new Organization
+            {
+                Name = trimmed,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+                LastModified = now,
+            };
+            _db.Organizations.Add(org);
+            await _db.SaveChangesAsync(cancellationToken);
+            return org.Id;
         }
     }
 }

@@ -5,7 +5,7 @@ namespace CRM.DTO
     public class LeadSyncIntervalOptionDto
     {
         public int Id { get; set; }
-        public int Hours { get; set; }
+        public int Minutes { get; set; }
         public string Label { get; set; } = string.Empty;
         public int SortOrder { get; set; }
     }
@@ -37,7 +37,7 @@ namespace CRM.DTO
         public string? PullApiUrl { get; set; }
         public bool AutoSyncEnabled { get; set; }
         public int? IntervalOptionId { get; set; }
-        public int? IntervalHours { get; set; }
+        public int? IntervalMinutes { get; set; }
         public string? IntervalLabel { get; set; }
         public DateTime? LastSyncAt { get; set; }
         public DateTime? NextSyncAt { get; set; }
