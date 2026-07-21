@@ -22,7 +22,11 @@ namespace CRM.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] int? organizationId = null)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int userId,
+            [FromQuery] int? organizationId = null,
+            [FromQuery] string? search = null,
+            [FromQuery] int limit = 20)
         {
             var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.view");
             if (permErr != null) return permErr;
@@ -33,9 +37,28 @@ namespace CRM.Controllers
                 q = q.Where(c => c.OrganizationId == organizationId);
             }
 
+            var term = search?.Trim();
+            if (!string.IsNullOrWhiteSpace(term) && term.Length >= 2)
+            {
+                var pattern = $"%{term}%";
+                q = q.Where(c =>
+                    EF.Functions.ILike(c.FirstName, pattern)
+                    || EF.Functions.ILike(c.LastName, pattern)
+                    || EF.Functions.ILike(c.Email, pattern)
+                    || EF.Functions.ILike(c.Phone, pattern)
+                    || EF.Functions.ILike(c.FirstName + " " + c.LastName, pattern));
+            }
+
             q = await RbacRecordScopeHelper.ApplyCreatedByScopeAsync(_context, _rbac, userId, "contacts", q);
 
-            return Ok(await q.OrderBy(c => c.LastName).ThenBy(c => c.FirstName).ToListAsync());
+            q = q.OrderBy(c => c.LastName).ThenBy(c => c.FirstName);
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                var take = Math.Clamp(limit, 1, 50);
+                q = q.Take(take);
+            }
+
+            return Ok(await q.ToListAsync());
         }
 
         [HttpGet("{id:int}")]
