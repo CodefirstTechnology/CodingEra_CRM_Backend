@@ -10,32 +10,22 @@ namespace Backend_CRM.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "quotation_template",
-                table: "quotations",
-                type: "character varying(32)",
-                maxLength: 32,
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<string>(
-                name: "template_payload_json",
-                table: "quotations",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
+            // Columns may already exist from AddQuotationTemplate or QuotationTemplateSchemaEnsure on startup.
+            migrationBuilder.Sql(
+                """
+                ALTER TABLE quotations ADD COLUMN IF NOT EXISTS quotation_template character varying(32) NOT NULL DEFAULT 'Standard';
+                ALTER TABLE quotations ADD COLUMN IF NOT EXISTS template_payload_json text NOT NULL DEFAULT '';
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "quotation_template",
-                table: "quotations");
-
-            migrationBuilder.DropColumn(
-                name: "template_payload_json",
-                table: "quotations");
+            migrationBuilder.Sql(
+                """
+                ALTER TABLE quotations DROP COLUMN IF EXISTS quotation_template;
+                ALTER TABLE quotations DROP COLUMN IF EXISTS template_payload_json;
+                """);
         }
     }
 }
