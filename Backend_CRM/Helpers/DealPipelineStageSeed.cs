@@ -32,6 +32,13 @@ namespace CRM.Helpers
                     );
                     CREATE INDEX IF NOT EXISTS "IX_deal_stage_histories_deal_id_changed_at"
                         ON deal_stage_histories (deal_id, changed_at);
+
+                    UPDATE deal_statuses SET is_won = true, updated_at = NOW() AT TIME ZONE 'utc'
+                    WHERE lower(trim(name)) IN ('lead closed - won', 'closed won')
+                      AND is_won = false;
+                    UPDATE deal_statuses SET is_lost = true, updated_at = NOW() AT TIME ZONE 'utc'
+                    WHERE lower(trim(name)) IN ('lead closed - lost', 'closed lost')
+                      AND is_lost = false;
                     """,
                     cancellationToken);
 

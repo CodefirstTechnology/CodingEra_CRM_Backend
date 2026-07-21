@@ -1,5 +1,4 @@
 using CRM.DATA;
-using CRM.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Helpers
@@ -32,6 +31,28 @@ namespace CRM.Helpers
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
 
+        public static async Task<HashSet<string>> LoadClosedWonStatusNamesAsync(
+            TaskDbcontext db,
+            CancellationToken cancellationToken = default)
+        {
+            var allStatuses = await db.DealStatuses.AsNoTracking().ToListAsync(cancellationToken);
+
+            return allStatuses
+                .Where(s => s.IsActive
+                    && (DealStageValidationHelper.IsClosedWon(s.Name, allStatuses)
+                        || LooksLikeClosedWonName(s.Name)))
+                .Select(s => s.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static bool LooksLikeClosedWonName(string name)
+        {
+            var normalized = name.Trim();
+            return normalized.Contains("won", StringComparison.OrdinalIgnoreCase)
+                && normalized.Contains("closed", StringComparison.OrdinalIgnoreCase)
+                && !normalized.Contains("lost", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static async Task<decimal> CalculateAchievedAmountAsync(
             TaskDbcontext db,
             int userId,
@@ -40,13 +61,15 @@ namespace CRM.Helpers
             CancellationToken cancellationToken = default)
         {
             var qualifyingNames = await LoadQualifyingStatusNamesAsync(db, cancellationToken);
-            if (qualifyingNames.Count == 0)
+            var closedWonNames = await LoadClosedWonStatusNamesAsync(db, cancellationToken);
+
+            if (qualifyingNames.Count == 0 && closedWonNames.Count == 0)
             {
                 return 0m;
             }
 
             var deals = await db.Deals.AsNoTracking()
-                .Where(d => d.DealOwnerId == userId)
+                .Where(d => d.DealOwnerId == userId || d.AssignedToUserId == userId)
                 .Select(d => new DealRow(
                     d.Id,
                     d.DealAmount ?? 0m,
@@ -54,70 +77,15 @@ namespace CRM.Helpers
                     d.UpdatedAt))
                 .ToListAsync(cancellationToken);
 
+            deals = deals.Where(d => d.Amount > 0).ToList();
             if (deals.Count == 0)
             {
                 return 0m;
             }
 
-            var missingAmountIds = deals
-                .Where(d => d.Amount <= 0)
-                .Select(d => d.Id)
-                .ToList();
-
-            if (missingAmountIds.Count > 0)
-            {
-                var quotationRows = await db.Quotations.AsNoTracking()
-                    .Where(q => q.DealId != null && missingAmountIds.Contains(q.DealId.Value))
-                    .OrderByDescending(q => q.Id)
-                    .Select(q => new { DealId = q.DealId!.Value, q.GrandTotal })
-                    .ToListAsync(cancellationToken);
-
-                var latestByDeal = new Dictionary<int, decimal>();
-                foreach (var row in quotationRows)
-                {
-                    if (!latestByDeal.ContainsKey(row.DealId))
-                    {
-                        latestByDeal[row.DealId] = row.GrandTotal;
-                    }
-                }
-
-                deals = deals
-                    .Select(d =>
-                    {
-                        if (d.Amount > 0)
-                        {
-                            return d;
-                        }
-
-                        return latestByDeal.TryGetValue(d.Id, out var amount) && amount > 0
-                            ? d with { Amount = amount }
-                            : d;
-                    })
-                    .Where(d => d.Amount > 0)
-                    .ToList();
-            }
-            else
-            {
-                deals = deals.Where(d => d.Amount > 0).ToList();
-            }
-
-            if (deals.Count == 0)
-            {
-                return 0m;
-            }
-
-            var qualifyingDealIds = deals
-                .Where(d => qualifyingNames.Contains(d.Status.Trim()))
-                .Select(d => d.Id)
-                .ToList();
-
-            if (qualifyingDealIds.Count == 0)
-            {
-                return 0m;
-            }
-
+            var dealIds = deals.Select(d => d.Id).ToList();
             var histories = await db.DealStageHistories.AsNoTracking()
-                .Where(h => qualifyingDealIds.Contains(h.DealId))
+                .Where(h => dealIds.Contains(h.DealId))
                 .Select(h => new HistoryRow(h.DealId, h.NewStage, h.ChangedAt))
                 .ToListAsync(cancellationToken);
 
@@ -128,7 +96,15 @@ namespace CRM.Helpers
             decimal total = 0m;
             foreach (var deal in deals)
             {
-                if (!qualifyingNames.Contains(deal.Status.Trim()))
+                historyByDeal.TryGetValue(deal.Id, out var historyRows);
+                var historyStages = historyRows?.Select(h => h.NewStage).ToList()
+                    ?? new List<string>();
+
+                if (!QualifiesForAchievement(
+                        deal.Status,
+                        historyStages,
+                        qualifyingNames,
+                        closedWonNames))
                 {
                     continue;
                 }
@@ -136,6 +112,7 @@ namespace CRM.Helpers
                 var achievementDate = ResolveAchievementDate(
                     deal,
                     qualifyingNames,
+                    closedWonNames,
                     historyByDeal);
 
                 if (achievementDate >= startDate && achievementDate <= endDate)
@@ -147,19 +124,46 @@ namespace CRM.Helpers
             return total;
         }
 
+        private static bool QualifiesForAchievement(
+            string currentStatus,
+            IReadOnlyList<string> historyStages,
+            HashSet<string> qualifyingNames,
+            HashSet<string> closedWonNames)
+        {
+            foreach (var milestone in qualifyingNames)
+            {
+                if (DealStageMilestoneRules.HasReachedStage(currentStatus, historyStages, milestone))
+                {
+                    return true;
+                }
+            }
+
+            if (closedWonNames.Count == 0)
+            {
+                return false;
+            }
+
+            if (closedWonNames.Contains(currentStatus.Trim()))
+            {
+                return true;
+            }
+
+            return historyStages.Any(h => closedWonNames.Contains(h.Trim()));
+        }
+
         private static DateOnly ResolveAchievementDate(
             DealRow deal,
             HashSet<string> qualifyingNames,
+            HashSet<string> closedWonNames,
             IReadOnlyDictionary<int, List<HistoryRow>> historyByDeal)
         {
             if (historyByDeal.TryGetValue(deal.Id, out var rows))
             {
                 var milestoneDates = rows
-                    .Where(h => qualifyingNames.Contains(h.NewStage.Trim()))
-                    .Select(h => DateOnly.FromDateTime(
-                        h.ChangedAt.Kind == DateTimeKind.Utc
-                            ? h.ChangedAt
-                            : DateTime.SpecifyKind(h.ChangedAt, DateTimeKind.Utc)))
+                    .Where(h =>
+                        qualifyingNames.Contains(h.NewStage.Trim())
+                        || closedWonNames.Contains(h.NewStage.Trim()))
+                    .Select(h => ToDateOnly(h.ChangedAt))
                     .OrderBy(d => d)
                     .ToList();
 
@@ -169,10 +173,15 @@ namespace CRM.Helpers
                 }
             }
 
-            var updated = deal.UpdatedAt.Kind == DateTimeKind.Utc
-                ? deal.UpdatedAt
-                : DateTime.SpecifyKind(deal.UpdatedAt, DateTimeKind.Utc);
-            return DateOnly.FromDateTime(updated);
+            return ToDateOnly(deal.UpdatedAt);
+        }
+
+        private static DateOnly ToDateOnly(DateTime dt)
+        {
+            var utc = dt.Kind == DateTimeKind.Utc
+                ? dt
+                : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            return DateOnly.FromDateTime(utc);
         }
     }
 }

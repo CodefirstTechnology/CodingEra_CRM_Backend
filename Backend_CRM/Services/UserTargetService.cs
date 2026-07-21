@@ -81,6 +81,8 @@ namespace CRM.Services
             bool includeInactive,
             CancellationToken cancellationToken = default)
         {
+            await RefreshAchievementsAsync(filterUserId, cancellationToken);
+
             var q = BuildTargetQuery(includeInactive);
             if (filterUserId is > 0)
             {
@@ -99,6 +101,8 @@ namespace CRM.Services
             UserTargetMonitorQueryDto query,
             CancellationToken cancellationToken = default)
         {
+            await RefreshAchievementsAsync(query.UserId, cancellationToken);
+
             var q = BuildTargetQuery(includeInactive: true);
 
             if (query.UserId is > 0)
@@ -162,6 +166,8 @@ namespace CRM.Services
             int userId,
             CancellationToken cancellationToken = default)
         {
+            await RefreshAchievementsAsync(userId, cancellationToken);
+
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var rows = await _db.UserTargets.AsNoTracking()
                 .Include(t => t.TargetType)
@@ -307,7 +313,7 @@ namespace CRM.Services
         {
             var deal = await _db.Deals.AsNoTracking()
                 .Where(d => d.Id == dealId)
-                .Select(d => new { d.DealOwnerId })
+                .Select(d => new { d.DealOwnerId, d.AssignedToUserId })
                 .FirstOrDefaultAsync(cancellationToken);
 
             var userIds = new HashSet<int>();
@@ -321,9 +327,31 @@ namespace CRM.Services
                 userIds.Add(deal.DealOwnerId.Value);
             }
 
+            if (deal?.AssignedToUserId is > 0)
+            {
+                userIds.Add(deal.AssignedToUserId.Value);
+            }
+
             foreach (var userId in userIds)
             {
                 await RecalculateForUserAsync(userId, cancellationToken);
+            }
+        }
+
+        private async Task RefreshAchievementsAsync(
+            int? filterUserId,
+            CancellationToken cancellationToken)
+        {
+            var q = _db.UserTargets.AsQueryable();
+            if (filterUserId is > 0)
+            {
+                q = q.Where(t => t.UserId == filterUserId);
+            }
+
+            var targetIds = await q.Select(t => t.Id).ToListAsync(cancellationToken);
+            foreach (var targetId in targetIds)
+            {
+                await RecalculateTargetAsync(targetId, cancellationToken);
             }
         }
 
