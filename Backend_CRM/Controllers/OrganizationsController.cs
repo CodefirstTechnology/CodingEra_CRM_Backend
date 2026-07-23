@@ -22,10 +22,33 @@ namespace CRM.Controllers
             q.Include(o => o.Industry).Include(o => o.EmployeeCount).Include(o => o.Territory);
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int userId)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int userId,
+            [FromQuery] string? search = null,
+            [FromQuery] int limit = 20)
         {
             _ = userId;
-            return Ok(await QueryWithMasters(_context.Organizations.AsNoTracking()).OrderBy(o => o.Name).ToListAsync());
+            var q = QueryWithMasters(_context.Organizations.AsNoTracking());
+            var term = search?.Trim();
+            if (!string.IsNullOrWhiteSpace(term) && term.Length >= 2)
+            {
+                var pattern = $"%{term}%";
+                q = q.Where(o =>
+                    EF.Functions.ILike(o.Name, pattern)
+                    || EF.Functions.ILike(o.Gst, pattern)
+                    || EF.Functions.ILike(o.Website, pattern)
+                    || _context.Contacts.Any(c =>
+                        c.OrganizationId == o.Id && EF.Functions.ILike(c.Phone, pattern)));
+            }
+
+            q = q.OrderBy(o => o.Name);
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                var take = Math.Clamp(limit, 1, 50);
+                q = q.Take(take);
+            }
+
+            return Ok(await q.ToListAsync());
         }
 
         [HttpGet("{id:int}")]
