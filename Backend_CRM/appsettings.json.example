@@ -1,0 +1,43 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=CRM;User Id=postgres;Password=YOUR_PASSWORD_HERE;"
+  },
+  "Database": {
+    "AutoMigrateOnStartup": true,
+    "AutoMigrateOnBuild": true
+  },
+  "Smtp": {
+    "Host": "",
+    "Port": 587,
+    "Username": "",
+    "Password": "",
+    "FromEmail": "",
+    "FromName": "CodingEra CRM"
+  },
+  "LeadSync": {
+    "IndiaMart": {
+      "PullApiUrl": "",
+      "ApiKey": ""
+    }
+  },
+  "JustdialWebhook": {
+    "Enabled": true,
+    "ApiKey": "",
+    "RequireApiKey": false,
+    "ApiKeyHeaderName": "X-Api-Key",
+    "AllowApiKeyQueryParameter": true,
+    "ApiKeyQueryParameterName": "api_key",
+    "RequireIpWhitelist": false,
+    "AllowedIpAddresses": [],
+    "EnableDetailedPayloadLogging": false,
+    "MaxRequestBodyBytes": 65536,
+    "ProcessingTimeoutSeconds": 30,
+    "CorrelationIdHeaderName": "X-Correlation-Id"
+  }
+}
