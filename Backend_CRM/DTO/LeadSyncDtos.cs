@@ -49,6 +49,8 @@ namespace CRM.DTO
         public int SourceId { get; set; }
         public string Code { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
+        /// <summary>Value stored on <c>leads.lead_source</c> for this marketplace.</summary>
+        public string MarkerName { get; set; } = string.Empty;
         public string SyncButtonLabel { get; set; } = string.Empty;
         public bool ApiIntegrationReady { get; set; }
         public bool AutoSyncEnabled { get; set; }
