@@ -150,6 +150,7 @@ namespace CRM.Services
                 SourceId = s.Id,
                 Code = s.Code,
                 DisplayName = s.DisplayName,
+                MarkerName = s.MarkerName,
                 SyncButtonLabel = $"Sync {s.DisplayName}",
                 ApiIntegrationReady = IsSourceConfigured(s),
                 AutoSyncEnabled = s.Config?.AutoSyncEnabled ?? false,
