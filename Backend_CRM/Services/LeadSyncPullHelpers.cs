@@ -35,11 +35,15 @@ namespace CRM.Services
                     return value.EnumerateArray().ToList();
                 }
 
-                if (value.ValueKind == JsonValueKind.Object
-                    && value.TryGetProperty("DATA", out var nested)
-                    && nested.ValueKind == JsonValueKind.Array)
+                if (value.ValueKind == JsonValueKind.Object)
                 {
-                    return nested.EnumerateArray().ToList();
+                    if (TryGetPropertyIgnoreCase(value, "DATA", out var nested)
+                        && nested.ValueKind == JsonValueKind.Array)
+                    {
+                        return nested.EnumerateArray().ToList();
+                    }
+
+                    return new List<JsonElement> { value };
                 }
             }
 
@@ -48,9 +52,14 @@ namespace CRM.Services
 
         public static string PickString(JsonElement row, params string[] names)
         {
+            if (row.ValueKind != JsonValueKind.Object)
+            {
+                return string.Empty;
+            }
+
             foreach (var name in names)
             {
-                if (!row.TryGetProperty(name, out var value))
+                if (!TryGetPropertyIgnoreCase(row, name, out var value))
                 {
                     continue;
                 }
@@ -71,27 +80,55 @@ namespace CRM.Services
             return string.Empty;
         }
 
+        private static bool TryGetPropertyIgnoreCase(JsonElement obj, string name, out JsonElement value)
+        {
+            if (obj.TryGetProperty(name, out value))
+            {
+                return true;
+            }
+
+            foreach (var prop in obj.EnumerateObject())
+            {
+                if (string.Equals(prop.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = prop.Value;
+                    return true;
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
         public static LeadSyncIncomingLead? MapGenericMarketplaceRow(
             JsonElement row,
             string markerName,
             string defaultSourceLabel)
         {
+            // IndiaMART Pull API v2 uses SENDER_NAME / SENDER_MOBILE / SENDER_EMAIL (underscores).
             var customerName = PickString(row,
-                "SENDERNAME", "sendername", "name", "customerName", "customer_name",
-                "customer", "contact_name", "buyer_name", "sender_name", "lead_name", "caller_name");
+                "SENDER_NAME", "SENDERNAME", "sender_name", "sendername", "name",
+                "customerName", "customer_name", "customer", "contact_name", "buyer_name",
+                "lead_name", "caller_name");
             var mobile = PickString(row,
-                "SENDERMOBILE", "MOBILE", "mobile", "phone", "Phone", "contact_number",
-                "phone_number", "mobile_number", "sender_mobile", "caller_number");
+                "SENDER_MOBILE", "SENDERMOBILE", "sender_mobile", "MOBILE", "MOB", "mobile",
+                "phone", "Phone", "contact_number", "phone_number", "mobile_number",
+                "caller_number", "SENDER_MOBILE_ALT", "MOBILE_ALT");
             var email = PickString(row,
-                "SENDEREMAIL", "email", "Email", "EMAIL", "buyer_email", "sender_email", "contact_email");
+                "SENDER_EMAIL", "SENDEREMAIL", "sender_email", "email", "Email", "EMAIL",
+                "buyer_email", "contact_email", "EMAIL_ALT", "SENDER_EMAIL_ALT");
             var city = PickString(row,
-                "SENDER_CITY", "city", "City", "location", "Location", "area", "locality", "customer_city");
+                "SENDER_CITY", "SENDERCITY", "sender_city", "ENQ_CITY", "city", "City",
+                "location", "Location", "area", "locality", "customer_city");
+            var company = PickString(row,
+                "SENDER_COMPANY", "SENDERCOMPANY", "sender_company", "sender_co", "SENDER_CO",
+                "GLUSR_USR_COMPANYNAME", "company", "company_name", "Company Name", "organization");
             var requirement = PickString(row,
-                "QUERY_MESSAGE", "SUBJECT", "requirement", "message", "Message", "query",
-                "remarks", "comments", "description", "enquiry_text", "inquiry_text");
+                "QUERY_MESSAGE", "ENQ_MESSAGE", "SUBJECT", "requirement", "message", "Message",
+                "query", "remarks", "comments", "description", "enquiry_text", "inquiry_text");
             var product = PickString(row,
-                "PRODUCT_NAME", "product", "Product", "product_name", "service", "Service",
-                "category", "requirement_for", "subject", "business_category");
+                "QUERY_PRODUCT_NAME", "PRODUCT_NAME", "product", "Product", "product_name",
+                "service", "Service", "category", "requirement_for", "subject", "business_category");
             if (string.IsNullOrWhiteSpace(product) && !string.IsNullOrWhiteSpace(requirement))
             {
                 product = requirement.Length > 120 ? requirement[..120] : requirement;
@@ -129,6 +166,11 @@ namespace CRM.Services
                 notesLines.Add($"Product: {product}");
             }
 
+            if (!string.IsNullOrWhiteSpace(company))
+            {
+                notesLines.Add($"Company: {company}");
+            }
+
             if (!string.IsNullOrWhiteSpace(city))
             {
                 notesLines.Add($"City: {city}");
@@ -144,6 +186,7 @@ namespace CRM.Services
                 Email = email,
                 Mobile = mobile,
                 Requirement = requirement,
+                OrganizationName = string.IsNullOrWhiteSpace(company) ? null : company,
                 Notes = string.Join('\n', notesLines),
             };
         }
@@ -368,12 +411,19 @@ namespace CRM.Services
                 return "Unexpected IndiaMART response.";
             }
 
-            if (body.TryGetProperty("STATUS", out var status) && status.ValueKind == JsonValueKind.String)
+            if (TryGetPropertyIgnoreCase(body, "STATUS", out var status)
+                && status.ValueKind == JsonValueKind.String)
             {
                 var s = status.GetString()?.Trim();
                 if (!string.Equals(s, "SUCCESS", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (body.TryGetProperty("MESSAGE", out var msg))
+                    // CODE 204 = no leads in the requested window (empty result, not a hard failure).
+                    if (IsIndiaMartNoLeadsCode(body))
+                    {
+                        return null;
+                    }
+
+                    if (TryGetPropertyIgnoreCase(body, "MESSAGE", out var msg))
                     {
                         return msg.GetString() ?? s;
                     }
@@ -385,33 +435,104 @@ namespace CRM.Services
             return null;
         }
 
-        public static (string start_time, string end_time) GetTodayIstPullTimeRange()
+        private static bool IsIndiaMartNoLeadsCode(JsonElement body)
         {
-            var parts = CultureInfo.InvariantCulture.DateTimeFormat;
+            if (!TryGetPropertyIgnoreCase(body, "CODE", out var code))
+            {
+                return false;
+            }
+
+            if (code.ValueKind == JsonValueKind.Number && code.TryGetInt32(out var n))
+            {
+                return n == 204;
+            }
+
+            return code.ValueKind == JsonValueKind.String
+                && string.Equals(code.GetString()?.Trim(), "204", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// IndiaMART Pull API max window is 7 days. Use IST timestamps like
+        /// <c>21-Jul-202600:00:00</c> … <c>27-Jul-202623:59:59</c> (official format).
+        /// </summary>
+        public static (string start_time, string end_time) GetIndiaMartPullTimeRange(int lookbackDays = 7)
+        {
+            var days = Math.Clamp(lookbackDays, 1, 7);
             var ist = TimeZoneInfo.FindSystemTimeZoneById(
                 OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata");
             var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ist);
-            var day = now.ToString("dd", CultureInfo.InvariantCulture);
-            var month = now.ToString("MMM", CultureInfo.InvariantCulture);
-            var year = now.ToString("yyyy", CultureInfo.InvariantCulture);
-            return (
-                $"{day}-{month}-{year}00:00:00",
-                $"{day}-{month}-{year}23:59:59");
+            var start = now.Date.AddDays(-(days - 1));
+            var end = now.Date.AddDays(1).AddSeconds(-1);
+            return (FormatIndiaMartTimestamp(start), FormatIndiaMartTimestamp(end));
+        }
+
+        public static (string start_time, string end_time) GetTodayIstPullTimeRange() =>
+            GetIndiaMartPullTimeRange(1);
+
+        private static string FormatIndiaMartTimestamp(DateTime istLocal)
+        {
+            var day = istLocal.ToString("dd", CultureInfo.InvariantCulture);
+            var month = istLocal.ToString("MMM", CultureInfo.InvariantCulture);
+            var year = istLocal.ToString("yyyy", CultureInfo.InvariantCulture);
+            var time = istLocal.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+            return $"{day}-{month}-{year}{time}";
+        }
+
+        public static string DescribeIndiaMartResponse(JsonElement body, int rawCount, int mappedCount)
+        {
+            var code = PickString(body, "CODE");
+            var status = PickString(body, "STATUS");
+            var message = PickString(body, "MESSAGE");
+            var total = PickString(body, "TOTAL_RECORDS", "TOTAL_COUNT");
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(status)) parts.Add($"STATUS={status}");
+            if (!string.IsNullOrWhiteSpace(code)) parts.Add($"CODE={code}");
+            if (!string.IsNullOrWhiteSpace(total)) parts.Add($"TOTAL_RECORDS={total}");
+            parts.Add($"raw={rawCount}");
+            parts.Add($"mapped={mappedCount}");
+            if (!string.IsNullOrWhiteSpace(message)) parts.Add(message);
+            return string.Join("; ", parts);
         }
 
         public static string BuildIndiaMartPullUrl(LeadSyncResolvedCredentials credentials)
         {
             var baseUrl = credentials.PullApiUrl.Trim();
             var key = credentials.ApiKey.Trim();
-            var url = baseUrl;
-            if (!url.Contains("glusr_crm_key=", StringComparison.OrdinalIgnoreCase))
+
+            // Drop stale query params so we always send the current key + 7-day window.
+            var url = StripQueryParams(baseUrl, "glusr_crm_key", "start_time", "end_time");
+            var separator = url.Contains('?') ? '&' : '?';
+            url = $"{url}{separator}glusr_crm_key={Uri.EscapeDataString(key)}";
+
+            var (startTime, endTime) = GetIndiaMartPullTimeRange(7);
+            return AppendQueryParam(AppendQueryParam(url, "start_time", startTime), "end_time", endTime);
+        }
+
+        private static string StripQueryParams(string url, params string[] names)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             {
-                var separator = url.Contains('?') ? '&' : '?';
-                url = $"{url}{separator}glusr_crm_key={Uri.EscapeDataString(key)}";
+                return url;
             }
 
-            var (startTime, endTime) = GetTodayIstPullTimeRange();
-            return AppendQueryParam(AppendQueryParam(url, "start_time", startTime), "end_time", endTime);
+            var query = ParseQuery(uri.Query);
+            foreach (var name in names)
+            {
+                query.Remove(name);
+            }
+
+            var builder = new UriBuilder(uri) { Fragment = string.Empty };
+            if (query.Count == 0)
+            {
+                builder.Query = string.Empty;
+                return builder.Uri.GetLeftPart(UriPartial.Path);
+            }
+
+            builder.Query = string.Join(
+                '&',
+                query.Select(kv =>
+                    $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+            return builder.Uri.ToString();
         }
 
         public static string BuildBearerPullUrl(LeadSyncResolvedCredentials credentials)

@@ -15,6 +15,7 @@ namespace CRM.Controllers
         private readonly TaskDbcontext _context;
         private readonly ILeadImportService _leadImportService;
         private readonly ILeadImportFileParser _leadImportFileParser;
+        private readonly ILeadExportService _leadExportService;
         private readonly IRbacService _rbac;
         private readonly ILeadSyncRoundRobinService _leadSyncRoundRobin;
 
@@ -22,78 +23,57 @@ namespace CRM.Controllers
             TaskDbcontext context,
             ILeadImportService leadImportService,
             ILeadImportFileParser leadImportFileParser,
+            ILeadExportService leadExportService,
             IRbacService rbac,
             ILeadSyncRoundRobinService leadSyncRoundRobin)
         {
             _context = context;
             _leadImportService = leadImportService;
             _leadImportFileParser = leadImportFileParser;
+            _leadExportService = leadExportService;
             _rbac = rbac;
             _leadSyncRoundRobin = leadSyncRoundRobin;
         }
 
         private static IQueryable<Lead> QueryWithMasters(IQueryable<Lead> q) =>
-            q.Include(l => l.Salutation)
-                .Include(l => l.LeadStatus)
-                .Include(l => l.RequestType)
-                .Include(l => l.LeadOwner)
-                .Include(l => l.Organization)
-                .ThenInclude(o => o!.Industry)
-                .Include(l => l.Organization)
-                .ThenInclude(o => o!.EmployeeCount)
-                .Include(l => l.Organization)
-                .ThenInclude(o => o!.Territory);
+            LeadQueryFilterHelper.QueryWithMasters(q);
 
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] int userId,
             [FromQuery] string? leadSource = null,
             [FromQuery] string? status = null,
-            [FromQuery] int? leadOwnerId = null)
+            [FromQuery] int? leadOwnerId = null,
+            [FromQuery] string? search = null)
         {
             var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
             if (permErr != null) return permErr;
             IQueryable<Lead> q = QueryWithMasters(_context.Leads.AsNoTracking());
             q = await RbacRecordScopeHelper.ApplyLeadOwnerScopeAsync(_context, _rbac, userId, "leads", q);
-
-            if (leadOwnerId is > 0 && await _rbac.IsAdminUserAsync(userId))
-            {
-                q = q.Where(l => l.LeadOwnerId == leadOwnerId);
-            }
-
-            if (!string.IsNullOrWhiteSpace(leadSource))
-            {
-                q = q.Where(l => l.LeadSource == leadSource);
-            }
-
-            if (!string.IsNullOrWhiteSpace(status))
-            {
-                if (int.TryParse(status, out var statusId))
-                {
-                    q = q.Where(l => l.LeadStatusId == statusId);
-                }
-                else
-                {
-                    var st = status.Trim();
-                    var names = (await LeadStatusMovedToDealSeed.ConversionStatusLookupNamesAsync(_context, st))
-                        .Select(n => n.ToLowerInvariant())
-                        .ToList();
-
-                    // Also match by conversion flag when filtering for that status.
-                    var matchConversionFlag =
-                        LeadStatusMovedToDealSeed.IsConversionStatusName(st) ||
-                        await _context.LeadStatuses.AsNoTracking().AnyAsync(ls =>
-                            ls.IsConversionStatus && ls.Name.ToLower() == st.ToLower());
-
-                    q = q.Where(l =>
-                        _context.LeadStatuses.Any(ls =>
-                            ls.Id == l.LeadStatusId &&
-                            (names.Contains(ls.Name.ToLower()) ||
-                             (matchConversionFlag && ls.IsConversionStatus))));
-                }
-            }
+            q = await LeadQueryFilterHelper.ApplyListFiltersAsync(
+                _context, _rbac, userId, q, leadSource, status, leadOwnerId, search);
 
             return Ok(await q.OrderByDescending(l => l.UpdatedAt).AsSplitQuery().ToListAsync());
+        }
+
+        /// <summary>Exports filtered leads to Excel (.xlsx). Requires <c>leads.export</c>.</summary>
+        [HttpPost("export")]
+        public async Task<IActionResult> Export([FromQuery] int userId, [FromBody] LeadExportRequestDto request)
+        {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.export");
+            if (permErr != null) return permErr;
+
+            var (content, fileName, error) = await _leadExportService.ExportAsync(
+                userId, request ?? new LeadExportRequestDto(), HttpContext.RequestAborted);
+            if (error != null)
+            {
+                return BadRequest(error);
+            }
+
+            return File(
+                content,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
         }
 
         [HttpGet("{id:int}")]
