@@ -132,7 +132,7 @@ namespace CRM.Helpers
             {
                 ("indiamart", "IndiaMART", "IndiaMART", 1),
                 ("justdial", "Justdial", "Justdial", 2),
-                ("tradeindia", "TradeIndia", "TradeIndia", 3),
+                ("tradeindia", "Tradeindia", "TradeIndia", 3),
             };
 
             foreach (var seed in seeds)
