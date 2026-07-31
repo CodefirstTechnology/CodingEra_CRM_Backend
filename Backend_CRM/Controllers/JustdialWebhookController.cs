@@ -62,13 +62,14 @@ namespace CRM.Controllers
         ///       "city": "Pune",
         ///       "area": "Kothrud",
         ///       "brancharea": "West",
-        ///       "dncmobile": "0",
-        ///       "dncphone": "0",
+        ///       "dncmobile": 0,
+        ///       "dncphone": 0,
         ///       "company": "Codefirst Test Co",
         ///       "pincode": "411038",
         ///       "time": "17:00",
         ///       "branchpin": "411001",
-        ///       "parentid": "0"
+        ///       "parentid": "0",
+        ///       "state": "Maharashtra"
         ///     }
         ///
         /// </remarks>

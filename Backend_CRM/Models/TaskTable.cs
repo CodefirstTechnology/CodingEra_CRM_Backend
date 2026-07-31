@@ -13,6 +13,8 @@ namespace CRM.models
 
         public string TaskTitle { get; set; } = string.Empty;
 
+        public string DailyImprovement { get; set; } = string.Empty;
+
         public string TaskDescription { get; set; } = string.Empty;
 
         public string TaskStatus { get; set; } = string.Empty;
