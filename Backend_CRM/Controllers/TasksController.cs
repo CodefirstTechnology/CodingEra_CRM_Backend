@@ -57,6 +57,11 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
+            if (string.IsNullOrWhiteSpace(dto.DailyImprovement))
+            {
+                return BadRequest("Daily Improvement is required.");
+            }
+
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
             if (auditErr != null)
             {
@@ -80,6 +85,11 @@ namespace CRM.Controllers
             if (dto == null)
             {
                 return BadRequest();
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.DailyImprovement))
+            {
+                return BadRequest("Daily Improvement is required.");
             }
 
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);

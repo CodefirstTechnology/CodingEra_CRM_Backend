@@ -142,6 +142,7 @@ namespace CRM.DTO
     {
         public int TaskId { get; set; }
         public string TaskTitle { get; set; } = string.Empty;
+        public string DailyImprovement { get; set; } = string.Empty;
         public string TaskDescription { get; set; } = string.Empty;
         public string TaskStatus { get; set; } = string.Empty;
         public string TaskAssignee { get; set; } = string.Empty;
@@ -313,6 +314,7 @@ namespace CRM.DTO
         {
             TaskId = taskId,
             TaskTitle = d.TaskTitle ?? string.Empty,
+            DailyImprovement = d.DailyImprovement ?? string.Empty,
             TaskDescription = d.TaskDescription ?? string.Empty,
             TaskStatus = d.TaskStatus ?? string.Empty,
             TaskAssignee = d.TaskAssignee ?? string.Empty,
@@ -326,6 +328,7 @@ namespace CRM.DTO
         public static void Apply(TaskTable e, TaskUpsertDto d)
         {
             e.TaskTitle = d.TaskTitle ?? string.Empty;
+            e.DailyImprovement = d.DailyImprovement ?? string.Empty;
             e.TaskDescription = d.TaskDescription ?? string.Empty;
             e.TaskStatus = d.TaskStatus ?? string.Empty;
             e.TaskAssignee = d.TaskAssignee ?? string.Empty;
