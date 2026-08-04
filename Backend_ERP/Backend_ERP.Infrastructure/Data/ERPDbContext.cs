@@ -19,6 +19,16 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<SalesOrderDocumentSequence> SalesOrderDocumentSequences => Set<SalesOrderDocumentSequence>();
 
+        public DbSet<ProformaInvoice> ProformaInvoices => Set<ProformaInvoice>();
+
+        public DbSet<ProformaInvoiceItem> ProformaInvoiceItems => Set<ProformaInvoiceItem>();
+
+        public DbSet<ProformaInvoiceStatusHistory> ProformaInvoiceStatusHistories => Set<ProformaInvoiceStatusHistory>();
+
+        public DbSet<ProformaInvoiceApprovalHistory> ProformaInvoiceApprovalHistories => Set<ProformaInvoiceApprovalHistory>();
+
+        public DbSet<ProformaInvoiceDocumentSequence> ProformaInvoiceDocumentSequences => Set<ProformaInvoiceDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

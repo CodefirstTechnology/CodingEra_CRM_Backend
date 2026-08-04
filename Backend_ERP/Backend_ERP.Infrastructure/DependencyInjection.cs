@@ -18,6 +18,8 @@ namespace ERP.Infrastructure
                     configuration.GetConnectionString("DefaultConnection")));
 
             services.AddScoped<ISalesOrderService, SalesOrderService>();
+            services.AddScoped<IProformaInvoiceRepository, ProformaInvoiceRepository>();
+            services.AddScoped<IProformaInvoiceService, ProformaInvoiceService>();
 
             return services;
         }
