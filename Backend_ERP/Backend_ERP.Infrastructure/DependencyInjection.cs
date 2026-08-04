@@ -1,4 +1,6 @@
+using ERP.Application.Sales;
 using ERP.Infrastructure.Data;
+using ERP.Infrastructure.Sales;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +16,8 @@ namespace ERP.Infrastructure
             services.AddDbContext<ERPDbContext>(options =>
                 options.UseNpgsql(
                     configuration.GetConnectionString("DefaultConnection")));
+
+            services.AddScoped<ISalesOrderService, SalesOrderService>();
 
             return services;
         }

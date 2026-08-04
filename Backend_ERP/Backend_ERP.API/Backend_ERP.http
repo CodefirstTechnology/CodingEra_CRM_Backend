@@ -3,3 +3,69 @@
 ### Health check
 GET {{Backend_ERP_API_Host}}/api/health
 Accept: application/json
+
+### List sales orders
+GET {{Backend_ERP_API_Host}}/api/sales-orders?userId=1
+Accept: application/json
+
+### Create sales order
+POST {{Backend_ERP_API_Host}}/api/sales-orders?userId=1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "orderDate": "2026-08-04",
+  "paymentTerms": "Net 30",
+  "deliveryTerms": "Ex-Works",
+  "salesPerson": "Asha",
+  "sourceType": "Manual",
+  "customer": {
+    "customerName": "Acme Steel",
+    "contactPerson": "Riya",
+    "billingAddress": "Pune",
+    "shippingAddress": "Pune",
+    "customerEmail": "riya@acme.test",
+    "customerPhone": "9876543210"
+  },
+  "items": [
+    {
+      "id": "line-1",
+      "itemName": "ISMB 200",
+      "description": "Mild steel beam",
+      "quantity": 2,
+      "unit": "Nos",
+      "rate": 1000,
+      "discount": 10,
+      "gst": 18,
+      "amount": 0
+    }
+  ],
+  "status": "Draft"
+}
+
+### Get sales order by id
+GET {{Backend_ERP_API_Host}}/api/sales-orders/1?userId=1
+Accept: application/json
+
+### Update status
+POST {{Backend_ERP_API_Host}}/api/sales-orders/1/status?userId=1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "status": "Submitted",
+  "remarks": "Ready for confirmation"
+}
+
+### Status history
+GET {{Backend_ERP_API_Host}}/api/sales-orders/1/status-history?userId=1
+Accept: application/json
+
+### Cancel
+POST {{Backend_ERP_API_Host}}/api/sales-orders/1/cancel?userId=1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "remarks": "Customer cancelled"
+}
