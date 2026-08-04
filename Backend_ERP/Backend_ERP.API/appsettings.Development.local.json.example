@@ -1,0 +1,9 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=ERP;Username=postgres;Password=YOUR_PASSWORD_HERE"
+  },
+  "Database": {
+    "AutoMigrateOnStartup": true,
+    "AutoMigrateOnBuild": true
+  }
+}

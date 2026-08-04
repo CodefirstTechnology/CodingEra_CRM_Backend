@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Backend_ERP.Domain\Backend_ERP.Domain.csproj" />
+    <ProjectReference Include="..\Backend_ERP.Shared\Backend_ERP.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

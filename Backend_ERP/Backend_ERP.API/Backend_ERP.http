@@ -1,0 +1,5 @@
+@Backend_ERP_API_Host=http://localhost:5160
+
+### Health check
+GET {{Backend_ERP_API_Host}}/api/health
+Accept: application/json
