@@ -29,6 +29,14 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ProformaInvoiceDocumentSequence> ProformaInvoiceDocumentSequences => Set<ProformaInvoiceDocumentSequence>();
 
+        public DbSet<AdvancePayment> AdvancePayments => Set<AdvancePayment>();
+
+        public DbSet<AdvancePaymentApplication> AdvancePaymentApplications => Set<AdvancePaymentApplication>();
+
+        public DbSet<AdvancePaymentTimeline> AdvancePaymentTimelines => Set<AdvancePaymentTimeline>();
+
+        public DbSet<AdvancePaymentDocumentSequence> AdvancePaymentDocumentSequences => Set<AdvancePaymentDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

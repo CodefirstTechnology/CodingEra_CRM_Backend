@@ -20,6 +20,9 @@ namespace ERP.Infrastructure
             services.AddScoped<ISalesOrderService, SalesOrderService>();
             services.AddScoped<IProformaInvoiceRepository, ProformaInvoiceRepository>();
             services.AddScoped<IProformaInvoiceService, ProformaInvoiceService>();
+            services.AddScoped<IAdvancePaymentNumberingService, AdvancePaymentNumberingService>();
+            services.AddScoped<IAdvancePaymentRepository, AdvancePaymentRepository>();
+            services.AddScoped<IAdvancePaymentService, AdvancePaymentService>();
 
             return services;
         }
