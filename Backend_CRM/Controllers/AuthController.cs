@@ -217,6 +217,54 @@ namespace CRM.Controllers
         }
 
         /// <summary>
+        /// Changes the acting user's password after verifying their current password.
+        /// </summary>
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromQuery] int userId, [FromBody] ChangePasswordRequest req)
+        {
+            if (req == null
+                || string.IsNullOrWhiteSpace(req.CurrentPassword)
+                || string.IsNullOrWhiteSpace(req.NewPassword))
+            {
+                return BadRequest("Current password and new password are required.");
+            }
+
+            if (userId <= 0)
+            {
+                return BadRequest("A valid acting user id is required.");
+            }
+
+            var newPassword = req.NewPassword;
+            if (newPassword.Length < 6 || newPassword.Length > 200)
+            {
+                return BadRequest("New password must be between 6 and 200 characters.");
+            }
+
+            if (string.Equals(req.CurrentPassword, newPassword, StringComparison.Ordinal))
+            {
+                return BadRequest("New password must be different from the current password.");
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null || !user.IsActive)
+            {
+                return Unauthorized("Your session is invalid.");
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.PasswordHash))
+            {
+                return Unauthorized("Incorrect current password.");
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password updated successfully." });
+        }
+
+        /// <summary>
         /// Deletes a CRM user after the acting admin verifies their own password.
         /// </summary>
         [HttpDelete("users/{id:int}")]
