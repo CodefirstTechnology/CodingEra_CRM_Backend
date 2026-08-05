@@ -37,6 +37,16 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<AdvancePaymentDocumentSequence> AdvancePaymentDocumentSequences => Set<AdvancePaymentDocumentSequence>();
 
+        public DbSet<SalesTarget> SalesTargets => Set<SalesTarget>();
+
+        public DbSet<SalesTargetAssignment> SalesTargetAssignments => Set<SalesTargetAssignment>();
+
+        public DbSet<SalesTargetProgressHistory> SalesTargetProgressHistories => Set<SalesTargetProgressHistory>();
+
+        public DbSet<SalesTargetStatusHistory> SalesTargetStatusHistories => Set<SalesTargetStatusHistory>();
+
+        public DbSet<SalesTargetDocumentSequence> SalesTargetDocumentSequences => Set<SalesTargetDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
