@@ -47,6 +47,12 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<SalesTargetDocumentSequence> SalesTargetDocumentSequences => Set<SalesTargetDocumentSequence>();
 
+        public DbSet<PerformanceSnapshot> PerformanceSnapshots => Set<PerformanceSnapshot>();
+
+        public DbSet<PerformanceHistory> PerformanceHistory => Set<PerformanceHistory>();
+
+        public DbSet<PerformanceExportHistory> PerformanceExportHistory => Set<PerformanceExportHistory>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
