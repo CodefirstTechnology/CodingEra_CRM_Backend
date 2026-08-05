@@ -28,6 +28,9 @@ namespace ERP.Infrastructure
             services.AddScoped<ISalesTargetService, SalesTargetService>();
             services.AddScoped<IPerformanceRepository, PerformanceRepository>();
             services.AddScoped<IPerformanceService, PerformanceService>();
+            services.AddScoped<IPriceListNumberingService, PriceListNumberingService>();
+            services.AddScoped<IPriceListRepository, PriceListRepository>();
+            services.AddScoped<IPriceListService, PriceListService>();
 
             return services;
         }

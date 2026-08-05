@@ -53,6 +53,14 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<PerformanceExportHistory> PerformanceExportHistory => Set<PerformanceExportHistory>();
 
+        public DbSet<PriceList> PriceLists => Set<PriceList>();
+
+        public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
+
+        public DbSet<PriceListHistory> PriceListHistories => Set<PriceListHistory>();
+
+        public DbSet<PriceListDocumentSequence> PriceListDocumentSequences => Set<PriceListDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
