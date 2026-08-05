@@ -16,17 +16,20 @@ namespace CRM.Controllers
         private readonly ILogger<DealsController> _logger;
         private readonly IRbacService _rbac;
         private readonly IUserTargetService _userTargets;
+        private readonly IDealExportService _dealExportService;
 
         public DealsController(
             TaskDbcontext context,
             ILogger<DealsController> logger,
             IRbacService rbac,
-            IUserTargetService userTargets)
+            IUserTargetService userTargets,
+            IDealExportService dealExportService)
         {
             _context = context;
             _logger = logger;
             _rbac = rbac;
             _userTargets = userTargets;
+            _dealExportService = dealExportService;
         }
 
         [HttpGet]
@@ -56,6 +59,26 @@ namespace CRM.Controllers
             var deals = await q.OrderByDescending(d => d.LastModified).ToListAsync();
             await DealAmountHelper.ApplyLatestQuotationAmountsAsync(_context, deals);
             return Ok(deals);
+        }
+
+        /// <summary>Exports filtered deals to Excel (.xlsx). Requires <c>deals.export</c>.</summary>
+        [HttpPost("export")]
+        public async Task<IActionResult> Export([FromQuery] int userId, [FromBody] DealExportRequestDto request)
+        {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "deals.export");
+            if (permErr != null) return permErr;
+
+            var (content, fileName, error) = await _dealExportService.ExportAsync(
+                userId, request ?? new DealExportRequestDto(), HttpContext.RequestAborted);
+            if (error != null)
+            {
+                return BadRequest(error);
+            }
+
+            return File(
+                content,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
         }
 
         [HttpGet("{id:int}")]

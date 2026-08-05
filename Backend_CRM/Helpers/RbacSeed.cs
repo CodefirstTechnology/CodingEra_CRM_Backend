@@ -40,6 +40,7 @@ namespace CRM.Helpers
                 ("deals", "assign", "deals.assign", "Assign deals"),
                 ("deals", "self_assign", "deals.self_assign", "Self-assign deal owner on manual create"),
                 ("deals", "change_status", "deals.change_status", "Change deal status"),
+                ("deals", "export", "deals.export", "Export deals"),
                 ("contacts", "view", "contacts.view", "View contacts"),
                 ("contacts", "create", "contacts.create", "Create contacts"),
                 ("contacts", "edit", "contacts.edit", "Edit contacts"),

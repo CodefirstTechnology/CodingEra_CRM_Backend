@@ -29,6 +29,14 @@ namespace CRM.DTO
         public string Password { get; set; } = string.Empty;
     }
 
+    /// <summary>Authenticated user changes their own password (must know current password).</summary>
+    public class ChangePasswordRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
     public class UserSessionDto
     {
         public int Id { get; set; }
