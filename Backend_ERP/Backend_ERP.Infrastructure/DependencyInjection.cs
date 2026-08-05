@@ -31,6 +31,9 @@ namespace ERP.Infrastructure
             services.AddScoped<IPriceListNumberingService, PriceListNumberingService>();
             services.AddScoped<IPriceListRepository, PriceListRepository>();
             services.AddScoped<IPriceListService, PriceListService>();
+            services.AddScoped<IDiscountApprovalNumberingService, DiscountApprovalNumberingService>();
+            services.AddScoped<IDiscountApprovalRepository, DiscountApprovalRepository>();
+            services.AddScoped<IDiscountApprovalService, DiscountApprovalService>();
 
             return services;
         }

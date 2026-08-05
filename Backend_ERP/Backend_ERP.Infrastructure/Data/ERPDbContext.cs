@@ -61,6 +61,15 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<PriceListDocumentSequence> PriceListDocumentSequences => Set<PriceListDocumentSequence>();
 
+        public DbSet<DiscountApproval> DiscountApprovals => Set<DiscountApproval>();
+
+        public DbSet<DiscountApprovalHistory> DiscountApprovalHistories => Set<DiscountApprovalHistory>();
+
+        public DbSet<DiscountApprovalComment> DiscountApprovalComments => Set<DiscountApprovalComment>();
+
+        public DbSet<DiscountApprovalDocumentSequence> DiscountApprovalDocumentSequences =>
+            Set<DiscountApprovalDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
