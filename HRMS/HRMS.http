@@ -1,0 +1,64 @@
+@HRMS_HostAddress = http://localhost:5177
+
+### Get all employees
+GET {{HRMS_HostAddress}}/api/employees
+Accept: application/json
+
+###
+
+### Get employee by id
+GET {{HRMS_HostAddress}}/api/employees/1
+Accept: application/json
+
+###
+
+### Create employee
+POST {{HRMS_HostAddress}}/api/employees
+Content-Type: application/json
+
+{
+  "fullName": "Rahul Sharma",
+  "email": "rahul@buildrich.in",
+  "phoneNumber": "+91 9876543210",
+  "departmentId": 1,
+  "designationId": 1,
+  "branchId": 1,
+  "status": "Active",
+  "joiningDate": "2026-07-30",
+  "dateOfBirth": "1995-01-01",
+  "gender": "Male",
+  "bloodGroup": "O+",
+  "bankName": "HDFC Bank",
+  "accountNumber": "9821451278",
+  "ifscCode": "HDFC0001234"
+}
+
+###
+
+### Update employee
+PUT {{HRMS_HostAddress}}/api/employees/1
+Content-Type: application/json
+
+{
+  "fullName": "Rahul Sharma",
+  "email": "rahul@buildrich.in",
+  "phoneNumber": "+91 9876543210",
+  "departmentId": 1,
+  "designationId": 1,
+  "branchId": 1,
+  "status": "Active",
+  "joiningDate": "2026-07-30",
+  "dateOfBirth": "1995-01-01",
+  "gender": "Male",
+  "bloodGroup": "O+",
+  "bankName": "HDFC Bank",
+  "accountNumber": "9821451278",
+  "ifscCode": "HDFC0001234"
+}
+
+###
+
+### Delete employee
+DELETE {{HRMS_HostAddress}}/api/employees/1
+
+###

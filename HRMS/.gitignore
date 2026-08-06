@@ -1,0 +1,35 @@
+## Build
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Pp]ublish/
+[Oo]ut/
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## NuGet
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## .NET tooling
+*.DotSettings.user
+TestResults/
+[Tt]est[Rr]esult*/
+*.binlog
+
+## Local secrets (use User Secrets or env vars in development)
+appsettings.*.local.json
+secrets.json
+
+## OS
+.DS_Store
+Thumbs.db
