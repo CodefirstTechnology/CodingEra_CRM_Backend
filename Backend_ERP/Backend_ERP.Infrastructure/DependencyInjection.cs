@@ -34,6 +34,9 @@ namespace ERP.Infrastructure
             services.AddScoped<IDiscountApprovalNumberingService, DiscountApprovalNumberingService>();
             services.AddScoped<IDiscountApprovalRepository, DiscountApprovalRepository>();
             services.AddScoped<IDiscountApprovalService, DiscountApprovalService>();
+            services.AddScoped<IQuotationApprovalNumberingService, QuotationApprovalNumberingService>();
+            services.AddScoped<IQuotationApprovalRepository, QuotationApprovalRepository>();
+            services.AddScoped<IQuotationApprovalService, QuotationApprovalService>();
 
             return services;
         }

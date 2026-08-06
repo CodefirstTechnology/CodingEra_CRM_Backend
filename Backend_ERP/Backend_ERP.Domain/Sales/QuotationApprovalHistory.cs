@@ -1,0 +1,23 @@
+namespace ERP.Domain.Sales
+{
+    public class QuotationApprovalHistory
+    {
+        public int Id { get; set; }
+
+        public int QuotationApprovalId { get; set; }
+
+        public QuotationApproval QuotationApproval { get; set; } = null!;
+
+        public string Action { get; set; } = string.Empty;
+
+        public string OldStatus { get; set; } = string.Empty;
+
+        public string NewStatus { get; set; } = string.Empty;
+
+        public string Remarks { get; set; } = string.Empty;
+
+        public string PerformedBy { get; set; } = string.Empty;
+
+        public DateTimeOffset PerformedOn { get; set; }
+    }
+}

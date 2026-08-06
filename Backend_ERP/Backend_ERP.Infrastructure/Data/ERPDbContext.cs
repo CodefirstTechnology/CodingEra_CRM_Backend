@@ -70,6 +70,15 @@ namespace ERP.Infrastructure.Data
         public DbSet<DiscountApprovalDocumentSequence> DiscountApprovalDocumentSequences =>
             Set<DiscountApprovalDocumentSequence>();
 
+        public DbSet<QuotationApproval> QuotationApprovals => Set<QuotationApproval>();
+
+        public DbSet<QuotationApprovalHistory> QuotationApprovalHistories => Set<QuotationApprovalHistory>();
+
+        public DbSet<QuotationApprovalComment> QuotationApprovalComments => Set<QuotationApprovalComment>();
+
+        public DbSet<QuotationApprovalDocumentSequence> QuotationApprovalDocumentSequences =>
+            Set<QuotationApprovalDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
