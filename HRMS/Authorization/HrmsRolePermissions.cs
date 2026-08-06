@@ -64,8 +64,7 @@ public static class HrmsRolePermissions
                 HrmsPermissions.PerformanceManageAll,
                 HrmsPermissions.PerformanceSelfReview,
                 HrmsPermissions.ReportsView,
-                HrmsPermissions.MasterDataManage,
-                HrmsPermissions.HealthView
+                HrmsPermissions.MasterDataManage
             },
             [UserRole.EMPLOYEE] = new(StringComparer.OrdinalIgnoreCase)
             {
@@ -77,8 +76,7 @@ public static class HrmsRolePermissions
                 HrmsPermissions.LeaveApply,
                 HrmsPermissions.PayslipsViewOwn,
                 HrmsPermissions.DocumentsManageOwn,
-                HrmsPermissions.PerformanceSelfReview,
-                HrmsPermissions.HealthView
+                HrmsPermissions.PerformanceSelfReview
             }
         };
 

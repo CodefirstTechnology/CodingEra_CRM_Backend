@@ -195,6 +195,7 @@ public class PayrollController : ControllerBase
             .ToListAsync(cancellationToken);
 
         var totalDays = DateTime.DaysInMonth(dto.PayYear, dto.PayMonth);
+        var workingDays = GetWorkingDaysInMonth(dto.PayYear, dto.PayMonth);
         var start = new DateOnly(dto.PayYear, dto.PayMonth, 1);
         var end = new DateOnly(dto.PayYear, dto.PayMonth, totalDays);
 
@@ -227,15 +228,19 @@ public class PayrollController : ControllerBase
 
             int presentCount = 0;
             int absentCount = 0;
+            int lateCount = 0;
 
             if (attendanceGroups.TryGetValue(emp.Id, out var empAttendances))
             {
                 presentCount = empAttendances.Count(x => x.Status == AttendanceStatus.Present || x.Status == AttendanceStatus.Late || x.Status == AttendanceStatus.HalfDay);
                 absentCount = empAttendances.Count(x => x.Status == AttendanceStatus.Absent);
+                lateCount = empAttendances.Count(x => x.IsLate || x.Status == AttendanceStatus.Late);
             }
 
             decimal allowances = presentCount * 200;
-            decimal deductions = Math.Round(absentCount * (basicSalary / totalDays), 2);
+            decimal lopDeductions = Math.Round(absentCount * (basicSalary / workingDays), 2);
+            decimal lateDeductions = lateCount * 100; // ₹100 per late arrival
+            decimal deductions = lopDeductions + lateDeductions;
             decimal netSalary = basicSalary + allowances - deductions;
 
             var existing = await _context.PayrollRecords
@@ -305,6 +310,21 @@ public class PayrollController : ControllerBase
 
         await _context.SaveChangesAsync(cancellationToken);
         return Ok(new { message = $"Successfully updated {records.Count} payroll records to '{dto.Status}' status." });
+    }
+
+    private int GetWorkingDaysInMonth(int year, int month)
+    {
+        int days = DateTime.DaysInMonth(year, month);
+        int workDays = 0;
+        for (int i = 1; i <= days; i++)
+        {
+            var date = new DateTime(year, month, i);
+            if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+            {
+                workDays++;
+            }
+        }
+        return workDays;
     }
 }
 

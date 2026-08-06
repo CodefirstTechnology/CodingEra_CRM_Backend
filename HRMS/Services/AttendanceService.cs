@@ -11,8 +11,8 @@ namespace HRMS.Services;
 
 public class AttendanceService : IAttendanceService
 {
-    private static readonly TimeOnly LateThreshold = new(9, 15);
-    private static readonly TimeOnly StandardEndTime = new(18, 0);
+    private static readonly TimeOnly LateThreshold = new(10, 0);
+    private static readonly TimeOnly StandardEndTime = new(18, 30);
     private const int StandardWorkMinutes = 480;
     private const int HalfDayMinutes = 240;
 
