@@ -45,6 +45,7 @@ namespace CRM.Helpers
                 await RbacSeed.EnsureAsync(db, logger);
 
                 await LeadSyncSeed.EnsureAsync(db, logger);
+                await UserTargetTypeSeed.EnsureAsync(db, logger);
             }
             catch (Exception ex)
             {

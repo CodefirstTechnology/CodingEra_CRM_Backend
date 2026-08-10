@@ -146,5 +146,53 @@ namespace CRM.Helpers
 
             return query.Where(l => l.LeadOwnerId == userId);
         }
+
+        /// <summary>Scopes deal lists by <see cref="Deal.DealOwnerId"/> (sales ownership), not created-by.</summary>
+        public static async Task<IQueryable<Deal>> ApplyDealOwnerScopeAsync(
+            TaskDbcontext db,
+            IRbacService rbac,
+            int userId,
+            string module,
+            IQueryable<Deal> query)
+        {
+            if (await rbac.IsAdminUserAsync(userId))
+            {
+                return query;
+            }
+
+            var scope = await rbac.GetModuleAccessScopeAsync(userId, module);
+            if (scope is null or AccessScope.All)
+            {
+                return query;
+            }
+
+            if (scope == AccessScope.Own)
+            {
+                return query.Where(d => d.DealOwnerId == userId || d.AssignedToUserId == userId);
+            }
+
+            if (scope == AccessScope.Team)
+            {
+                var roleId = await db.Users.AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.RoleId)
+                    .FirstOrDefaultAsync();
+
+                if (roleId == null)
+                {
+                    return query.Where(d => d.DealOwnerId == userId || d.AssignedToUserId == userId);
+                }
+
+                var teamUserIds = db.Users.AsNoTracking()
+                    .Where(u => u.IsActive && u.RoleId == roleId)
+                    .Select(u => u.Id);
+
+                return query.Where(d =>
+                    (d.DealOwnerId != null && teamUserIds.Contains(d.DealOwnerId.Value))
+                    || (d.AssignedToUserId != null && teamUserIds.Contains(d.AssignedToUserId.Value)));
+            }
+
+            return query.Where(d => d.DealOwnerId == userId || d.AssignedToUserId == userId);
+        }
     }
 }
