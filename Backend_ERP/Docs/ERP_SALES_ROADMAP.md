@@ -336,7 +336,7 @@ Quotation Approval
 
 Status
 
-Pending
+Completed
 
 Depends On
 
@@ -364,7 +364,7 @@ Sales Module Production Hardening
 
 Status
 
-Pending
+Completed
 
 Depends On
 

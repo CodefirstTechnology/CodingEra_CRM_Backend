@@ -16,5 +16,7 @@ namespace ERP.Application.Sales
         Task<QuotationApprovalComment?> AddCommentAsync(QuotationApproval entity, QuotationApprovalComment comment, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<QuotationApproval>> GetForStatisticsAsync(CancellationToken cancellationToken = default);
         Task<SalesOrder?> FindSalesOrderAsync(int salesOrderId, CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<SalesOrder>> ListSalesOrdersForLookupAsync(CancellationToken cancellationToken = default);
     }
 }

@@ -4,19 +4,88 @@ namespace ERP.Application.Sales
 {
     public interface IQuotationApprovalService
     {
-        Task<QuotationApprovalDto> CreateAsync(QuotationApprovalCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<QuotationApprovalListItemDto>> GetAllAsync(
+            QuotationApprovalListQueryDto? query,
+            CancellationToken cancellationToken = default);
+
         Task<QuotationApprovalDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> UpdateAsync(int id, QuotationApprovalUpdateRequestDto request, string currentUser, CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> CreateAsync(
+            QuotationApprovalCreateRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> UpdateAsync(
+            int id,
+            QuotationApprovalUpdateRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
         Task<bool> DeleteAsync(int id, string currentUser, CancellationToken cancellationToken = default);
+
         Task<QuotationApprovalDto> SubmitAsync(int id, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> ReviewAsync(int id, QuotationApprovalDecisionRequestDto request, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> ApproveAsync(int id, QuotationApprovalDecisionRequestDto request, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> RejectAsync(int id, QuotationApprovalDecisionRequestDto request, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> ReturnAsync(int id, QuotationApprovalDecisionRequestDto request, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> CancelAsync(int id, QuotationApprovalDecisionRequestDto request, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> RequestRevisionAsync(int id, QuotationApprovalDecisionRequestDto request, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalDto> ReopenAsync(int id, QuotationApprovalDecisionRequestDto request, string currentUser, CancellationToken cancellationToken = default);
-        Task<QuotationApprovalCommentDto> AddCommentAsync(int id, QuotationApprovalCommentRequestDto request, string currentUser, CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> ReviewAsync(
+            int id,
+            QuotationApprovalDecisionRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> ApproveAsync(
+            int id,
+            QuotationApprovalDecisionRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> RejectAsync(
+            int id,
+            QuotationApprovalDecisionRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> ReturnAsync(
+            int id,
+            QuotationApprovalDecisionRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> CancelAsync(
+            int id,
+            QuotationApprovalDecisionRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> RequestRevisionAsync(
+            int id,
+            QuotationApprovalDecisionRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalDto> ReopenAsync(
+            int id,
+            QuotationApprovalDecisionRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<QuotationApprovalCommentDto> AddCommentAsync(
+            int id,
+            QuotationApprovalCommentRequestDto request,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<QuotationApprovalHistoryDto>?> GetHistoryAsync(
+            int id,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<QuotationApprovalCommentDto>?> GetCommentsAsync(
+            int id,
+            CancellationToken cancellationToken = default);
+
         Task<QuotationApprovalStatisticsDto> GetStatisticsAsync(CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<string>> GetPermissionsAsync();
+
+        Task<IReadOnlyList<QuotationApprovalLookupDto>> LookupSalesOrdersAsync(
+            CancellationToken cancellationToken = default);
     }
 }

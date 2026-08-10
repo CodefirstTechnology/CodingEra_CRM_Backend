@@ -32,6 +32,7 @@ namespace ERP.Application.Sales.Dtos
         public string RequestDate { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
         public string QuotationNumber { get; set; } = string.Empty;
+        public string SalesOrderNumber { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public string ApprovalLevel { get; set; } = string.Empty;
         public string Priority { get; set; } = string.Empty;
@@ -122,5 +123,12 @@ namespace ERP.Application.Sales.Dtos
         public int? SalesPersonUserId { get; set; }
         public string? DateFrom { get; set; }
         public string? DateTo { get; set; }
+    }
+
+    public class QuotationApprovalLookupDto
+    {
+        public int Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
     }
 }
