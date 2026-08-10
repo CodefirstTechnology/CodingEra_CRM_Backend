@@ -1,50 +1,23 @@
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Shared.Helpers;
 
 namespace ERP.Infrastructure.Sales
 {
     internal static class PriceListMapper
     {
-        public static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd");
-
+        // Delegated to shared DateHelper — kept for backward-compat callsites in this class
+        private static string FormatDate(DateOnly date) => DateHelper.FormatDate(date);
         public static string? FormatOptionalDate(DateOnly? date) =>
-            date is null ? null : FormatDate(date.Value);
-
-        public static string FormatDateTime(DateTimeOffset value) =>
-            value.UtcDateTime.ToString("O");
-
-        public static DateOnly ParseDate(string value, DateOnly fallback)
-        {
-            if (DateOnly.TryParse(value, out var date))
-            {
-                return date;
-            }
-
-            if (DateTimeOffset.TryParse(value, out var dto))
-            {
-                return DateOnly.FromDateTime(dto.UtcDateTime);
-            }
-
-            return fallback;
-        }
+            date is null ? null : DateHelper.FormatDate(date.Value);
+        private static string FormatDateTime(DateTimeOffset value) => DateHelper.FormatDateTime(value);
+        public static DateOnly ParseDate(string value, DateOnly fallback) => DateHelper.ParseDate(value, fallback);
 
         public static DateOnly? ParseOptionalDate(string? value)
         {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return null;
-            }
-
-            if (DateOnly.TryParse(value, out var date))
-            {
-                return date;
-            }
-
-            if (DateTimeOffset.TryParse(value, out var dto))
-            {
-                return DateOnly.FromDateTime(dto.UtcDateTime);
-            }
-
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            if (DateOnly.TryParse(value, out var date)) return date;
+            if (DateTimeOffset.TryParse(value, out var dto)) return DateOnly.FromDateTime(dto.UtcDateTime);
             return null;
         }
 

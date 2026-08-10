@@ -2,6 +2,7 @@ using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
 using ERP.Infrastructure.Data;
+using ERP.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Infrastructure.Sales
@@ -338,7 +339,7 @@ namespace ERP.Infrastructure.Sales
             {
                 Id = h.EntryKey,
                 Status = h.Status,
-                Date = SalesOrderMapper.FormatDateTime(h.Date),
+                Date = DateHelper.FormatDateTime(h.Date),
                 User = h.User,
                 Remarks = h.Remarks,
                 Label = h.Label

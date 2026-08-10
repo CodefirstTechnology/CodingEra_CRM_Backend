@@ -1,48 +1,24 @@
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Shared.Helpers;
 
 namespace ERP.Infrastructure.Sales
 {
     internal static class SalesOrderMapper
     {
-        public static string FormatDate(DateOnly date) =>
-            date.ToString("yyyy-MM-dd");
-
-        public static string FormatDateTime(DateTimeOffset value) =>
-            value.UtcDateTime.ToString("O");
-
-        public static DateOnly ParseDate(string value, DateOnly fallback)
-        {
-            if (DateOnly.TryParse(value, out var date))
-            {
-                return date;
-            }
-
-            if (DateTimeOffset.TryParse(value, out var dto))
-            {
-                return DateOnly.FromDateTime(dto.UtcDateTime);
-            }
-
-            return fallback;
-        }
+        // Delegated to shared DateHelper — kept for backward-compat callsite in this class
+        private static string FormatDate(DateOnly date) => DateHelper.FormatDate(date);
+        private static string FormatDateTime(DateTimeOffset value) => DateHelper.FormatDateTime(value);
+        public static DateOnly ParseDate(string value, DateOnly fallback) => DateHelper.ParseDate(value, fallback);
 
         public static DateOnly? ParseOptionalDate(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
-            {
                 return null;
-            }
-
             if (DateOnly.TryParse(value, out var date))
-            {
                 return date;
-            }
-
             if (DateTimeOffset.TryParse(value, out var dto))
-            {
                 return DateOnly.FromDateTime(dto.UtcDateTime);
-            }
-
             return null;
         }
 

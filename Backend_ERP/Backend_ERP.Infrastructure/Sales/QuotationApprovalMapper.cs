@@ -1,42 +1,23 @@
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Shared.Helpers;
 
 namespace ERP.Infrastructure.Sales
 {
+    /// <summary>
+    /// Maps QuotationApproval domain entities to DTOs.
+    /// Date helpers are delegated to the shared DateHelper to avoid duplication.
+    /// </summary>
     internal static class QuotationApprovalMapper
     {
-        public static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd");
-
-        public static string FormatDateTime(DateTimeOffset value) =>
-            value.UtcDateTime.ToString("O");
-
-        public static DateOnly ParseDate(string? value, DateOnly fallback)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return fallback;
-            }
-
-            if (DateOnly.TryParse(value, out var date))
-            {
-                return date;
-            }
-
-            if (DateTimeOffset.TryParse(value, out var dto))
-            {
-                return DateOnly.FromDateTime(dto.UtcDateTime);
-            }
-
-            return fallback;
-        }
-
         public static QuotationApprovalListItemDto ToListItem(QuotationApproval e) => new()
         {
             Id = e.Id,
             ApprovalNumber = e.ApprovalNumber,
-            RequestDate = FormatDate(e.RequestDate),
+            RequestDate = DateHelper.FormatDate(e.RequestDate),
             CustomerName = e.CustomerName,
             QuotationNumber = e.QuotationNumber,
+            SalesOrderNumber = e.SalesOrderNumber,
             TotalAmount = e.TotalAmount,
             ApprovalLevel = e.ApprovalLevel,
             Priority = e.Priority,
@@ -52,7 +33,7 @@ namespace ERP.Infrastructure.Sales
             NewStatus = h.NewStatus,
             Remarks = h.Remarks,
             PerformedBy = h.PerformedBy,
-            PerformedOn = FormatDateTime(h.PerformedOn)
+            PerformedOn = DateHelper.FormatDateTime(h.PerformedOn)
         };
 
         public static QuotationApprovalCommentDto ToCommentDto(QuotationApprovalComment c) => new()
@@ -60,14 +41,14 @@ namespace ERP.Infrastructure.Sales
             Id = c.Id,
             Comment = c.Comment,
             CommentedBy = c.CommentedBy,
-            CommentedOn = FormatDateTime(c.CommentedOn)
+            CommentedOn = DateHelper.FormatDateTime(c.CommentedOn)
         };
 
         public static QuotationApprovalDto ToDto(QuotationApproval e) => new()
         {
             Id = e.Id,
             ApprovalNumber = e.ApprovalNumber,
-            RequestDate = FormatDate(e.RequestDate),
+            RequestDate = DateHelper.FormatDate(e.RequestDate),
             QuotationId = e.QuotationId,
             QuotationNumber = e.QuotationNumber,
             SalesOrderId = e.SalesOrderId,
@@ -81,9 +62,9 @@ namespace ERP.Infrastructure.Sales
             Reason = e.Reason,
             Remarks = e.Remarks,
             CreatedBy = e.CreatedBy,
-            CreatedDate = FormatDateTime(e.CreatedDate),
+            CreatedDate = DateHelper.FormatDateTime(e.CreatedDate),
             UpdatedBy = e.UpdatedBy,
-            UpdatedDate = FormatDateTime(e.UpdatedDate),
+            UpdatedDate = DateHelper.FormatDateTime(e.UpdatedDate),
             History = e.History
                 .OrderBy(x => x.PerformedOn)
                 .Select(ToHistoryDto)

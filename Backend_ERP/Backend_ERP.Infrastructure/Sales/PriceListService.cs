@@ -1,6 +1,7 @@
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Shared.Helpers;
 
 namespace ERP.Infrastructure.Sales
 {
@@ -277,10 +278,10 @@ namespace ERP.Infrastructure.Sales
                 Description = source.Description,
                 CustomerCategory = source.CustomerCategory,
                 Currency = source.Currency,
-                EffectiveFrom = PriceListMapper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow)),
+                EffectiveFrom = DateHelper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow)),
                 EffectiveTo = source.EffectiveTo is null
                     ? null
-                    : PriceListMapper.FormatDate(source.EffectiveTo.Value),
+                    : DateHelper.FormatDate(source.EffectiveTo.Value),
                 Status = PriceListStatuses.Draft,
                 Remarks = string.IsNullOrWhiteSpace(request?.Remarks)
                     ? $"Cloned from {source.PriceListNumber}"
@@ -383,7 +384,7 @@ namespace ERP.Infrastructure.Sales
                 DiscountPercentage = match.Item.DiscountPercentage,
                 MinimumPrice = match.Item.MinimumPrice,
                 TaxPercentage = match.Item.TaxPercentage,
-                EffectiveFrom = PriceListMapper.FormatDate(match.List.EffectiveFrom),
+                EffectiveFrom = DateHelper.FormatDate(match.List.EffectiveFrom),
                 EffectiveTo = PriceListMapper.FormatOptionalDate(match.List.EffectiveTo)
             };
         }

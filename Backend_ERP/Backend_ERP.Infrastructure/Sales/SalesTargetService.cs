@@ -1,6 +1,7 @@
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Shared.Helpers;
 
 namespace ERP.Infrastructure.Sales
 {
@@ -276,10 +277,10 @@ namespace ERP.Infrastructure.Sales
                     ? request.FinancialYear.Value
                     : source.FinancialYear,
                 StartDate = string.IsNullOrWhiteSpace(request?.StartDate)
-                    ? SalesTargetMapper.FormatDate(source.StartDate)
+                    ? DateHelper.FormatDate(source.StartDate)
                     : request!.StartDate,
                 EndDate = string.IsNullOrWhiteSpace(request?.EndDate)
-                    ? SalesTargetMapper.FormatDate(source.EndDate)
+                    ? DateHelper.FormatDate(source.EndDate)
                     : request!.EndDate,
                 TargetValue = request?.TargetValue is > 0 ? request.TargetValue.Value : source.TargetValue,
                 AchievedValue = 0m,

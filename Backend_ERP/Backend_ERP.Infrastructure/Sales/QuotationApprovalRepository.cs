@@ -130,6 +130,13 @@ namespace ERP.Infrastructure.Sales
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == salesOrderId, cancellationToken);
 
+        public async Task<IReadOnlyList<SalesOrder>> ListSalesOrdersForLookupAsync(
+            CancellationToken cancellationToken = default) =>
+            await _db.SalesOrders
+                .AsNoTracking()
+                .OrderBy(x => x.SalesOrderNumber)
+                .ToListAsync(cancellationToken);
+
         private static IQueryable<QuotationApproval> ApplyFilters(
             IQueryable<QuotationApproval> q,
             QuotationApprovalListQueryDto? query)

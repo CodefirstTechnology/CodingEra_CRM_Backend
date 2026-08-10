@@ -1,6 +1,7 @@
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Infrastructure.Sales
@@ -256,8 +257,8 @@ namespace ERP.Infrastructure.Sales
 
             var create = new ProformaInvoiceCreateRequestDto
             {
-                InvoiceDate = ProformaInvoiceMapper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow)),
-                ValidUntil = ProformaInvoiceMapper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30)),
+                InvoiceDate = DateHelper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow)),
+                ValidUntil = DateHelper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30)),
                 Customer = new ProformaInvoiceCustomerDto
                 {
                     CustomerId = source.CustomerId,
