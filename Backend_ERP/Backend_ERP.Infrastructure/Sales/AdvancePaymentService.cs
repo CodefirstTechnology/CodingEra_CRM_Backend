@@ -657,7 +657,12 @@ namespace ERP.Infrastructure.Sales
                 var so = await _repo.FindSalesOrderAsync(id, cancellationToken);
                 if (so is null)
                 {
-                    return (id, salesOrderNumber?.Trim() ?? string.Empty);
+                    throw new InvalidOperationException($"Sales Order '{id}' was not found.");
+                }
+
+                if (so.Status == SalesOrderStatuses.Cancelled)
+                {
+                    throw new InvalidOperationException($"Cannot apply payment to Cancelled Sales Order '{so.SalesOrderNumber}'.");
                 }
 
                 return (so.Id, so.SalesOrderNumber);

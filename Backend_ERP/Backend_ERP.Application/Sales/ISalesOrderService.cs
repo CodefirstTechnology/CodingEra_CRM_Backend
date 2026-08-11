@@ -33,8 +33,25 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<SalesOrderDto> ConvertQuotationAsync(
+            int quotationApprovalId,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<SalesOrderStatusHistoryDto>?> GetStatusHistoryAsync(
             int id,
             CancellationToken cancellationToken = default);
+
+        Task<SalesOrderPdfResultDto?> GeneratePdfAsync(
+            int id,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesOrderEmailResultDto?> SendEmailAsync(
+            int id,
+            SalesOrderEmailRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<string>> GetPermissionsAsync();
     }
 }

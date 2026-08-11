@@ -87,6 +87,14 @@ namespace ERP.Infrastructure.Sales
             _db.SalesOrders.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == salesOrderId, cancellationToken);
 
+        public Task<SalesOrder?> FindSalesOrderWithItemsAsync(
+            int salesOrderId,
+            CancellationToken cancellationToken = default) =>
+            _db.SalesOrders
+                .Include(x => x.Items)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == salesOrderId, cancellationToken);
+
         public async Task<IReadOnlyList<SalesOrder>> ListSalesOrdersForLookupAsync(
             CancellationToken cancellationToken = default)
         {

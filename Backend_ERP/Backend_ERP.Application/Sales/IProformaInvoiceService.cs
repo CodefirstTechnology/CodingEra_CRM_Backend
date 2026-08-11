@@ -46,6 +46,11 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<ProformaInvoiceDto> GenerateFromSalesOrderAsync(
+            int salesOrderId,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<ProformaInvoiceStatusHistoryDto>?> GetStatusHistoryAsync(
             int id,
             CancellationToken cancellationToken = default);

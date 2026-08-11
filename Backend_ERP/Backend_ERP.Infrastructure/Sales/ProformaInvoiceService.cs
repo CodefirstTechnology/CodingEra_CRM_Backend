@@ -244,6 +244,94 @@ namespace ERP.Infrastructure.Sales
             return true;
         }
 
+        public async Task<ProformaInvoiceDto> GenerateFromSalesOrderAsync(
+            int salesOrderId,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var salesOrder = await _repo.FindSalesOrderWithItemsAsync(salesOrderId, cancellationToken);
+            if (salesOrder is null)
+            {
+                throw new InvalidOperationException($"Sales Order '{salesOrderId}' was not found.");
+            }
+
+            if (salesOrder.Status == SalesOrderStatuses.Draft || salesOrder.Status == SalesOrderStatuses.Cancelled)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot generate Proforma Invoice from Sales Order in status '{salesOrder.Status}'.");
+            }
+
+            var existingPi = await _repo.Query().AsNoTracking()
+                .FirstOrDefaultAsync(x => x.SalesOrderId == salesOrderId && x.Status != ProformaInvoiceStatuses.Cancelled, cancellationToken);
+            if (existingPi is not null)
+            {
+                throw new InvalidOperationException(
+                    $"Proforma Invoice '{existingPi.PiNumber}' already exists for Sales Order '{salesOrder.SalesOrderNumber}'.");
+            }
+
+            var items = salesOrder.Items.Select(item => new ProformaInvoiceItemDto
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                ItemName = item.ItemName,
+                Description = item.Description ?? string.Empty,
+                Quantity = item.Quantity,
+                Unit = item.Unit ?? "Nos",
+                Rate = item.Rate,
+                Discount = item.Discount,
+                Gst = item.Gst,
+                TaxAmount = item.Amount * (item.Gst / 100m),
+                Amount = item.Amount
+            }).ToList();
+
+            if (items.Count == 0)
+            {
+                items.Add(new ProformaInvoiceItemDto
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    ItemName = $"Sales Order #{salesOrder.SalesOrderNumber} Items",
+                    Description = salesOrder.Remarks ?? "Sales Order Items",
+                    Quantity = 1m,
+                    Unit = "Set",
+                    Rate = salesOrder.GrandTotal,
+                    Discount = 0m,
+                    Gst = 18m,
+                    TaxAmount = salesOrder.GrandTotal * 0.18m,
+                    Amount = salesOrder.GrandTotal
+                });
+            }
+
+            var request = new ProformaInvoiceCreateRequestDto
+            {
+                InvoiceDate = DateHelper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow)),
+                ValidUntil = DateHelper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30)),
+                Customer = new ProformaInvoiceCustomerDto
+                {
+                    CustomerId = string.Empty,
+                    CustomerName = salesOrder.CustomerName,
+                    ContactPerson = salesOrder.ContactPerson ?? string.Empty,
+                    BillingAddress = salesOrder.BillingAddress ?? string.Empty,
+                    ShippingAddress = salesOrder.ShippingAddress ?? string.Empty
+                },
+                SalesPersonId = salesOrder.SalesPerson,
+                SalesPerson = salesOrder.SalesPerson,
+                Currency = "INR",
+                ExchangeRate = 1m,
+                QuotationId = salesOrder.QuotationId,
+                QuotationNumber = salesOrder.QuotationNumber,
+                SalesOrderId = salesOrder.Id,
+                SalesOrderNumber = salesOrder.SalesOrderNumber,
+                PaymentTerms = string.IsNullOrWhiteSpace(salesOrder.PaymentTerms) ? "Net 30" : salesOrder.PaymentTerms,
+                DeliveryTerms = string.IsNullOrWhiteSpace(salesOrder.DeliveryTerms) ? "Standard Delivery" : salesOrder.DeliveryTerms,
+                CustomerNotes = salesOrder.Notes ?? string.Empty,
+                InternalNotes = $"Generated from Sales Order {salesOrder.SalesOrderNumber}",
+                Items = items,
+                Status = ProformaInvoiceStatuses.Submitted
+            };
+
+            return await CreateAsync(request, actingUser, cancellationToken);
+        }
+
+
         public async Task<ProformaInvoiceDto?> DuplicateAsync(
             int id,
             string actingUser,

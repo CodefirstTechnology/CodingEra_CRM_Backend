@@ -9,10 +9,17 @@ namespace ERP.API.Controllers
     public class SalesOrdersController : ControllerBase
     {
         private readonly ISalesOrderService _salesOrders;
+        private readonly IProformaInvoiceService _proformaInvoices;
+        private readonly IAdvancePaymentService _advancePayments;
 
-        public SalesOrdersController(ISalesOrderService salesOrders)
+        public SalesOrdersController(
+            ISalesOrderService salesOrders,
+            IProformaInvoiceService proformaInvoices,
+            IAdvancePaymentService advancePayments)
         {
             _salesOrders = salesOrders;
+            _proformaInvoices = proformaInvoices;
+            _advancePayments = advancePayments;
         }
 
         [HttpGet]
@@ -35,6 +42,13 @@ namespace ERP.API.Controllers
                 },
                 cancellationToken);
             return Ok(rows);
+        }
+
+        [HttpGet("permissions")]
+        public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
+        {
+            _ = userId;
+            return Ok(await _salesOrders.GetPermissionsAsync());
         }
 
         [HttpGet("{id:int}")]
@@ -69,7 +83,7 @@ namespace ERP.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
 
@@ -96,7 +110,7 @@ namespace ERP.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
 
@@ -123,7 +137,7 @@ namespace ERP.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
 
@@ -150,7 +164,103 @@ namespace ERP.API.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("convert-quotation/{quotationApprovalId:int}")]
+        public async Task<ActionResult<SalesOrderDto>> ConvertQuotation(
+            int quotationApprovalId,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var created = await _salesOrders.ConvertQuotationAsync(
+                    quotationApprovalId,
+                    ResolveActingUser(userId),
+                    cancellationToken);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/proforma-invoice")]
+        public async Task<ActionResult<ProformaInvoiceDto>> GenerateProformaInvoice(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var created = await _proformaInvoices.GenerateFromSalesOrderAsync(
+                    id,
+                    ResolveActingUser(userId),
+                    cancellationToken);
+                return Ok(created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/advance-payments/apply")]
+        public async Task<ActionResult<AdvancePaymentDto>> ApplyAdvancePayment(
+            int id,
+            [FromBody] AdvancePaymentApplyRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                request.SalesOrderId = id;
+                var updated = await _advancePayments.ApplyAsync(
+                    request.AdvancePaymentId > 0 ? request.AdvancePaymentId : id,
+                    request,
+                    ResolveActingUser(userId),
+                    cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/pdf")]
+        public async Task<ActionResult<SalesOrderPdfResultDto>> GeneratePdf(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var result = await _salesOrders.GeneratePdfAsync(id, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
+        }
+
+        [HttpPost("{id:int}/email")]
+        public async Task<ActionResult<SalesOrderEmailResultDto>> SendEmail(
+            int id,
+            [FromBody] SalesOrderEmailRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _salesOrders.SendEmailAsync(
+                    id,
+                    request,
+                    ResolveActingUser(userId),
+                    cancellationToken);
+                return result is null ? NotFound() : Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
 
@@ -171,6 +281,6 @@ namespace ERP.API.Controllers
         }
 
         private static string ResolveActingUser(int? userId) =>
-            userId is > 0 ? $"user:{userId}" : "system";
+            userId is > 0 ? userId.Value.ToString() : "system";
     }
 }

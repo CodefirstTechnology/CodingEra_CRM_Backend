@@ -261,6 +261,24 @@ namespace ERP.API.Controllers
             return await Decision(id, request, userId, _service.ReopenAsync, cancellationToken);
         }
 
+        [HttpPost("{id:int}/convert")]
+        public async Task<ActionResult<SalesOrderDto>> ConvertToSalesOrder(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var created = await _service.ConvertToSalesOrderAsync(id, ResolveActingUser(userId), cancellationToken);
+                return Ok(created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+
         // ─── Helpers ──────────────────────────────────────────────────────────
 
         private async Task<ActionResult<QuotationApprovalDto>> Decision(

@@ -11,15 +11,18 @@ namespace ERP.Infrastructure.Sales
         private readonly IQuotationApprovalRepository _repo;
         private readonly IQuotationApprovalNumberingService _numbering;
         private readonly ILogger<QuotationApprovalService> _logger;
+        private readonly ISalesOrderService _salesOrderService;
 
         public QuotationApprovalService(
             IQuotationApprovalRepository repo,
             IQuotationApprovalNumberingService numbering,
-            ILogger<QuotationApprovalService> logger)
+            ILogger<QuotationApprovalService> logger,
+            ISalesOrderService salesOrderService)
         {
             _repo = repo;
             _numbering = numbering;
             _logger = logger;
+            _salesOrderService = salesOrderService;
         }
 
         // ─── Queries ──────────────────────────────────────────────────────────
@@ -237,6 +240,12 @@ namespace ERP.Infrastructure.Sales
         }
 
         // ─── Workflow transitions ─────────────────────────────────────────────
+
+        public Task<SalesOrderDto> ConvertToSalesOrderAsync(
+            int id,
+            string currentUser,
+            CancellationToken cancellationToken = default) =>
+            _salesOrderService.ConvertQuotationAsync(id, currentUser, cancellationToken);
 
         public Task<QuotationApprovalDto> SubmitAsync(int id, string actingUser, CancellationToken cancellationToken = default) =>
             TransitionAsync(id, QuotationApprovalStatuses.Submitted, QuotationApprovalHistoryActions.Submitted, null, actingUser, cancellationToken);

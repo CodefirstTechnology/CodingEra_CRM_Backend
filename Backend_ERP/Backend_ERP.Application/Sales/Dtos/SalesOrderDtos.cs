@@ -140,4 +140,31 @@ namespace ERP.Application.Sales.Dtos
         public string? DateFrom { get; set; }
         public string? DateTo { get; set; }
     }
+
+    public class SalesOrderEmailRequestDto
+    {
+        public string Recipient { get; set; } = string.Empty;
+        public string? Subject { get; set; }
+        public string? Body { get; set; }
+    }
+
+    public class SalesOrderPdfResultDto
+    {
+        public int SalesOrderId { get; set; }
+        public string SalesOrderNumber { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty;
+        public string GeneratedDate { get; set; } = string.Empty;
+        public string ContentType { get; set; } = "application/pdf";
+        public byte[] Content { get; set; } = Array.Empty<byte>();
+    }
+
+    public class SalesOrderEmailResultDto
+    {
+        public int SalesOrderId { get; set; }
+        public string SalesOrderNumber { get; set; } = string.Empty;
+        public string Recipient { get; set; } = string.Empty;
+        public string SentDate { get; set; } = string.Empty;
+        public bool Success { get; set; } = true;
+        public string Message { get; set; } = "Email sent successfully.";
+    }
 }

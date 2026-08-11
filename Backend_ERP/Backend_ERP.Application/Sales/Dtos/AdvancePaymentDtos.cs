@@ -102,11 +102,13 @@ namespace ERP.Application.Sales.Dtos
 
     public class AdvancePaymentApplyRequestDto
     {
+        public int AdvancePaymentId { get; set; }
         public int SalesOrderId { get; set; }
         public string? SalesOrderNumber { get; set; }
         public decimal ApplyAmount { get; set; }
         public string? Remarks { get; set; }
     }
+
 
     public class AdvancePaymentTimelineDto
     {

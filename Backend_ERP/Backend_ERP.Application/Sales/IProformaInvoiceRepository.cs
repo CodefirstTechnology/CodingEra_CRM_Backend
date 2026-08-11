@@ -26,6 +26,8 @@ namespace ERP.Application.Sales
 
         Task<SalesOrder?> FindSalesOrderAsync(int salesOrderId, CancellationToken cancellationToken = default);
 
+        Task<SalesOrder?> FindSalesOrderWithItemsAsync(int salesOrderId, CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<SalesOrder>> ListSalesOrdersForLookupAsync(CancellationToken cancellationToken = default);
     }
 }

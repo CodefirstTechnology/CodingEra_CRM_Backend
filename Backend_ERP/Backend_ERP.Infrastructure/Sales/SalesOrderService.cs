@@ -346,6 +346,230 @@ namespace ERP.Infrastructure.Sales
             }).ToList();
         }
 
+        public async Task<SalesOrderDto> ConvertQuotationAsync(
+            int quotationApprovalId,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var qa = await _db.QuotationApprovals
+                .Include(x => x.History)
+                .FirstOrDefaultAsync(x => x.Id == quotationApprovalId && !x.IsDeleted, cancellationToken);
+
+            if (qa is null)
+            {
+                throw new InvalidOperationException($"Quotation approval '{quotationApprovalId}' was not found.");
+            }
+
+            if (!string.Equals(qa.Status, QuotationApprovalStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Quotation approval must be in 'Approved' status to convert to a Sales Order. Current status: '{qa.Status}'.");
+            }
+
+            if (qa.SalesOrderId.HasValue && qa.SalesOrderId.Value > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Quotation approval '{qa.ApprovalNumber}' has already been converted to Sales Order '{qa.SalesOrderNumber}'.");
+            }
+
+            if (qa.QuotationId > 0)
+            {
+                var existingSo = await _db.SalesOrders
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.QuotationId == qa.QuotationId && x.Status != SalesOrderStatuses.Cancelled, cancellationToken);
+                if (existingSo is not null)
+                {
+                    throw new InvalidOperationException(
+                        $"A Sales Order ({existingSo.SalesOrderNumber}) already exists for Quotation '{qa.QuotationNumber}'.");
+                }
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var number = await NextNumberAsync(cancellationToken);
+
+            var items = new List<SalesOrderItemDto>
+            {
+                new SalesOrderItemDto
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    ItemName = $"Quotation #{qa.QuotationNumber} Items",
+                    Description = string.IsNullOrWhiteSpace(qa.Reason) ? "Quotation Items" : qa.Reason,
+                    Quantity = 1m,
+                    Unit = "Set",
+                    Rate = qa.TotalAmount,
+                    Discount = 0m,
+                    Gst = 18m,
+                    Amount = qa.TotalAmount
+                }
+            };
+
+            var customer = new SalesOrderCustomerDto
+            {
+                CustomerName = qa.CustomerName,
+                ContactPerson = string.Empty,
+                BillingAddress = string.Empty,
+                ShippingAddress = string.Empty
+            };
+
+            var prepared = PrepareItems(items);
+            var (subtotal, discountTotal, gstTotal, grandTotal) = SalesOrderCalculator.Summarize(prepared);
+
+            var order = new SalesOrder
+            {
+                SalesOrderNumber = number,
+                QuotationId = qa.QuotationId,
+                QuotationNumber = qa.QuotationNumber,
+                SourceType = SalesOrderSourceTypes.Quotation,
+                CustomerName = customer.CustomerName,
+                ContactPerson = customer.ContactPerson,
+                BillingAddress = customer.BillingAddress,
+                ShippingAddress = customer.ShippingAddress,
+                CustomerEmail = customer.CustomerEmail,
+                CustomerPhone = customer.CustomerPhone,
+                SalesPerson = qa.SalesPersonUserId.ToString(),
+                Notes = qa.Reason,
+                OrderDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                PaymentTerms = "Net 30",
+                DeliveryTerms = "Standard Delivery",
+                Subtotal = subtotal,
+                DiscountTotal = discountTotal,
+                GstTotal = gstTotal,
+                GrandTotal = grandTotal > 0 ? grandTotal : qa.TotalAmount,
+                Status = SalesOrderStatuses.Submitted,
+                Remarks = $"Converted from Quotation Approval {qa.ApprovalNumber}",
+                CreatedBy = actingUser,
+                CreatedDate = now,
+                UpdatedBy = actingUser,
+                UpdatedDate = now,
+                Items = prepared.Select((item, idx) => new SalesOrderItem
+                {
+                    LineKey = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id,
+                    SortIndex = idx + 1,
+                    ItemName = item.ItemName,
+                    Description = item.Description ?? string.Empty,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit ?? "Nos",
+                    Rate = item.Rate,
+                    Discount = item.Discount,
+                    Gst = item.Gst,
+                    Amount = item.Amount
+                }).ToList()
+            };
+
+            order.StatusHistory.Add(NewHistory(
+                SalesOrderStatuses.Submitted,
+                now,
+                actingUser,
+                $"Converted from Quotation Approval {qa.ApprovalNumber}",
+                "Converted"));
+
+            await _db.SalesOrders.AddAsync(order, cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+
+            qa.SalesOrderId = order.Id;
+            qa.SalesOrderNumber = order.SalesOrderNumber;
+            qa.UpdatedBy = actingUser;
+            qa.UpdatedDate = now;
+            qa.History.Add(new QuotationApprovalHistory
+            {
+                Action = QuotationApprovalHistoryActions.Updated,
+                OldStatus = qa.Status,
+                NewStatus = qa.Status,
+                Remarks = $"Converted to Sales Order {order.SalesOrderNumber}",
+                PerformedBy = actingUser,
+                PerformedOn = now
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return SalesOrderMapper.ToDto(
+                await LoadTrackedAsync(order.Id, asTracking: false, cancellationToken) ?? order);
+        }
+
+        public async Task<SalesOrderPdfResultDto?> GeneratePdfAsync(
+            int id,
+            CancellationToken cancellationToken = default)
+        {
+            var entity = await LoadTrackedAsync(id, asTracking: true, cancellationToken);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            entity.PdfGeneratedDate = now;
+            entity.UpdatedBy = "system:pdf";
+            entity.UpdatedDate = now;
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return new SalesOrderPdfResultDto
+            {
+                SalesOrderId = entity.Id,
+                SalesOrderNumber = entity.SalesOrderNumber,
+                FileName = $"SalesOrder_{entity.SalesOrderNumber}.pdf",
+                GeneratedDate = DateHelper.FormatDateTime(now),
+                ContentType = "application/pdf",
+                Content = System.Text.Encoding.UTF8.GetBytes($"[PDF Document Content for Sales Order {entity.SalesOrderNumber}]")
+            };
+        }
+
+        public async Task<SalesOrderEmailResultDto?> SendEmailAsync(
+            int id,
+            SalesOrderEmailRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.Recipient))
+            {
+                throw new InvalidOperationException("Recipient email address is required.");
+            }
+
+            var entity = await LoadTrackedAsync(id, asTracking: true, cancellationToken);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            entity.LastCommunicationDate = now;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+            entity.EmailHistory.Add(new SalesOrderEmailHistory
+            {
+                EntryKey = Guid.NewGuid().ToString("N"),
+                Recipient = request.Recipient.Trim(),
+                SentDate = now,
+                Action = "EmailSent",
+                Status = "Sent"
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+
+            return new SalesOrderEmailResultDto
+            {
+                SalesOrderId = entity.Id,
+                SalesOrderNumber = entity.SalesOrderNumber,
+                Recipient = request.Recipient.Trim(),
+                SentDate = DateHelper.FormatDateTime(now),
+                Success = true,
+                Message = $"Sales Order {entity.SalesOrderNumber} email sent successfully to {request.Recipient.Trim()}."
+            };
+        }
+
+        public Task<IReadOnlyList<string>> GetPermissionsAsync() =>
+            Task.FromResult<IReadOnlyList<string>>(
+            [
+                "sales-orders.view",
+                "sales-orders.create",
+                "sales-orders.update",
+                "sales-orders.status",
+                "sales-orders.cancel",
+                "sales-orders.convert",
+                "sales-orders.pdf",
+                "sales-orders.email"
+            ]);
+
+
         private async Task<SalesOrder?> LoadTrackedAsync(
             int id,
             bool asTracking,

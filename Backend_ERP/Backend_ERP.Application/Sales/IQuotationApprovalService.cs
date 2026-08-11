@@ -67,6 +67,11 @@ namespace ERP.Application.Sales
             string currentUser,
             CancellationToken cancellationToken = default);
 
+        Task<SalesOrderDto> ConvertToSalesOrderAsync(
+            int id,
+            string currentUser,
+            CancellationToken cancellationToken = default);
+
         Task<QuotationApprovalCommentDto> AddCommentAsync(
             int id,
             QuotationApprovalCommentRequestDto request,

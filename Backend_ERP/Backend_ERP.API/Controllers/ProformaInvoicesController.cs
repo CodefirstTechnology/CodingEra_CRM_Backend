@@ -177,6 +177,27 @@ namespace ERP.API.Controllers
             }
         }
 
+        [HttpPost("from-sales-order/{salesOrderId:int}")]
+        public async Task<ActionResult<ProformaInvoiceDto>> GenerateFromSalesOrder(
+            int salesOrderId,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var created = await _service.GenerateFromSalesOrderAsync(
+                    salesOrderId,
+                    ResolveActingUser(userId),
+                    cancellationToken);
+                return Ok(created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+
         [HttpGet("{id:int}/status-history")]
         public async Task<ActionResult<IReadOnlyList<ProformaInvoiceStatusHistoryDto>>> StatusHistory(
             int id,
