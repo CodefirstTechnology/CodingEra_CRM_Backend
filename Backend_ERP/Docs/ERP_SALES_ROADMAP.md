@@ -398,7 +398,7 @@ Sales Module Final Production Readiness
 
 Status
 
-Pending
+Completed
 
 Depends On
 

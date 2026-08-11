@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using ERP.API.Middleware;
 using ERP.Infrastructure;
 using ERP.Shared.Configuration;
 
@@ -16,7 +17,7 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -35,6 +36,8 @@ builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(Dat
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseGlobalExceptionMiddleware();
 
 await app.ApplyPendingMigrationsAsync();
 
