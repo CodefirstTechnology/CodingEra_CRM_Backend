@@ -45,6 +45,7 @@ namespace CRM.Helpers
                 ("contacts", "create", "contacts.create", "Create contacts"),
                 ("contacts", "edit", "contacts.edit", "Edit contacts"),
                 ("contacts", "delete", "contacts.delete", "Delete contacts"),
+                ("contacts", "import", "contacts.import", "Import contacts"),
                 ("organizations", "view", "organizations.view", "View organizations"),
                 ("organizations", "create", "organizations.create", "Create organizations"),
                 ("organizations", "edit", "organizations.edit", "Edit organizations"),
