@@ -79,6 +79,21 @@ namespace ERP.Infrastructure.Data
         public DbSet<QuotationApprovalDocumentSequence> QuotationApprovalDocumentSequences =>
             Set<QuotationApprovalDocumentSequence>();
 
+        // Procurement Phase 1 Vendor Master DbSets
+        public DbSet<ERP.Domain.Procurement.Vendor> Vendors => Set<ERP.Domain.Procurement.Vendor>();
+
+        public DbSet<ERP.Domain.Procurement.VendorContact> VendorContacts => Set<ERP.Domain.Procurement.VendorContact>();
+
+        public DbSet<ERP.Domain.Procurement.VendorAddress> VendorAddresses => Set<ERP.Domain.Procurement.VendorAddress>();
+
+        public DbSet<ERP.Domain.Procurement.VendorCompliance> VendorCompliances => Set<ERP.Domain.Procurement.VendorCompliance>();
+
+        public DbSet<ERP.Domain.Procurement.VendorPaymentTerm> VendorPaymentTerms => Set<ERP.Domain.Procurement.VendorPaymentTerm>();
+
+        public DbSet<ERP.Domain.Procurement.VendorStatusHistory> VendorStatusHistories => Set<ERP.Domain.Procurement.VendorStatusHistory>();
+
+        public DbSet<ERP.Domain.Procurement.VendorDocumentSequence> VendorDocumentSequences => Set<ERP.Domain.Procurement.VendorDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

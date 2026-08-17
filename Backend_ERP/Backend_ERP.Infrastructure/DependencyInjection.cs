@@ -38,6 +38,10 @@ namespace ERP.Infrastructure
             services.AddScoped<IQuotationApprovalRepository, QuotationApprovalRepository>();
             services.AddScoped<IQuotationApprovalService, QuotationApprovalService>();
 
+            // Procurement Phase 1 Vendor Master Services
+            services.AddScoped<ERP.Infrastructure.Procurement.VendorNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorService, ERP.Infrastructure.Procurement.VendorService>();
+
             return services;
         }
     }
