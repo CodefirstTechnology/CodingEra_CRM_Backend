@@ -49,6 +49,13 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.RFQNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IRFQService, ERP.Infrastructure.Procurement.RFQService>();
 
+            // Procurement Phase 3 Vendor Quotations & Vendor Comparison Services
+            services.AddScoped<ERP.Infrastructure.Procurement.VendorQuotationNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorQuotationService, ERP.Infrastructure.Procurement.VendorQuotationService>();
+
+            services.AddScoped<ERP.Infrastructure.Procurement.VendorComparisonNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorComparisonService, ERP.Infrastructure.Procurement.VendorComparisonService>();
+
             return services;
         }
     }

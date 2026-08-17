@@ -1,10 +1,13 @@
+using ERP.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Backend_ERP.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(ERPDbContext))]
+    [Migration("20260823000000_AddProcurementVendorMaster")]
     public partial class AddProcurementVendorMaster : Migration
     {
         /// <inheritdoc />

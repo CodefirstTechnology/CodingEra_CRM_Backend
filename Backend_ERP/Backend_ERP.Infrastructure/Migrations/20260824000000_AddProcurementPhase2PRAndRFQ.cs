@@ -1,10 +1,13 @@
+using ERP.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Backend_ERP.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(ERPDbContext))]
+    [Migration("20260824000000_AddProcurementPhase2PRAndRFQ")]
     public partial class AddProcurementPhase2PRAndRFQ : Migration
     {
         /// <inheritdoc />

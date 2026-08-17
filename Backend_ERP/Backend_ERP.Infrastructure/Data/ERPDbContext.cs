@@ -113,6 +113,21 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.RFQDocumentSequence> RFQDocumentSequences => Set<ERP.Domain.Procurement.RFQDocumentSequence>();
 
+        // Procurement Phase 3 Vendor Quotations & Vendor Comparison DbSets
+        public DbSet<ERP.Domain.Procurement.VendorQuotation> VendorQuotations => Set<ERP.Domain.Procurement.VendorQuotation>();
+
+        public DbSet<ERP.Domain.Procurement.VendorQuotationLine> VendorQuotationLines => Set<ERP.Domain.Procurement.VendorQuotationLine>();
+
+        public DbSet<ERP.Domain.Procurement.VendorQuotationDocumentSequence> VendorQuotationDocumentSequences => Set<ERP.Domain.Procurement.VendorQuotationDocumentSequence>();
+
+        public DbSet<ERP.Domain.Procurement.VendorComparison> VendorComparisons => Set<ERP.Domain.Procurement.VendorComparison>();
+
+        public DbSet<ERP.Domain.Procurement.VendorComparisonEntry> VendorComparisonEntries => Set<ERP.Domain.Procurement.VendorComparisonEntry>();
+
+        public DbSet<ERP.Domain.Procurement.VendorComparisonStatusHistory> VendorComparisonStatusHistories => Set<ERP.Domain.Procurement.VendorComparisonStatusHistory>();
+
+        public DbSet<ERP.Domain.Procurement.VendorComparisonDocumentSequence> VendorComparisonDocumentSequences => Set<ERP.Domain.Procurement.VendorComparisonDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
