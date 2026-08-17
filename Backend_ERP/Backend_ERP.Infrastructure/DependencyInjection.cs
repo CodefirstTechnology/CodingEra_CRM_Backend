@@ -42,6 +42,13 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.VendorNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IVendorService, ERP.Infrastructure.Procurement.VendorService>();
 
+            // Procurement Phase 2 PR & RFQ Services
+            services.AddScoped<ERP.Infrastructure.Procurement.PurchaseRequisitionNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IPurchaseRequisitionService, ERP.Infrastructure.Procurement.PurchaseRequisitionService>();
+
+            services.AddScoped<ERP.Infrastructure.Procurement.RFQNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IRFQService, ERP.Infrastructure.Procurement.RFQService>();
+
             return services;
         }
     }

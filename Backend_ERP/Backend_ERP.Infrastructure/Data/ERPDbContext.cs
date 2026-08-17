@@ -94,6 +94,25 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.VendorDocumentSequence> VendorDocumentSequences => Set<ERP.Domain.Procurement.VendorDocumentSequence>();
 
+        // Procurement Phase 2 PR & RFQ DbSets
+        public DbSet<ERP.Domain.Procurement.PurchaseRequisition> PurchaseRequisitions => Set<ERP.Domain.Procurement.PurchaseRequisition>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseRequisitionLine> PurchaseRequisitionLines => Set<ERP.Domain.Procurement.PurchaseRequisitionLine>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseRequisitionStatusHistory> PurchaseRequisitionStatusHistories => Set<ERP.Domain.Procurement.PurchaseRequisitionStatusHistory>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseRequisitionDocumentSequence> PurchaseRequisitionDocumentSequences => Set<ERP.Domain.Procurement.PurchaseRequisitionDocumentSequence>();
+
+        public DbSet<ERP.Domain.Procurement.RequestForQuotation> RequestForQuotations => Set<ERP.Domain.Procurement.RequestForQuotation>();
+
+        public DbSet<ERP.Domain.Procurement.RequestForQuotationLine> RequestForQuotationLines => Set<ERP.Domain.Procurement.RequestForQuotationLine>();
+
+        public DbSet<ERP.Domain.Procurement.RequestForQuotationVendor> RequestForQuotationVendors => Set<ERP.Domain.Procurement.RequestForQuotationVendor>();
+
+        public DbSet<ERP.Domain.Procurement.RequestForQuotationStatusHistory> RequestForQuotationStatusHistories => Set<ERP.Domain.Procurement.RequestForQuotationStatusHistory>();
+
+        public DbSet<ERP.Domain.Procurement.RFQDocumentSequence> RFQDocumentSequences => Set<ERP.Domain.Procurement.RFQDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
