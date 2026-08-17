@@ -14,11 +14,19 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly IRbacService _rbac;
+        private readonly IContactImportService _contactImportService;
+        private readonly IContactImportFileParser _contactImportFileParser;
 
-        public ContactsController(TaskDbcontext context, IRbacService rbac)
+        public ContactsController(
+            TaskDbcontext context,
+            IRbacService rbac,
+            IContactImportService contactImportService,
+            IContactImportFileParser contactImportFileParser)
         {
             _context = context;
             _rbac = rbac;
+            _contactImportService = contactImportService;
+            _contactImportFileParser = contactImportFileParser;
         }
 
         [HttpGet]
@@ -167,6 +175,92 @@ namespace CRM.Controllers
             _context.Contacts.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });
+        }
+
+        /// <summary>Validates import rows against CRM master data and duplicate rules. Does not persist contacts.</summary>
+        [HttpPost("import")]
+        [Consumes("application/json", "multipart/form-data")]
+        [RequestSizeLimit(104_857_600)]
+        public async Task<IActionResult> ValidateImport([FromQuery] int userId)
+        {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.import");
+            if (permErr != null) return permErr;
+            var resolved = await ResolveImportRowsAsync();
+            if (resolved.Error != null)
+            {
+                return resolved.Error;
+            }
+
+            var result = await _contactImportService.ValidateImportAsync(resolved.Rows!);
+            return Ok(result);
+        }
+
+        /// <summary>Validates and persists valid import rows. Skips duplicate and invalid rows.</summary>
+        [HttpPost("import/commit")]
+        [Consumes("application/json", "multipart/form-data")]
+        [RequestSizeLimit(104_857_600)]
+        public async Task<IActionResult> CommitImport([FromQuery] int userId)
+        {
+            var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "contacts.import");
+            if (permErr != null) return permErr;
+
+            var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
+            if (auditErr != null)
+            {
+                return auditErr;
+            }
+
+            var resolved = await ResolveImportRowsAsync();
+            if (resolved.Error != null)
+            {
+                return resolved.Error;
+            }
+
+            var result = await _contactImportService.CommitImportAsync(userId, resolved.Rows!);
+            return Ok(result);
+        }
+
+        private async Task<(IReadOnlyList<ContactImportRowDto>? Rows, IActionResult? Error)> ResolveImportRowsAsync()
+        {
+            if (Request.HasFormContentType)
+            {
+                var file = Request.Form.Files.GetFile("file") ?? Request.Form.Files.FirstOrDefault();
+                if (file == null || file.Length == 0)
+                {
+                    return (null, BadRequest("Import file is required."));
+                }
+
+                var fileName = file.FileName ?? string.Empty;
+                if (!fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
+                    && !fileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (null, BadRequest("Only .xlsx and .csv files are supported."));
+                }
+
+                try
+                {
+                    await using var stream = file.OpenReadStream();
+                    var rows = await _contactImportFileParser.ParseAsync(stream, fileName, HttpContext.RequestAborted);
+                    if (rows.Count == 0)
+                    {
+                        return (null, BadRequest("At least one import row is required."));
+                    }
+
+                    return (rows, null);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return (null, BadRequest(ex.Message));
+                }
+            }
+
+            var dto = await Request.ReadFromJsonAsync<ContactImportRequestDto>(HttpContext.RequestAborted);
+            if (dto?.Rows == null || dto.Rows.Count == 0)
+            {
+                return (null, BadRequest("At least one import row is required."));
+            }
+
+            return (dto.Rows, null);
         }
     }
 }

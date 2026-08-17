@@ -22,6 +22,8 @@ namespace CRM.Services
     {
         public IReadOnlyList<LeadSyncIncomingLead> Leads { get; init; } = Array.Empty<LeadSyncIncomingLead>();
         public string? ErrorMessage { get; init; }
+        /// <summary>Non-fatal note shown in Sync history when RECEIVED is 0.</summary>
+        public string? InfoMessage { get; init; }
     }
 
     public class LeadSyncIncomingLead
@@ -221,6 +223,10 @@ namespace CRM.Services
                 else
                 {
                     result = await PersistIncomingLeadsAsync(source, pull.Leads, cancellationToken);
+                    if (result.TotalReceived == 0 && !string.IsNullOrWhiteSpace(pull.InfoMessage))
+                    {
+                        result.ErrorMessage = pull.InfoMessage;
+                    }
                 }
             }
             catch (Exception ex)
@@ -251,11 +257,10 @@ namespace CRM.Services
             IReadOnlyList<LeadSyncIncomingLead> incoming,
             CancellationToken cancellationToken)
         {
-            // Pull sync keeps LeadSource = "Website" for existing dashboard/filter compatibility.
-            // Identity for dedupe/RR remains [crm-ext:{MarkerName}:{ExternalKey}] in Notes.
+            // Persist with marketplace source name so leads show under IndiaMART filters.
             var batch = await _marketplacePersistence.PersistAsync(
                 source.MarkerName,
-                "Website",
+                source.MarkerName,
                 incoming,
                 cancellationToken);
 
@@ -330,7 +335,19 @@ namespace CRM.Services
             JsonElement body;
             try
             {
-                body = await client.GetFromJsonAsync<JsonElement>(url, cancellationToken);
+                // Read as text first — IndiaMART often returns application/json as text/plain.
+                using var response = await client.GetAsync(url, cancellationToken);
+                var rawText = await response.Content.ReadAsStringAsync(cancellationToken);
+                if (string.IsNullOrWhiteSpace(rawText))
+                {
+                    return new LeadSyncPullResult
+                    {
+                        ErrorMessage = $"IndiaMART returned empty body (HTTP {(int)response.StatusCode}).",
+                    };
+                }
+
+                using var doc = JsonDocument.Parse(rawText);
+                body = doc.RootElement.Clone();
             }
             catch (Exception ex)
             {
@@ -343,11 +360,37 @@ namespace CRM.Services
                 return new LeadSyncPullResult { ErrorMessage = err };
             }
 
-            var leads = LeadSyncPullHelpers.ExtractLeadArray(body)
+            var rawRows = LeadSyncPullHelpers.ExtractLeadArray(body);
+            var leads = rawRows
                 .Select(row => LeadSyncPullHelpers.MapGenericMarketplaceRow(row, "IndiaMART", "IndiaMART"))
                 .Where(l => l != null)
                 .Cast<LeadSyncIncomingLead>()
                 .ToList();
+
+            if (rawRows.Count > 0 && leads.Count == 0)
+            {
+                return new LeadSyncPullResult
+                {
+                    ErrorMessage =
+                        "IndiaMART returned "
+                        + rawRows.Count
+                        + " lead(s) but none could be mapped (missing name/email/mobile). "
+                        + LeadSyncPullHelpers.DescribeIndiaMartResponse(body, rawRows.Count, 0),
+                };
+            }
+
+            if (leads.Count == 0)
+            {
+                var (startTime, endTime) = LeadSyncPullHelpers.GetIndiaMartPullTimeRange(7);
+                return new LeadSyncPullResult
+                {
+                    Leads = leads,
+                    InfoMessage =
+                        $"No IndiaMART Pull API leads in {startTime} → {endTime}. "
+                        + LeadSyncPullHelpers.DescribeIndiaMartResponse(body, rawRows.Count, 0)
+                        + " Lead Manager can show more than Pull API (e.g. recent catalog views).",
+                };
+            }
 
             return new LeadSyncPullResult { Leads = leads };
         }
