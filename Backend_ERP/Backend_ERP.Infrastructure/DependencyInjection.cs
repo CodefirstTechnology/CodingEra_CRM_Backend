@@ -56,6 +56,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.VendorComparisonNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IVendorComparisonService, ERP.Infrastructure.Procurement.VendorComparisonService>();
 
+            // Procurement Phase 4 Purchase Order Services
+            services.AddScoped<ERP.Infrastructure.Procurement.PurchaseOrderNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IPurchaseOrderService, ERP.Infrastructure.Procurement.PurchaseOrderService>();
+
             return services;
         }
     }

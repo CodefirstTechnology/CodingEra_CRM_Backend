@@ -128,6 +128,17 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.VendorComparisonDocumentSequence> VendorComparisonDocumentSequences => Set<ERP.Domain.Procurement.VendorComparisonDocumentSequence>();
 
+        // Procurement Phase 4 Purchase Order DbSets
+        public DbSet<ERP.Domain.Procurement.PurchaseOrder> PurchaseOrders => Set<ERP.Domain.Procurement.PurchaseOrder>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseOrderLine> PurchaseOrderLines => Set<ERP.Domain.Procurement.PurchaseOrderLine>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseOrderStatusHistory> PurchaseOrderStatusHistories => Set<ERP.Domain.Procurement.PurchaseOrderStatusHistory>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseOrderApprovalHistory> PurchaseOrderApprovalHistories => Set<ERP.Domain.Procurement.PurchaseOrderApprovalHistory>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseOrderDocumentSequence> PurchaseOrderDocumentSequences => Set<ERP.Domain.Procurement.PurchaseOrderDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
