@@ -31,7 +31,20 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngular",
         policy =>
         {
-            policy.WithOrigins("http://localhost:4200")
+            policy.SetIsOriginAllowed(origin =>
+                {
+                    if (string.IsNullOrWhiteSpace(origin)) return false;
+                    try
+                    {
+                        var uri = new Uri(origin);
+                        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                               uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                })
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -96,5 +109,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<UserStatusHub>("/hubs/user-status");
+app.MapHub<UserStatusHub>("/api/hubs/user-status");
 
 app.Run();
