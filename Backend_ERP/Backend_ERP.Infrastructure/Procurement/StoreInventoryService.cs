@@ -214,6 +214,7 @@ namespace ERP.Infrastructure.Procurement
             });
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await RecalculateStockAlertsAsync(cancellationToken);
             return MapRawMaterial(item);
         }
 
@@ -420,6 +421,7 @@ namespace ERP.Infrastructure.Procurement
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await RecalculateStockAlertsAsync(cancellationToken);
             return MapStockTxn(entity);
         }
 
@@ -469,6 +471,7 @@ namespace ERP.Infrastructure.Procurement
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await RecalculateStockAlertsAsync(cancellationToken);
             return MapStockTxn(entity);
         }
 
@@ -964,6 +967,7 @@ namespace ERP.Infrastructure.Procurement
                 }
 
                 await _dbContext.SaveChangesAsync(cancellationToken);
+                await RecalculateStockAlertsAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 return MapTransfer(entity);
             }
@@ -994,14 +998,100 @@ namespace ERP.Infrastructure.Procurement
 
         // ── Alerts ──
 
+        // ── Alerts ──
+
+        private async Task RecalculateStockAlertsAsync(CancellationToken cancellationToken)
+        {
+            var rawMaterials = await _dbContext.RawMaterials.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+            var existingAlerts = await _dbContext.StockAlerts.ToListAsync(cancellationToken);
+
+            var alertsMap = existingAlerts.GroupBy(x => new { x.MaterialId, x.WarehouseId })
+                .ToDictionary(g => g.Key, g => g.First());
+
+            foreach (var mat in rawMaterials)
+            {
+                var key = new { MaterialId = mat.Id, WarehouseId = mat.WarehouseId };
+                bool isLowStock = mat.AvailableStock <= mat.MinimumStock;
+
+                if (isLowStock)
+                {
+                    var priority = mat.AvailableStock <= 0 ? AlertPriority.Critical : AlertPriority.Warning;
+                    var reorderQty = Math.Max(0m, mat.MaximumStock - mat.AvailableStock);
+                    bool suggestedPurchase = mat.AvailableStock <= mat.ReorderLevel;
+
+                    if (alertsMap.TryGetValue(key, out var alert))
+                    {
+                        alert.CurrentStock = mat.AvailableStock;
+                        alert.MinimumStock = mat.MinimumStock;
+                        alert.ReorderQuantity = reorderQty;
+                        alert.Priority = priority;
+                        alert.SuggestedPurchase = suggestedPurchase;
+                        alert.WarehouseName = mat.WarehouseName;
+                        alert.MaterialCode = mat.MaterialCode;
+                        alert.MaterialName = mat.MaterialName;
+                        alert.Unit = mat.Unit;
+                    }
+                    else
+                    {
+                        var newAlert = new StockAlert
+                        {
+                            MaterialId = mat.Id,
+                            MaterialCode = mat.MaterialCode,
+                            MaterialName = mat.MaterialName,
+                            WarehouseId = mat.WarehouseId,
+                            WarehouseName = mat.WarehouseName,
+                            CurrentStock = mat.AvailableStock,
+                            MinimumStock = mat.MinimumStock,
+                            ReorderQuantity = reorderQty,
+                            Unit = mat.Unit,
+                            Priority = priority,
+                            SuggestedPurchase = suggestedPurchase,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _dbContext.StockAlerts.Add(newAlert);
+                    }
+                }
+                else
+                {
+                    if (alertsMap.TryGetValue(key, out var alert))
+                    {
+                        _dbContext.StockAlerts.Remove(alert);
+                    }
+                }
+            }
+
+            var matIds = rawMaterials.Select(x => x.Id).ToHashSet();
+            foreach (var alert in existingAlerts)
+            {
+                if (!matIds.Contains(alert.MaterialId))
+                {
+                    _dbContext.StockAlerts.Remove(alert);
+                }
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         public async Task<List<StockAlertDto>> GetAlertsAsync(StoreListQueryDto query, CancellationToken cancellationToken = default)
         {
+            await RecalculateStockAlertsAsync(cancellationToken);
+
             var q = _dbContext.StockAlerts.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var term = query.Search.Trim().ToLower();
                 q = q.Where(x => x.MaterialCode.ToLower().Contains(term) || x.MaterialName.ToLower().Contains(term));
+            }
+
+            if (query.WarehouseId.HasValue && query.WarehouseId.Value > 0)
+            {
+                q = q.Where(x => x.WarehouseId == query.WarehouseId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.Priority) && Enum.TryParse<AlertPriority>(query.Priority, true, out var alertPriority))
+            {
+                q = q.Where(x => x.Priority == alertPriority);
             }
 
             return await q.OrderByDescending(x => x.Id)
@@ -1011,6 +1101,8 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<AlertDashboardDto> GetAlertDashboardAsync(CancellationToken cancellationToken = default)
         {
+            await RecalculateStockAlertsAsync(cancellationToken);
+
             var list = await _dbContext.StockAlerts.ToListAsync(cancellationToken);
 
             return new AlertDashboardDto
@@ -1025,6 +1117,22 @@ namespace ERP.Infrastructure.Procurement
                 }
             };
         }
+
+        public Task<IReadOnlyList<string>> GetPermissionsAsync() =>
+            Task.FromResult<IReadOnlyList<string>>(
+            [
+                "store-inventory.view",
+                "store-inventory.create",
+                "store-inventory.edit",
+                "store-inventory.delete",
+                "store-inventory.adjust",
+                "store-inventory.transfer",
+                "store-inventory.transfer.approve",
+                "store-inventory.verify",
+                "store-inventory.verify.approve",
+                "store-inventory.valuation.view",
+                "store-inventory.alerts.view"
+            ]);
 
         // ── Valuation ──
 

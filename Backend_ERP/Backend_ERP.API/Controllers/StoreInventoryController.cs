@@ -413,6 +413,13 @@ namespace ERP.API.Controllers
             return updated is null ? NotFound() : Ok(updated);
         }
 
+        [HttpGet("permissions")]
+        public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
+        {
+            _ = userId;
+            return Ok(await _inventoryService.GetPermissionsAsync());
+        }
+
         private static string ResolveUser(int? userId) => userId is > 0 ? userId.Value.ToString() : "system";
     }
 }

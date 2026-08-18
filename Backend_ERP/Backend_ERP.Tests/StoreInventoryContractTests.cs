@@ -138,5 +138,30 @@ namespace Backend_ERP.Tests
             Assert.Equal(TransferStatus.Draft, dto.Status);
             Assert.Equal("Urgent transfer", dto.Remarks);
         }
+
+        [Fact]
+        public void StockAlertDto_exposes_expected_json_properties()
+        {
+            var dto = new StockAlertDto
+            {
+                Id = 1,
+                MaterialId = 10,
+                MaterialCode = "MAT-2026-000010",
+                MaterialName = "Copper Wire 1mm",
+                WarehouseId = 1,
+                WarehouseName = "Main Store",
+                CurrentStock = 5m,
+                MinimumStock = 10m,
+                ReorderQuantity = 15m,
+                Priority = AlertPriority.Warning,
+                SuggestedPurchase = true
+            };
+
+            Assert.Equal("MAT-2026-000010", dto.MaterialCode);
+            Assert.Equal("Copper Wire 1mm", dto.MaterialName);
+            Assert.Equal(5m, dto.CurrentStock);
+            Assert.Equal(AlertPriority.Warning, dto.Priority);
+            Assert.True(dto.SuggestedPurchase);
+        }
     }
 }
