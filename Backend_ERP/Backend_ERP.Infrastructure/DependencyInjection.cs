@@ -60,6 +60,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.PurchaseOrderNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IPurchaseOrderService, ERP.Infrastructure.Procurement.PurchaseOrderService>();
 
+            // Procurement Phase 5 Goods Receipt (GRN) Services
+            services.AddScoped<ERP.Infrastructure.Procurement.GoodsReceiptNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IGoodsReceiptService, ERP.Infrastructure.Procurement.GoodsReceiptService>();
+
             return services;
         }
     }

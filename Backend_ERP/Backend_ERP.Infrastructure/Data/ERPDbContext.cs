@@ -139,6 +139,15 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.PurchaseOrderDocumentSequence> PurchaseOrderDocumentSequences => Set<ERP.Domain.Procurement.PurchaseOrderDocumentSequence>();
 
+        // Procurement Phase 5 Goods Receipt (GRN) DbSets
+        public DbSet<ERP.Domain.Procurement.GoodsReceipt> GoodsReceipts => Set<ERP.Domain.Procurement.GoodsReceipt>();
+
+        public DbSet<ERP.Domain.Procurement.GoodsReceiptItem> GoodsReceiptItems => Set<ERP.Domain.Procurement.GoodsReceiptItem>();
+
+        public DbSet<ERP.Domain.Procurement.GoodsReceiptStatusHistory> GoodsReceiptStatusHistories => Set<ERP.Domain.Procurement.GoodsReceiptStatusHistory>();
+
+        public DbSet<ERP.Domain.Procurement.GoodsReceiptDocumentSequence> GoodsReceiptDocumentSequences => Set<ERP.Domain.Procurement.GoodsReceiptDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
