@@ -72,6 +72,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.StoreInventoryNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IStoreInventoryService, ERP.Infrastructure.Procurement.StoreInventoryService>();
 
+            // Procurement Phase 8 Purchase Bills & 3-Way Matching Services
+            services.AddScoped<ERP.Infrastructure.Procurement.PurchaseBillNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IPurchaseBillService, ERP.Infrastructure.Procurement.PurchaseBillService>();
+
             return services;
         }
     }

@@ -190,6 +190,15 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.StoreInventoryDocumentSequence> StoreInventoryDocumentSequences => Set<ERP.Domain.Procurement.StoreInventoryDocumentSequence>();
 
+        // Procurement Phase 8 Purchase Bills & 3-Way Matching DbSets
+        public DbSet<ERP.Domain.Procurement.PurchaseBill> PurchaseBills => Set<ERP.Domain.Procurement.PurchaseBill>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseBillLine> PurchaseBillLines => Set<ERP.Domain.Procurement.PurchaseBillLine>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseBillHistory> PurchaseBillHistories => Set<ERP.Domain.Procurement.PurchaseBillHistory>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseBillDocumentSequence> PurchaseBillDocumentSequences => Set<ERP.Domain.Procurement.PurchaseBillDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
