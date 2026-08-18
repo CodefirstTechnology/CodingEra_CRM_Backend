@@ -202,5 +202,53 @@ namespace Backend_ERP.Tests
             Assert.Equal(VerificationStatus.Scheduled, dto.Status);
             Assert.False(dto.AdjustmentPosted);
         }
+
+        [Fact]
+        public void StockValuationSummaryDto_exposes_expected_json_properties()
+        {
+            var dto = new StockValuationSummaryDto
+            {
+                InventoryValue = 1000m,
+                OpeningValue = 800m,
+                ClosingValue = 1000m,
+                AverageCost = 50m,
+                FifoPlaceholder = "FIFO valuation will be calculated by the backend inventory engine.",
+                WeightedAveragePlaceholder = "Weighted average cost will be calculated by the backend inventory engine.",
+                WarehouseValues = new List<WarehouseValueDto>
+                {
+                    new() { WarehouseId = 1, WarehouseName = "Main WH", Value = 1000m, Quantity = 20m }
+                },
+                CategoryValues = new List<CategoryValueDto>
+                {
+                    new() { Category = "Raw Materials", Value = 1000m, Quantity = 20m }
+                }
+            };
+
+            Assert.Equal(1000m, dto.InventoryValue);
+            Assert.Equal(800m, dto.OpeningValue);
+            Assert.Equal("FIFO valuation will be calculated by the backend inventory engine.", dto.FifoPlaceholder);
+            Assert.Single(dto.WarehouseValues);
+            Assert.Single(dto.CategoryValues);
+        }
+
+        [Fact]
+        public void VerificationDashboardDto_exposes_expected_json_properties()
+        {
+            var dto = new VerificationDashboardDto
+            {
+                PendingVerifications = 2,
+                Completed = 5,
+                VarianceAmount = 150m,
+                Cards = new List<DashCardDto>
+                {
+                    new() { Label = "Pending Verifications", Value = "2" }
+                }
+            };
+
+            Assert.Equal(2, dto.PendingVerifications);
+            Assert.Equal(5, dto.Completed);
+            Assert.Equal(150m, dto.VarianceAmount);
+            Assert.Single(dto.Cards);
+        }
     }
 }
