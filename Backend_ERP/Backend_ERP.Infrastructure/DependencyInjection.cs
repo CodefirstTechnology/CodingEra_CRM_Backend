@@ -76,6 +76,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.PurchaseBillNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IPurchaseBillService, ERP.Infrastructure.Procurement.PurchaseBillService>();
 
+            // Procurement Reports & Audit Trail Services
+            services.AddScoped<ERP.Application.Procurement.IProcurementAuditTrailService, ERP.Infrastructure.Procurement.ProcurementAuditTrailService>();
+            services.AddScoped<ERP.Application.Procurement.IProcurementReportsService, ERP.Infrastructure.Procurement.ProcurementReportsService>();
+
             return services;
         }
     }

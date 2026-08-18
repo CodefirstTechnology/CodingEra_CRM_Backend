@@ -199,6 +199,9 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.PurchaseBillDocumentSequence> PurchaseBillDocumentSequences => Set<ERP.Domain.Procurement.PurchaseBillDocumentSequence>();
 
+        // Procurement Reports & Audit Trail DbSets
+        public DbSet<ERP.Domain.Procurement.ProcurementAuditTrailEntry> ProcurementAuditTrailEntries => Set<ERP.Domain.Procurement.ProcurementAuditTrailEntry>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
