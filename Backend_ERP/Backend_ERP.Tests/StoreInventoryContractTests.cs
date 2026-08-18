@@ -163,5 +163,44 @@ namespace Backend_ERP.Tests
             Assert.Equal(AlertPriority.Warning, dto.Priority);
             Assert.True(dto.SuggestedPurchase);
         }
+
+        [Theory]
+        [InlineData(VerificationStatus.Scheduled, VerificationStatus.InProgress, true)]
+        [InlineData(VerificationStatus.InProgress, VerificationStatus.Completed, true)]
+        [InlineData(VerificationStatus.Completed, VerificationStatus.Adjusted, true)]
+        [InlineData(VerificationStatus.Adjusted, VerificationStatus.Scheduled, false)]
+        public void StoreInventoryRules_validates_verification_transitions(VerificationStatus current, VerificationStatus target, bool expected)
+        {
+            Assert.Equal(expected, StoreInventoryRules.CanTransitionVerification(current, target));
+        }
+
+        [Fact]
+        public void PhysicalVerificationDto_exposes_expected_json_properties()
+        {
+            var dto = new PhysicalVerificationDto
+            {
+                Id = 1,
+                VerificationNumber = "PV-2026-0001",
+                WarehouseId = 1,
+                WarehouseName = "Main WH",
+                Verifier = "Verifier Name",
+                ExpectedQuantity = 100m,
+                ActualQuantity = 95m,
+                Variance = -5m,
+                VarianceValue = -250m,
+                Status = VerificationStatus.Scheduled,
+                AdjustmentPosted = false
+            };
+
+            Assert.Equal("PV-2026-0001", dto.VerificationNumber);
+            Assert.Equal("Main WH", dto.WarehouseName);
+            Assert.Equal("Verifier Name", dto.Verifier);
+            Assert.Equal(100m, dto.ExpectedQuantity);
+            Assert.Equal(95m, dto.ActualQuantity);
+            Assert.Equal(-5m, dto.Variance);
+            Assert.Equal(-250m, dto.VarianceValue);
+            Assert.Equal(VerificationStatus.Scheduled, dto.Status);
+            Assert.False(dto.AdjustmentPosted);
+        }
     }
 }

@@ -402,15 +402,29 @@ namespace ERP.API.Controllers
         [HttpPost("verifications")]
         public async Task<ActionResult<PhysicalVerificationDto>> VerifyStock([FromBody] PhysicalVerificationCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var created = await _inventoryService.VerifyStockAsync(request, ResolveUser(userId), cancellationToken);
-            return CreatedAtAction(nameof(GetVerificationById), new { id = created.Id, userId }, created);
+            try
+            {
+                var created = await _inventoryService.VerifyStockAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetVerificationById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPatch("verifications/{id:int}/status")]
         public async Task<ActionResult<PhysicalVerificationDto>> UpdateVerificationStatus(int id, [FromBody] PhysicalVerificationStatusUpdateDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var updated = await _inventoryService.UpdateVerificationStatusAsync(id, request, ResolveUser(userId), cancellationToken);
-            return updated is null ? NotFound() : Ok(updated);
+            try
+            {
+                var updated = await _inventoryService.UpdateVerificationStatusAsync(id, request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("permissions")]

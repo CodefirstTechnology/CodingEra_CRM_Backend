@@ -1167,6 +1167,8 @@ namespace ERP.Infrastructure.Procurement
                 AverageCost = rows.Count > 0 ? rows.Average(x => x.AverageCost) : 0m,
                 AsOfDate = DateTime.UtcNow,
                 Rows = rows,
+                FifoPlaceholder = "FIFO valuation will be calculated by the backend inventory engine.",
+                WeightedAveragePlaceholder = "Weighted average cost will be calculated by the backend inventory engine.",
                 WarehouseValues = rows.GroupBy(x => new { x.WarehouseId, x.WarehouseName })
                     .Select(g => new WarehouseValueDto { WarehouseId = g.Key.WarehouseId, WarehouseName = g.Key.WarehouseName, Value = g.Sum(v => v.CurrentValue), Quantity = g.Sum(q => q.Quantity) }).ToList(),
                 CategoryValues = rows.GroupBy(x => x.Category)
@@ -1197,17 +1199,69 @@ namespace ERP.Infrastructure.Procurement
             return item is null ? null : MapVerification(item);
         }
 
+        private static List<InventoryTimelineEventDto> BuildVerificationTimeline(PhysicalVerification entity)
+        {
+            var list = new List<InventoryTimelineEventDto>
+            {
+                new()
+                {
+                    Id = $"pv-tl-1-{entity.Id}",
+                    Date = entity.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = entity.CreatedBy,
+                    Action = "Scheduled",
+                    ToStatus = "Scheduled"
+                }
+            };
+
+            if (entity.Status != VerificationStatus.Scheduled)
+            {
+                list.Insert(0, new InventoryTimelineEventDto
+                {
+                    Id = $"pv-tl-2-{entity.Id}",
+                    Date = entity.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = entity.UpdatedBy,
+                    Action = $"Status → {entity.Status}",
+                    FromStatus = "Scheduled",
+                    ToStatus = entity.Status.ToString(),
+                    Remarks = entity.Remarks
+                });
+            }
+
+            return list;
+        }
+
         public async Task<PhysicalVerificationDto> VerifyStockAsync(PhysicalVerificationCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(request.Verifier))
+            {
+                throw new InvalidOperationException("Verifier is required.");
+            }
+
+            if (request.Lines == null || !request.Lines.Any())
+            {
+                throw new InvalidOperationException("At least one verification line is required.");
+            }
+
+            var materialIds = request.Lines.Select(x => x.MaterialId).ToList();
+            if (materialIds.Distinct().Count() != request.Lines.Count)
+            {
+                throw new InvalidOperationException("Duplicate materials are not allowed on one verification.");
+            }
+
+            var wh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.WarehouseId && !x.IsDeleted, cancellationToken);
+            if (wh == null || wh.Status != WarehouseStatus.Active)
+            {
+                throw new InvalidOperationException("Selected warehouse is inactive or does not exist.");
+            }
+
             var pvNum = await _numberingService.GenerateNumberAsync("PV", cancellationToken);
-            var wh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.WarehouseId, cancellationToken);
 
             var entity = new PhysicalVerification
             {
                 VerificationNumber = pvNum,
                 WarehouseId = request.WarehouseId,
-                WarehouseName = wh?.Name ?? "Warehouse",
-                Verifier = request.Verifier,
+                WarehouseName = wh.Name,
+                Verifier = request.Verifier.Trim(),
                 VerificationDate = request.VerificationDate,
                 Status = VerificationStatus.Scheduled,
                 Remarks = request.Remarks ?? string.Empty,
@@ -1217,28 +1271,54 @@ namespace ERP.Infrastructure.Procurement
                 UpdatedAt = DateTime.UtcNow
             };
 
+            decimal totalExpected = 0;
+            decimal totalActual = 0;
+            decimal totalVariance = 0;
+            decimal totalVarianceValue = 0;
+
             foreach (var line in request.Lines)
             {
-                var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == line.MaterialId, cancellationToken);
-                var variance = line.ActualQuantity - line.ExpectedQuantity;
+                if (line.ExpectedQuantity < 0 || line.ActualQuantity < 0)
+                {
+                    throw new InvalidOperationException("Quantities cannot be negative.");
+                }
+
+                if (line.ExpectedQuantity != line.ActualQuantity && string.IsNullOrWhiteSpace(line.Remarks))
+                {
+                    throw new InvalidOperationException("Line remarks are required when expected and actual quantities differ.");
+                }
+
+                var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == line.MaterialId && x.WarehouseId == request.WarehouseId && !x.IsDeleted, cancellationToken);
+                if (mat == null)
+                {
+                    throw new InvalidOperationException($"Material with ID {line.MaterialId} does not exist in the selected warehouse.");
+                }
+
+                var lineVariance = line.ActualQuantity - line.ExpectedQuantity;
+                var lineVarianceValue = lineVariance * mat.UnitCost;
+
+                totalExpected += line.ExpectedQuantity;
+                totalActual += line.ActualQuantity;
+                totalVariance += lineVariance;
+                totalVarianceValue += lineVarianceValue;
 
                 entity.Lines.Add(new PhysicalVerificationLine
                 {
                     MaterialId = line.MaterialId,
-                    MaterialCode = mat?.MaterialCode ?? "MAT",
-                    MaterialName = mat?.MaterialName ?? "Material",
-                    Unit = mat?.Unit ?? "Nos",
+                    MaterialCode = mat.MaterialCode,
+                    MaterialName = mat.MaterialName,
+                    Unit = mat.Unit,
                     ExpectedQuantity = line.ExpectedQuantity,
                     ActualQuantity = line.ActualQuantity,
-                    Variance = variance,
+                    Variance = lineVariance,
                     Remarks = line.Remarks ?? string.Empty
                 });
             }
 
-            entity.ExpectedQuantity = entity.Lines.Sum(x => x.ExpectedQuantity);
-            entity.ActualQuantity = entity.Lines.Sum(x => x.ActualQuantity);
-            entity.Variance = entity.Lines.Sum(x => x.Variance);
-            entity.VarianceValue = entity.Variance * 50m; // Nominal cost multiplier
+            entity.ExpectedQuantity = totalExpected;
+            entity.ActualQuantity = totalActual;
+            entity.Variance = totalVariance;
+            entity.VarianceValue = totalVarianceValue;
 
             _dbContext.PhysicalVerifications.Add(entity);
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -1247,22 +1327,117 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<PhysicalVerificationDto?> UpdateVerificationStatusAsync(int id, PhysicalVerificationStatusUpdateDto request, string currentUser, CancellationToken cancellationToken = default)
         {
-            var entity = await _dbContext.PhysicalVerifications.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
-            if (entity is null) return null;
-
-            if (StoreInventoryRules.CanTransitionVerification(entity.Status, request.Status))
+            using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            try
             {
-                entity.Status = request.Status;
+                var entity = await _dbContext.PhysicalVerifications.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+                if (entity is null) return null;
+
+                var oldStatus = entity.Status;
+                var newStatus = request.Status;
+
+                if (!StoreInventoryRules.CanTransitionVerification(oldStatus, newStatus))
+                {
+                    throw new InvalidOperationException($"Invalid status transition from {oldStatus} to {newStatus}.");
+                }
+
+                if ((newStatus == VerificationStatus.Cancelled || newStatus == VerificationStatus.Adjusted) && string.IsNullOrWhiteSpace(request.Remarks))
+                {
+                    throw new InvalidOperationException("Remarks are required for this action.");
+                }
+
+                entity.Status = newStatus;
                 if (!string.IsNullOrWhiteSpace(request.Remarks)) entity.Remarks = request.Remarks;
-                if (!string.IsNullOrWhiteSpace(request.ApprovedBy)) entity.ApprovedBy = request.ApprovedBy;
-                if (request.Status == VerificationStatus.Adjusted) entity.AdjustmentPosted = true;
+                if (newStatus == VerificationStatus.Adjusted)
+                {
+                    entity.ApprovedBy = currentUser;
+                    entity.AdjustmentPosted = true;
+                }
                 entity.UpdatedBy = currentUser;
                 entity.UpdatedAt = DateTime.UtcNow;
 
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
+                if (newStatus == VerificationStatus.Adjusted && oldStatus != VerificationStatus.Adjusted)
+                {
+                    foreach (var line in entity.Lines)
+                    {
+                        if (line.Variance == 0) continue;
 
-            return MapVerification(entity);
+                        var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == line.MaterialId && x.WarehouseId == entity.WarehouseId && !x.IsDeleted, cancellationToken);
+                        if (mat is null)
+                        {
+                            throw new InvalidOperationException($"Material {line.MaterialId} not found in warehouse.");
+                        }
+
+                        var nextStock = mat.AvailableStock + line.Variance;
+                        if (nextStock < 0)
+                        {
+                            throw new InvalidOperationException($"Adjustment would make {mat.MaterialCode} negative. Available: {mat.AvailableStock}");
+                        }
+
+                        mat.AvailableStock = nextStock;
+                        mat.CurrentValue = mat.AvailableStock * mat.UnitCost;
+                        mat.UpdatedBy = currentUser;
+                        mat.UpdatedAt = DateTime.UtcNow;
+
+                        var batches = await _dbContext.InventoryBatches.Where(x => x.MaterialId == mat.Id && x.WarehouseId == entity.WarehouseId && !x.IsDeleted)
+                            .OrderByDescending(x => x.Id)
+                            .ToListAsync(cancellationToken);
+                        if (batches.Any())
+                        {
+                            var targetBatch = batches.First();
+                            if (line.Variance > 0)
+                            {
+                                targetBatch.AvailableQuantity += line.Variance;
+                                targetBatch.RemainingQuantity = Math.Max(0m, targetBatch.AvailableQuantity - targetBatch.ConsumedQuantity);
+                                targetBatch.Status = ResolveBatchStatus(targetBatch);
+                            }
+                            else
+                            {
+                                targetBatch.ConsumedQuantity += Math.Abs(line.Variance);
+                                targetBatch.RemainingQuantity = Math.Max(0m, targetBatch.AvailableQuantity - targetBatch.ConsumedQuantity);
+                                targetBatch.Status = ResolveBatchStatus(targetBatch);
+                            }
+                        }
+
+                        var txnNum = await _numberingService.GenerateNumberAsync("TXN", cancellationToken);
+                        _dbContext.StockTransactions.Add(new StockTransaction
+                        {
+                            TransactionNumber = txnNum,
+                            TransactionType = StockTxnType.Adjustment,
+                            MaterialId = line.MaterialId,
+                            MaterialCode = line.MaterialCode,
+                            MaterialName = line.MaterialName,
+                            WarehouseId = entity.WarehouseId,
+                            WarehouseName = entity.WarehouseName,
+                            Quantity = Math.Abs(line.Variance),
+                            Unit = line.Unit,
+                            Reason = "Physical Verification count reconciliation",
+                            ReferenceType = StockReferenceType.Verification,
+                            ReferenceNumber = entity.VerificationNumber,
+                            ReferenceId = entity.Id,
+                            User = currentUser,
+                            TransactionDate = DateTime.UtcNow,
+                            Remarks = request.Remarks ?? string.Empty,
+                            CreatedBy = currentUser,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                if (newStatus == VerificationStatus.Adjusted)
+                {
+                    await RecalculateStockAlertsAsync(cancellationToken);
+                }
+                await transaction.CommitAsync(cancellationToken);
+
+                return MapVerification(entity);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
 
         public async Task<VerificationDashboardDto> GetVerificationDashboardAsync(CancellationToken cancellationToken = default)
@@ -1602,6 +1777,8 @@ namespace ERP.Infrastructure.Procurement
             CreatedAt = entity.CreatedAt,
             UpdatedBy = entity.UpdatedBy,
             UpdatedAt = entity.UpdatedAt,
+            Timeline = BuildVerificationTimeline(entity),
+            Attachments = new(),
             Lines = entity.Lines.Select(x => new PhysicalVerificationLineDto
             {
                 Id = x.Id.ToString(),
