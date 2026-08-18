@@ -34,7 +34,7 @@
           Condition="'$(EfAutoMigrateOnBuild)' == 'true' AND '$(Configuration)' == 'Debug' AND '$(SkipEfMigrate)' != 'true'">
     <Message Importance="high" Text="Running EF Core auto-migration (Scripts\ef-auto-migrate.ps1)..." />
     <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
-          Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)Scripts\ef-auto-migrate.ps1&quot;"
+          Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Scripts\ef-auto-migrate.ps1&quot;"
           IgnoreExitCode="true" />
   </Target>
 
