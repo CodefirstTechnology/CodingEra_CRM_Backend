@@ -68,6 +68,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.QualityControlNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IQualityControlService, ERP.Infrastructure.Procurement.QualityControlService>();
 
+            // Procurement Phase 7 Store Inventory & Stock Transactions Services
+            services.AddScoped<ERP.Infrastructure.Procurement.StoreInventoryNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IStoreInventoryService, ERP.Infrastructure.Procurement.StoreInventoryService>();
+
             return services;
         }
     }

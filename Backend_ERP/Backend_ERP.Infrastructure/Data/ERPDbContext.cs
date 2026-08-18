@@ -167,6 +167,29 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.QualityControlDocumentSequence> QualityControlDocumentSequences => Set<ERP.Domain.Procurement.QualityControlDocumentSequence>();
 
+        // Procurement Phase 7 Store Inventory & Stock Transactions DbSets
+        public DbSet<ERP.Domain.Procurement.Warehouse> Warehouses => Set<ERP.Domain.Procurement.Warehouse>();
+
+        public DbSet<ERP.Domain.Procurement.RawMaterial> RawMaterials => Set<ERP.Domain.Procurement.RawMaterial>();
+
+        public DbSet<ERP.Domain.Procurement.FinishedGood> FinishedGoods => Set<ERP.Domain.Procurement.FinishedGood>();
+
+        public DbSet<ERP.Domain.Procurement.StockTransaction> StockTransactions => Set<ERP.Domain.Procurement.StockTransaction>();
+
+        public DbSet<ERP.Domain.Procurement.InventoryBatch> InventoryBatches => Set<ERP.Domain.Procurement.InventoryBatch>();
+
+        public DbSet<ERP.Domain.Procurement.StockTransfer> StockTransfers => Set<ERP.Domain.Procurement.StockTransfer>();
+
+        public DbSet<ERP.Domain.Procurement.StockTransferItem> StockTransferItems => Set<ERP.Domain.Procurement.StockTransferItem>();
+
+        public DbSet<ERP.Domain.Procurement.StockAlert> StockAlerts => Set<ERP.Domain.Procurement.StockAlert>();
+
+        public DbSet<ERP.Domain.Procurement.PhysicalVerification> PhysicalVerifications => Set<ERP.Domain.Procurement.PhysicalVerification>();
+
+        public DbSet<ERP.Domain.Procurement.PhysicalVerificationLine> PhysicalVerificationLines => Set<ERP.Domain.Procurement.PhysicalVerificationLine>();
+
+        public DbSet<ERP.Domain.Procurement.StoreInventoryDocumentSequence> StoreInventoryDocumentSequences => Set<ERP.Domain.Procurement.StoreInventoryDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
