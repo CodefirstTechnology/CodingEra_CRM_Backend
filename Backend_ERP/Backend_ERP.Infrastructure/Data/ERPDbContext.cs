@@ -202,6 +202,18 @@ namespace ERP.Infrastructure.Data
         // Procurement Reports & Audit Trail DbSets
         public DbSet<ERP.Domain.Procurement.ProcurementAuditTrailEntry> ProcurementAuditTrailEntries => Set<ERP.Domain.Procurement.ProcurementAuditTrailEntry>();
 
+        // Production Module DbSets
+        public DbSet<ERP.Domain.Production.BillOfMaterials> BillOfMaterials => Set<ERP.Domain.Production.BillOfMaterials>();
+        public DbSet<ERP.Domain.Production.BomMaterialLine> BomMaterialLines => Set<ERP.Domain.Production.BomMaterialLine>();
+        public DbSet<ERP.Domain.Production.ProductionPlan> ProductionPlans => Set<ERP.Domain.Production.ProductionPlan>();
+        public DbSet<ERP.Domain.Production.WorkOrder> WorkOrders => Set<ERP.Domain.Production.WorkOrder>();
+        public DbSet<ERP.Domain.Production.ProductionSchedule> ProductionSchedules => Set<ERP.Domain.Production.ProductionSchedule>();
+        public DbSet<ERP.Domain.Production.Machine> Machines => Set<ERP.Domain.Production.Machine>();
+        public DbSet<ERP.Domain.Production.ProductionEntry> ProductionEntries => Set<ERP.Domain.Production.ProductionEntry>();
+        public DbSet<ERP.Domain.Production.MaterialConsumption> MaterialConsumptions => Set<ERP.Domain.Production.MaterialConsumption>();
+        public DbSet<ERP.Domain.Production.RejectionRecord> RejectionRecords => Set<ERP.Domain.Production.RejectionRecord>();
+        public DbSet<ERP.Domain.Production.ProductionDocumentSequence> ProductionDocumentSequences => Set<ERP.Domain.Production.ProductionDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
