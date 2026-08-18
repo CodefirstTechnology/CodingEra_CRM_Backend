@@ -103,5 +103,40 @@ namespace Backend_ERP.Tests
             Assert.NotNull(invalidErr);
             Assert.Contains("exceeds available stock", invalidErr);
         }
+
+        [Theory]
+        [InlineData(TransferStatus.Draft, TransferStatus.Cancelled, true)]
+        [InlineData(TransferStatus.Approved, TransferStatus.Cancelled, true)]
+        [InlineData(TransferStatus.Transferred, TransferStatus.Cancelled, true)]
+        [InlineData(TransferStatus.Completed, TransferStatus.Cancelled, false)]
+        [InlineData(TransferStatus.Cancelled, TransferStatus.Draft, false)]
+        public void StoreInventoryRules_validates_cancellation_status_transitions(TransferStatus current, TransferStatus target, bool expected)
+        {
+            Assert.Equal(expected, StoreInventoryRules.CanTransitionTransfer(current, target));
+        }
+
+        [Fact]
+        public void StockTransferDto_exposes_expected_json_properties()
+        {
+            var dto = new StockTransferDto
+            {
+                Id = 1,
+                TransferNumber = "TRF-2026-000001",
+                FromWarehouseId = 1,
+                FromWarehouseName = "Source WH",
+                ToWarehouseId = 2,
+                ToWarehouseName = "Dest WH",
+                TotalQuantity = 150m,
+                Status = TransferStatus.Draft,
+                Remarks = "Urgent transfer"
+            };
+
+            Assert.Equal("TRF-2026-000001", dto.TransferNumber);
+            Assert.Equal(1, dto.FromWarehouseId);
+            Assert.Equal(2, dto.ToWarehouseId);
+            Assert.Equal(150m, dto.TotalQuantity);
+            Assert.Equal(TransferStatus.Draft, dto.Status);
+            Assert.Equal("Urgent transfer", dto.Remarks);
+        }
     }
 }

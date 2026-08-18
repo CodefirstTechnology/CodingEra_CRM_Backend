@@ -494,8 +494,59 @@ namespace ERP.Infrastructure.Procurement
 
         // ── Batches ──
 
+        private static BatchStatus ResolveBatchStatus(InventoryBatch batch)
+        {
+            if (batch.RemainingQuantity <= 0)
+            {
+                return BatchStatus.Consumed;
+            }
+
+            if (batch.ExpiryDate.HasValue)
+            {
+                var today = DateTime.UtcNow.Date;
+                var expiry = batch.ExpiryDate.Value.Date;
+
+                if (today > expiry)
+                {
+                    return BatchStatus.Expired;
+                }
+
+                if ((expiry - today).TotalDays <= 30)
+                {
+                    return BatchStatus.ExpiringSoon;
+                }
+            }
+
+            return BatchStatus.Active;
+        }
+
+        private async Task RecalculateBatchStatusesAsync(CancellationToken cancellationToken)
+        {
+            var batches = await _dbContext.InventoryBatches.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+            bool changed = false;
+
+            foreach (var batch in batches)
+            {
+                batch.RemainingQuantity = Math.Max(0m, batch.AvailableQuantity - batch.ConsumedQuantity);
+
+                var resolved = ResolveBatchStatus(batch);
+                if (batch.Status != resolved)
+                {
+                    batch.Status = resolved;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         public async Task<List<InventoryBatchListItemDto>> GetBatchesAsync(StoreListQueryDto query, CancellationToken cancellationToken = default)
         {
+            await RecalculateBatchStatusesAsync(cancellationToken);
+
             var q = _dbContext.InventoryBatches.Where(x => !x.IsDeleted).AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(query.Search))
@@ -516,12 +567,16 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<InventoryBatchDto?> GetBatchByIdAsync(int id, CancellationToken cancellationToken = default)
         {
+            await RecalculateBatchStatusesAsync(cancellationToken);
+
             var item = await _dbContext.InventoryBatches.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             return item is null ? null : MapBatch(item);
         }
 
         public async Task<BatchDashboardDto> GetBatchDashboardAsync(CancellationToken cancellationToken = default)
         {
+            await RecalculateBatchStatusesAsync(cancellationToken);
+
             var list = await _dbContext.InventoryBatches.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
 
             return new BatchDashboardDto
@@ -569,17 +624,37 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<StockTransferDto> TransferAsync(StockTransferCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default)
         {
+            if (request.FromWarehouseId == request.ToWarehouseId)
+            {
+                throw new InvalidOperationException("Source and destination warehouses cannot be the same.");
+            }
+
+            var fromWh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.FromWarehouseId && !x.IsDeleted, cancellationToken);
+            if (fromWh == null || fromWh.Status != WarehouseStatus.Active)
+            {
+                throw new InvalidOperationException("Source warehouse is inactive or does not exist.");
+            }
+
+            var toWh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.ToWarehouseId && !x.IsDeleted, cancellationToken);
+            if (toWh == null || toWh.Status != WarehouseStatus.Active)
+            {
+                throw new InvalidOperationException("Destination warehouse is inactive or does not exist.");
+            }
+
+            if (request.Items == null || !request.Items.Any())
+            {
+                throw new InvalidOperationException("Transfer must contain at least one item.");
+            }
+
             var trNum = await _numberingService.GenerateNumberAsync("TRF", cancellationToken);
-            var fromWh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.FromWarehouseId, cancellationToken);
-            var toWh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.ToWarehouseId, cancellationToken);
 
             var entity = new StockTransfer
             {
                 TransferNumber = trNum,
                 FromWarehouseId = request.FromWarehouseId,
-                FromWarehouseName = fromWh?.Name ?? "Main Warehouse",
+                FromWarehouseName = fromWh.Name,
                 ToWarehouseId = request.ToWarehouseId,
-                ToWarehouseName = toWh?.Name ?? "Secondary Store",
+                ToWarehouseName = toWh.Name,
                 TransferDate = request.TransferDate,
                 Status = TransferStatus.Draft,
                 RequestedBy = currentUser,
@@ -592,13 +667,43 @@ namespace ERP.Infrastructure.Procurement
 
             foreach (var line in request.Items)
             {
-                var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == line.MaterialId, cancellationToken);
+                if (line.Quantity <= 0)
+                {
+                    throw new InvalidOperationException("Transfer quantity must be greater than zero.");
+                }
+
+                var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == line.MaterialId && x.WarehouseId == request.FromWarehouseId && !x.IsDeleted, cancellationToken);
+                if (mat == null)
+                {
+                    throw new InvalidOperationException($"Material with ID {line.MaterialId} does not exist in source warehouse.");
+                }
+
+                var validationError = StoreInventoryRules.ValidateStockOut(mat.AvailableStock, line.Quantity);
+                if (validationError != null)
+                {
+                    throw new InvalidOperationException(validationError);
+                }
+
+                if (!string.IsNullOrWhiteSpace(line.BatchNumber))
+                {
+                    var batch = await _dbContext.InventoryBatches.FirstOrDefaultAsync(x => x.BatchNumber == line.BatchNumber && x.MaterialId == line.MaterialId && x.WarehouseId == request.FromWarehouseId && !x.IsDeleted, cancellationToken);
+                    if (batch == null)
+                    {
+                        throw new InvalidOperationException($"Batch {line.BatchNumber} does not exist for the material in the source warehouse.");
+                    }
+
+                    if (batch.RemainingQuantity < line.Quantity)
+                    {
+                        throw new InvalidOperationException($"Batch {line.BatchNumber} has insufficient remaining quantity ({batch.RemainingQuantity}) for the requested transfer quantity ({line.Quantity}).");
+                    }
+                }
+
                 entity.Items.Add(new StockTransferItem
                 {
                     MaterialId = line.MaterialId,
-                    MaterialCode = mat?.MaterialCode ?? "MAT",
-                    MaterialName = mat?.MaterialName ?? "Material",
-                    Unit = mat?.Unit ?? "Nos",
+                    MaterialCode = mat.MaterialCode,
+                    MaterialName = mat.MaterialName,
+                    Unit = mat.Unit,
                     Quantity = line.Quantity,
                     BatchNumber = line.BatchNumber
                 });
@@ -613,21 +718,260 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<StockTransferDto?> UpdateTransferStatusAsync(int id, StockTransferStatusUpdateDto request, string currentUser, CancellationToken cancellationToken = default)
         {
-            var entity = await _dbContext.StockTransfers.Include(x => x.Items).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
-            if (entity is null) return null;
-
-            if (StoreInventoryRules.CanTransitionTransfer(entity.Status, request.Status))
+            using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            try
             {
-                entity.Status = request.Status;
+                var entity = await _dbContext.StockTransfers.Include(x => x.Items).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+                if (entity is null) return null;
+
+                var oldStatus = entity.Status;
+                var newStatus = request.Status;
+
+                if (!StoreInventoryRules.CanTransitionTransfer(oldStatus, newStatus))
+                {
+                    throw new InvalidOperationException($"Invalid status transition from {oldStatus} to {newStatus}.");
+                }
+
+                entity.Status = newStatus;
                 if (!string.IsNullOrWhiteSpace(request.Remarks)) entity.Remarks = request.Remarks;
-                if (request.Status is TransferStatus.Approved or TransferStatus.Completed) entity.ApprovedBy = currentUser;
+                if (newStatus is TransferStatus.Approved or TransferStatus.Completed) entity.ApprovedBy = currentUser;
                 entity.UpdatedBy = currentUser;
                 entity.UpdatedAt = DateTime.UtcNow;
 
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
+                bool deductSource = (oldStatus is TransferStatus.Draft or TransferStatus.Approved) && (newStatus is TransferStatus.Transferred or TransferStatus.Completed);
+                bool addDestination = (oldStatus is TransferStatus.Draft or TransferStatus.Approved or TransferStatus.Transferred) && (newStatus == TransferStatus.Completed);
+                bool reverseSource = (oldStatus == TransferStatus.Transferred) && (newStatus == TransferStatus.Cancelled);
 
-            return MapTransfer(entity);
+                if (deductSource)
+                {
+                    foreach (var item in entity.Items)
+                    {
+                        var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == item.MaterialId && x.WarehouseId == entity.FromWarehouseId && !x.IsDeleted, cancellationToken);
+                        if (mat is null)
+                        {
+                            throw new InvalidOperationException($"Material {item.MaterialId} not found in source warehouse.");
+                        }
+
+                        var validationError = StoreInventoryRules.ValidateStockOut(mat.AvailableStock, item.Quantity);
+                        if (validationError != null)
+                        {
+                            throw new InvalidOperationException(validationError);
+                        }
+
+                        mat.AvailableStock -= item.Quantity;
+                        mat.CurrentValue = mat.AvailableStock * mat.UnitCost;
+
+                        if (!string.IsNullOrWhiteSpace(item.BatchNumber))
+                        {
+                            var batch = await _dbContext.InventoryBatches.FirstOrDefaultAsync(x => x.BatchNumber == item.BatchNumber && x.MaterialId == item.MaterialId && x.WarehouseId == entity.FromWarehouseId && !x.IsDeleted, cancellationToken);
+                            if (batch is not null)
+                            {
+                                batch.ConsumedQuantity += item.Quantity;
+                                batch.RemainingQuantity = Math.Max(0m, batch.AvailableQuantity - batch.ConsumedQuantity);
+                                batch.Status = ResolveBatchStatus(batch);
+                            }
+                        }
+
+                        var txnNum = await _numberingService.GenerateNumberAsync("TXN", cancellationToken);
+                        _dbContext.StockTransactions.Add(new StockTransaction
+                        {
+                            TransactionNumber = txnNum,
+                            TransactionType = StockTxnType.TransferOut,
+                            MaterialId = item.MaterialId,
+                            MaterialCode = item.MaterialCode,
+                            MaterialName = item.MaterialName,
+                            WarehouseId = entity.FromWarehouseId,
+                            WarehouseName = entity.FromWarehouseName,
+                            Quantity = item.Quantity,
+                            Unit = item.Unit,
+                            Reason = $"Stock Transfer Out to {entity.ToWarehouseName}",
+                            ReferenceType = StockReferenceType.Transfer,
+                            ReferenceNumber = entity.TransferNumber,
+                            ReferenceId = entity.Id,
+                            User = currentUser,
+                            TransactionDate = DateTime.UtcNow,
+                            Remarks = request.Remarks ?? string.Empty,
+                            CreatedBy = currentUser,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                if (addDestination)
+                {
+                    foreach (var item in entity.Items)
+                    {
+                        var destMat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.MaterialCode == item.MaterialCode && x.WarehouseId == entity.ToWarehouseId && !x.IsDeleted, cancellationToken);
+                        if (destMat is null)
+                        {
+                            var srcMat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == item.MaterialId && !x.IsDeleted, cancellationToken);
+                            destMat = new RawMaterial
+                            {
+                                MaterialCode = item.MaterialCode,
+                                MaterialName = item.MaterialName,
+                                Category = srcMat?.Category ?? "General",
+                                WarehouseId = entity.ToWarehouseId,
+                                WarehouseName = entity.ToWarehouseName,
+                                Rack = string.Empty,
+                                Unit = item.Unit,
+                                OpeningStock = 0,
+                                AvailableStock = item.Quantity,
+                                ReservedStock = 0,
+                                MinimumStock = srcMat?.MinimumStock ?? 0,
+                                MaximumStock = srcMat?.MaximumStock ?? 0,
+                                ReorderLevel = srcMat?.ReorderLevel ?? 0,
+                                UnitCost = srcMat?.UnitCost ?? 0,
+                                CurrentValue = item.Quantity * (srcMat?.UnitCost ?? 0),
+                                BatchCount = !string.IsNullOrWhiteSpace(item.BatchNumber) ? 1 : 0,
+                                StockAgeDays = 0,
+                                StockAgeBand = StockAgeBand.Band0To30,
+                                Supplier = srcMat?.Supplier ?? string.Empty,
+                                LastReceiptDate = DateTime.UtcNow,
+                                CreatedBy = currentUser,
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedBy = currentUser,
+                                UpdatedAt = DateTime.UtcNow
+                            };
+                            _dbContext.RawMaterials.Add(destMat);
+                            await _dbContext.SaveChangesAsync(cancellationToken); // Save to get the ID for Batch linkage!
+                        }
+                        else
+                        {
+                            destMat.AvailableStock += item.Quantity;
+                            destMat.CurrentValue = destMat.AvailableStock * destMat.UnitCost;
+                            destMat.LastReceiptDate = DateTime.UtcNow;
+                            destMat.UpdatedBy = currentUser;
+                            destMat.UpdatedAt = DateTime.UtcNow;
+                            if (!string.IsNullOrWhiteSpace(item.BatchNumber))
+                            {
+                                destMat.BatchCount++;
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(item.BatchNumber))
+                        {
+                            var srcBatch = await _dbContext.InventoryBatches.FirstOrDefaultAsync(x => x.BatchNumber == item.BatchNumber && x.MaterialId == item.MaterialId && x.WarehouseId == entity.FromWarehouseId && !x.IsDeleted, cancellationToken);
+                            var destBatch = await _dbContext.InventoryBatches.FirstOrDefaultAsync(x => x.BatchNumber == item.BatchNumber && x.MaterialCode == item.MaterialCode && x.WarehouseId == entity.ToWarehouseId && !x.IsDeleted, cancellationToken);
+
+                            if (destBatch is null)
+                            {
+                                destBatch = new InventoryBatch
+                                {
+                                    BatchNumber = item.BatchNumber,
+                                    MaterialId = destMat.Id,
+                                    MaterialCode = item.MaterialCode,
+                                    MaterialName = item.MaterialName,
+                                    WarehouseId = entity.ToWarehouseId,
+                                    WarehouseName = entity.ToWarehouseName,
+                                    Supplier = srcBatch?.Supplier ?? string.Empty,
+                                    GRNId = srcBatch?.GRNId,
+                                    GRNNumber = srcBatch?.GRNNumber,
+                                    ManufacturingDate = srcBatch?.ManufacturingDate ?? DateTime.UtcNow,
+                                    ExpiryDate = srcBatch?.ExpiryDate,
+                                    AvailableQuantity = item.Quantity,
+                                    ConsumedQuantity = 0,
+                                    RemainingQuantity = item.Quantity,
+                                    Unit = item.Unit,
+                                    UnitCost = srcBatch?.UnitCost ?? 0,
+                                    Status = BatchStatus.Active,
+                                    CreatedBy = currentUser,
+                                    CreatedAt = DateTime.UtcNow,
+                                    UpdatedBy = currentUser,
+                                    UpdatedAt = DateTime.UtcNow
+                                };
+                                _dbContext.InventoryBatches.Add(destBatch);
+                            }
+                            else
+                            {
+                                destBatch.AvailableQuantity += item.Quantity;
+                                destBatch.RemainingQuantity = Math.Max(0m, destBatch.AvailableQuantity - destBatch.ConsumedQuantity);
+                                destBatch.Status = ResolveBatchStatus(destBatch);
+                                destBatch.UpdatedBy = currentUser;
+                                destBatch.UpdatedAt = DateTime.UtcNow;
+                            }
+                        }
+
+                        var txnNum = await _numberingService.GenerateNumberAsync("TXN", cancellationToken);
+                        _dbContext.StockTransactions.Add(new StockTransaction
+                        {
+                            TransactionNumber = txnNum,
+                            TransactionType = StockTxnType.TransferIn,
+                            MaterialId = destMat.Id,
+                            MaterialCode = item.MaterialCode,
+                            MaterialName = item.MaterialName,
+                            WarehouseId = entity.ToWarehouseId,
+                            WarehouseName = entity.ToWarehouseName,
+                            Quantity = item.Quantity,
+                            Unit = item.Unit,
+                            Reason = $"Stock Transfer In from {entity.FromWarehouseName}",
+                            ReferenceType = StockReferenceType.Transfer,
+                            ReferenceNumber = entity.TransferNumber,
+                            ReferenceId = entity.Id,
+                            User = currentUser,
+                            TransactionDate = DateTime.UtcNow,
+                            Remarks = request.Remarks ?? string.Empty,
+                            CreatedBy = currentUser,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                if (reverseSource)
+                {
+                    foreach (var item in entity.Items)
+                    {
+                        var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == item.MaterialId && x.WarehouseId == entity.FromWarehouseId && !x.IsDeleted, cancellationToken);
+                        if (mat is not null)
+                        {
+                            mat.AvailableStock += item.Quantity;
+                            mat.CurrentValue = mat.AvailableStock * mat.UnitCost;
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(item.BatchNumber))
+                        {
+                            var batch = await _dbContext.InventoryBatches.FirstOrDefaultAsync(x => x.BatchNumber == item.BatchNumber && x.MaterialId == item.MaterialId && x.WarehouseId == entity.FromWarehouseId && !x.IsDeleted, cancellationToken);
+                            if (batch is not null)
+                            {
+                                batch.ConsumedQuantity = Math.Max(0m, batch.ConsumedQuantity - item.Quantity);
+                                batch.RemainingQuantity = Math.Max(0m, batch.AvailableQuantity - batch.ConsumedQuantity);
+                                batch.Status = ResolveBatchStatus(batch);
+                            }
+                        }
+
+                        var txnNum = await _numberingService.GenerateNumberAsync("TXN", cancellationToken);
+                        _dbContext.StockTransactions.Add(new StockTransaction
+                        {
+                            TransactionNumber = txnNum,
+                            TransactionType = StockTxnType.TransferIn,
+                            MaterialId = item.MaterialId,
+                            MaterialCode = item.MaterialCode,
+                            MaterialName = item.MaterialName,
+                            WarehouseId = entity.FromWarehouseId,
+                            WarehouseName = entity.FromWarehouseName,
+                            Quantity = item.Quantity,
+                            Unit = item.Unit,
+                            Reason = $"Stock Transfer Cancellation from {entity.ToWarehouseName}",
+                            ReferenceType = StockReferenceType.Transfer,
+                            ReferenceNumber = entity.TransferNumber,
+                            ReferenceId = entity.Id,
+                            User = currentUser,
+                            TransactionDate = DateTime.UtcNow,
+                            Remarks = "Transfer Cancelled Reversal",
+                            CreatedBy = currentUser,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return MapTransfer(entity);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
 
         public async Task<TransferDashboardDto> GetTransferDashboardAsync(CancellationToken cancellationToken = default)
