@@ -64,6 +64,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Procurement.GoodsReceiptNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IGoodsReceiptService, ERP.Infrastructure.Procurement.GoodsReceiptService>();
 
+            // Procurement Phase 6 Quality Control / Incoming Inspection Services
+            services.AddScoped<ERP.Infrastructure.Procurement.QualityControlNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IQualityControlService, ERP.Infrastructure.Procurement.QualityControlService>();
+
             return services;
         }
     }

@@ -148,6 +148,25 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.GoodsReceiptDocumentSequence> GoodsReceiptDocumentSequences => Set<ERP.Domain.Procurement.GoodsReceiptDocumentSequence>();
 
+        // Procurement Phase 6 Quality Control / Incoming Inspection DbSets
+        public DbSet<ERP.Domain.Procurement.IncomingInspection> IncomingInspections => Set<ERP.Domain.Procurement.IncomingInspection>();
+
+        public DbSet<ERP.Domain.Procurement.IncomingChecklistItem> IncomingChecklistItems => Set<ERP.Domain.Procurement.IncomingChecklistItem>();
+
+        public DbSet<ERP.Domain.Procurement.InProcessCheck> InProcessChecks => Set<ERP.Domain.Procurement.InProcessCheck>();
+
+        public DbSet<ERP.Domain.Procurement.FinalInspection> FinalInspections => Set<ERP.Domain.Procurement.FinalInspection>();
+
+        public DbSet<ERP.Domain.Procurement.FinalInspectionParameter> FinalInspectionParameters => Set<ERP.Domain.Procurement.FinalInspectionParameter>();
+
+        public DbSet<ERP.Domain.Procurement.LoadTestReport> LoadTestReports => Set<ERP.Domain.Procurement.LoadTestReport>();
+
+        public DbSet<ERP.Domain.Procurement.TestCertificate> TestCertificates => Set<ERP.Domain.Procurement.TestCertificate>();
+
+        public DbSet<ERP.Domain.Procurement.RejectionAnalysis> RejectionAnalyses => Set<ERP.Domain.Procurement.RejectionAnalysis>();
+
+        public DbSet<ERP.Domain.Procurement.QualityControlDocumentSequence> QualityControlDocumentSequences => Set<ERP.Domain.Procurement.QualityControlDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
