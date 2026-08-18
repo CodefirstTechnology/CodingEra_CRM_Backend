@@ -92,5 +92,16 @@ namespace Backend_ERP.Tests
             Assert.Equal(100m, dto.Quantity);
             Assert.Equal(StockReferenceType.GRN, dto.ReferenceType);
         }
+
+        [Fact]
+        public void StoreInventoryRules_validates_finished_goods_stock_bounds()
+        {
+            var err = StoreInventoryRules.ValidateStockOut(200m, 100m);
+            Assert.Null(err);
+
+            var invalidErr = StoreInventoryRules.ValidateStockOut(200m, 200.0002m);
+            Assert.NotNull(invalidErr);
+            Assert.Contains("exceeds available stock", invalidErr);
+        }
     }
 }

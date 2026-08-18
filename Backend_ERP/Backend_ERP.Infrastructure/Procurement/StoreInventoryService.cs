@@ -283,12 +283,43 @@ namespace ERP.Infrastructure.Procurement
             var item = await _dbContext.FinishedGoods.FirstOrDefaultAsync(x => x.Id == request.ProductId && !x.IsDeleted, cancellationToken);
             if (item is null) return null;
 
+            if (request.QuantityDelta < 0)
+            {
+                var requestedQuantity = Math.Abs(request.QuantityDelta);
+                var validationError = StoreInventoryRules.ValidateStockOut(item.AvailableQuantity, requestedQuantity);
+                if (validationError != null)
+                {
+                    throw new InvalidOperationException(validationError);
+                }
+            }
+
             item.AvailableQuantity += request.QuantityDelta;
             if (item.AvailableQuantity < 0) item.AvailableQuantity = 0;
             item.FinishedQuantity = item.AvailableQuantity + item.ReservedQuantity;
             item.CurrentValue = item.AvailableQuantity * item.UnitCost;
             item.UpdatedBy = currentUser;
             item.UpdatedAt = DateTime.UtcNow;
+
+            var txnNum = await _numberingService.GenerateNumberAsync("TXN", cancellationToken);
+            _dbContext.StockTransactions.Add(new StockTransaction
+            {
+                TransactionNumber = txnNum,
+                TransactionType = StockTxnType.Adjustment,
+                MaterialId = item.Id,
+                MaterialCode = item.ProductCode,
+                MaterialName = item.ProductName,
+                WarehouseId = item.WarehouseId,
+                WarehouseName = item.WarehouseName,
+                Quantity = Math.Abs(request.QuantityDelta),
+                Unit = item.Unit,
+                Reason = request.Reason,
+                ReferenceType = StockReferenceType.Manual,
+                User = currentUser,
+                TransactionDate = DateTime.UtcNow,
+                Remarks = request.Remarks ?? string.Empty,
+                CreatedBy = currentUser,
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             return MapFinishedGood(item);
