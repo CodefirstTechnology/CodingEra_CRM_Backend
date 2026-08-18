@@ -1130,8 +1130,11 @@ namespace ERP.Infrastructure.Procurement
                 "store-inventory.transfer.approve",
                 "store-inventory.verify",
                 "store-inventory.verify.approve",
+                "store-inventory.dashboard.view",
                 "store-inventory.valuation.view",
-                "store-inventory.alerts.view"
+                "store-inventory.alerts.view",
+                "store-inventory.export",
+                "store-inventory.audit.view"
             ]);
 
         // ── Valuation ──

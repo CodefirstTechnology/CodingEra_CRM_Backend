@@ -1,7 +1,10 @@
 using System;
+using System.Text.Json;
+using System.Threading.Tasks;
 using ERP.Application.Procurement;
 using ERP.Application.Procurement.Dtos;
 using ERP.Domain.Procurement;
+using ERP.Infrastructure.Procurement;
 using Xunit;
 
 namespace Backend_ERP.Tests
@@ -249,6 +252,54 @@ namespace Backend_ERP.Tests
             Assert.Equal(5, dto.Completed);
             Assert.Equal(150m, dto.VarianceAmount);
             Assert.Single(dto.Cards);
+        }
+
+        [Fact]
+        public void JsonConverters_serialize_and_deserialize_enums_with_spaces()
+        {
+            var options = new JsonSerializerOptions();
+            options.Converters.Add(new VerificationStatusConverter());
+            options.Converters.Add(new StockTxnTypeConverter());
+            options.Converters.Add(new BatchStatusConverter());
+            options.Converters.Add(new FgDispatchStatusConverter());
+            options.Converters.Add(new StockAgeBandConverter());
+
+            // 1. Serialization
+            var jsonStatus = JsonSerializer.Serialize(VerificationStatus.InProgress, options);
+            Assert.Equal("\"In Progress\"", jsonStatus);
+
+            var jsonTxnType = JsonSerializer.Serialize(StockTxnType.StockIn, options);
+            Assert.Equal("\"Stock In\"", jsonTxnType);
+
+            // 2. Deserialization
+            var statusResult = JsonSerializer.Deserialize<VerificationStatus>("\"In Progress\"", options);
+            Assert.Equal(VerificationStatus.InProgress, statusResult);
+
+            var txnTypeResult = JsonSerializer.Deserialize<StockTxnType>("\"Stock Out\"", options);
+            Assert.Equal(StockTxnType.StockOut, txnTypeResult);
+        }
+
+        [Fact]
+        public async Task GetPermissionsAsync_returns_all_fourteen_permissions()
+        {
+            var service = new StoreInventoryService(null!, null!);
+            var permissions = await service.GetPermissionsAsync();
+            
+            Assert.Equal(14, permissions.Count);
+            Assert.Contains("store-inventory.view", permissions);
+            Assert.Contains("store-inventory.create", permissions);
+            Assert.Contains("store-inventory.edit", permissions);
+            Assert.Contains("store-inventory.delete", permissions);
+            Assert.Contains("store-inventory.adjust", permissions);
+            Assert.Contains("store-inventory.transfer", permissions);
+            Assert.Contains("store-inventory.transfer.approve", permissions);
+            Assert.Contains("store-inventory.verify", permissions);
+            Assert.Contains("store-inventory.verify.approve", permissions);
+            Assert.Contains("store-inventory.dashboard.view", permissions);
+            Assert.Contains("store-inventory.valuation.view", permissions);
+            Assert.Contains("store-inventory.alerts.view", permissions);
+            Assert.Contains("store-inventory.export", permissions);
+            Assert.Contains("store-inventory.audit.view", permissions);
         }
     }
 }

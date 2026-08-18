@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using ERP.API.Middleware;
 using ERP.Infrastructure;
 using ERP.Shared.Configuration;
+using ERP.Application.Procurement;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,11 @@ builder.Configuration.AddJsonFile(
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        options.JsonSerializerOptions.Converters.Add(new VerificationStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new StockTxnTypeConverter());
+        options.JsonSerializerOptions.Converters.Add(new BatchStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new FgDispatchStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new StockAgeBandConverter());
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
