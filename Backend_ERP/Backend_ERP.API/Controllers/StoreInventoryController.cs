@@ -51,22 +51,43 @@ namespace ERP.API.Controllers
         [HttpPost("warehouses")]
         public async Task<ActionResult<WarehouseDto>> CreateWarehouse([FromBody] WarehouseCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var created = await _inventoryService.CreateWarehouseAsync(request, ResolveUser(userId), cancellationToken);
-            return CreatedAtAction(nameof(GetWarehouseById), new { id = created.Id, userId }, created);
+            try
+            {
+                var created = await _inventoryService.CreateWarehouseAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetWarehouseById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPut("warehouses/{id:int}")]
         public async Task<ActionResult<WarehouseDto>> UpdateWarehouse(int id, [FromBody] WarehouseCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var updated = await _inventoryService.UpdateWarehouseAsync(id, request, ResolveUser(userId), cancellationToken);
-            return updated is null ? NotFound() : Ok(updated);
+            try
+            {
+                var updated = await _inventoryService.UpdateWarehouseAsync(id, request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpDelete("warehouses/{id:int}")]
         public async Task<ActionResult> DeleteWarehouse(int id, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var ok = await _inventoryService.DeleteWarehouseAsync(id, ResolveUser(userId), cancellationToken);
-            return ok ? NoContent() : NotFound();
+            try
+            {
+                var ok = await _inventoryService.DeleteWarehouseAsync(id, ResolveUser(userId), cancellationToken);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         // ── Raw Materials ──
@@ -104,8 +125,15 @@ namespace ERP.API.Controllers
         [HttpPost("raw-materials/adjust")]
         public async Task<ActionResult<RawMaterialDto>> AdjustStock([FromBody] StockAdjustRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var updated = await _inventoryService.AdjustStockAsync(request, ResolveUser(userId), cancellationToken);
-            return updated is null ? NotFound() : Ok(updated);
+            try
+            {
+                var updated = await _inventoryService.AdjustStockAsync(request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("raw-materials/{id:int}/history")]
@@ -148,8 +176,15 @@ namespace ERP.API.Controllers
         [HttpPost("finished-goods/adjust")]
         public async Task<ActionResult<FinishedGoodDto>> AdjustFinishedGood([FromBody] FinishedGoodAdjustRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var updated = await _inventoryService.AdjustFinishedGoodAsync(request, ResolveUser(userId), cancellationToken);
-            return updated is null ? NotFound() : Ok(updated);
+            try
+            {
+                var updated = await _inventoryService.AdjustFinishedGoodAsync(request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("finished-goods/{id:int}/history")]
@@ -192,15 +227,29 @@ namespace ERP.API.Controllers
         [HttpPost("transactions/stock-in")]
         public async Task<ActionResult<StockTransactionDto>> StockIn([FromBody] StockInRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var created = await _inventoryService.StockInAsync(request, ResolveUser(userId), cancellationToken);
-            return CreatedAtAction(nameof(GetStockTransactionById), new { id = created.Id, userId }, created);
+            try
+            {
+                var created = await _inventoryService.StockInAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetStockTransactionById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("transactions/stock-out")]
         public async Task<ActionResult<StockTransactionDto>> StockOut([FromBody] StockOutRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            var created = await _inventoryService.StockOutAsync(request, ResolveUser(userId), cancellationToken);
-            return CreatedAtAction(nameof(GetStockTransactionById), new { id = created.Id, userId }, created);
+            try
+            {
+                var created = await _inventoryService.StockOutAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetStockTransactionById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         // ── Batches ──

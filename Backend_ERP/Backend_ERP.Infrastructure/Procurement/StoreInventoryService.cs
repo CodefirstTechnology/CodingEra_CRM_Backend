@@ -176,6 +176,16 @@ namespace ERP.Infrastructure.Procurement
             var item = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == request.MaterialId && !x.IsDeleted, cancellationToken);
             if (item is null) return null;
 
+            if (request.QuantityDelta < 0)
+            {
+                var requestedQuantity = Math.Abs(request.QuantityDelta);
+                var validationError = StoreInventoryRules.ValidateStockOut(item.AvailableStock, requestedQuantity);
+                if (validationError != null)
+                {
+                    throw new InvalidOperationException(validationError);
+                }
+            }
+
             item.AvailableStock += request.QuantityDelta;
             if (item.AvailableStock < 0) item.AvailableStock = 0;
             item.CurrentValue = item.AvailableStock * item.UnitCost;
@@ -386,6 +396,15 @@ namespace ERP.Infrastructure.Procurement
         {
             var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == request.MaterialId && !x.IsDeleted, cancellationToken);
             var wh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.WarehouseId && !x.IsDeleted, cancellationToken);
+
+            if (mat is not null)
+            {
+                var validationError = StoreInventoryRules.ValidateStockOut(mat.AvailableStock, request.Quantity);
+                if (validationError != null)
+                {
+                    throw new InvalidOperationException(validationError);
+                }
+            }
 
             var txnNum = await _numberingService.GenerateNumberAsync("TXN", cancellationToken);
 
