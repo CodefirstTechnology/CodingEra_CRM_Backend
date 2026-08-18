@@ -3,9 +3,11 @@
 using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
+using CRM.Hubs;
 using CRM.models;
 using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Controllers
@@ -16,11 +18,31 @@ namespace CRM.Controllers
     {
         private readonly TaskDbcontext _context;
         private readonly IRbacService _rbac;
+        private readonly IHubContext<UserStatusHub> _hubContext;
 
-        public AuthController(TaskDbcontext context, IRbacService rbac)
+        public AuthController(TaskDbcontext context, IRbacService rbac, IHubContext<UserStatusHub> hubContext)
         {
             _context = context;
             _rbac = rbac;
+            _hubContext = hubContext;
+        }
+
+        private async Task BroadcastUserStatusAsync(int userId, bool isOnline, DateTime? lastActiveAt, DateTime? firstLoginAt)
+        {
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("UserStatusChanged", new
+                {
+                    userId = userId,
+                    isOnline = isOnline,
+                    lastActiveAt = lastActiveAt,
+                    firstLoginAt = firstLoginAt
+                });
+            }
+            catch
+            {
+                // Silently catch SignalR broadcast failures to never block core auth flows
+            }
         }
 
         [HttpPost("register")]
@@ -96,7 +118,94 @@ namespace CRM.Controllers
                 return Unauthorized("Account is inactive.");
             }
 
+            var nowUtc = DateTime.UtcNow;
+            user.IsOnline = true;
+            user.LastActiveAt = nowUtc;
+            if (user.FirstLoginAt == null || user.FirstLoginAt.Value.ToUniversalTime().Date < nowUtc.Date)
+            {
+                user.FirstLoginAt = nowUtc;
+            }
+            await _context.SaveChangesAsync();
+
+            await BroadcastUserStatusAsync(user.Id, true, user.LastActiveAt, user.FirstLoginAt);
+
             return Ok(await ToSessionAsync(user));
+        }
+
+        public class LogoutRequest
+        {
+            public int? UserId { get; set; }
+            public string? Email { get; set; }
+        }
+
+        /// <summary>
+        /// Explicit logout endpoint to immediately mark the user as offline in the database and broadcast via SignalR.
+        /// </summary>
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromQuery] int? userId, [FromQuery] string? email, [FromBody] LogoutRequest? body)
+        {
+            int? targetId = userId ?? body?.UserId;
+            string? targetEmail = !string.IsNullOrWhiteSpace(email) ? email : body?.Email;
+
+            User? user = null;
+            if (targetId is int uid && uid > 0)
+            {
+                user = await _context.Users.FirstOrDefaultAsync(u => u.Id == uid);
+            }
+            if (user == null && !string.IsNullOrWhiteSpace(targetEmail))
+            {
+                var clean = targetEmail.Trim().ToLowerInvariant();
+                user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == clean);
+            }
+
+            if (user != null)
+            {
+                user.IsOnline = false;
+                user.LastActiveAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                await BroadcastUserStatusAsync(user.Id, false, user.LastActiveAt, user.FirstLoginAt);
+            }
+
+            return Ok(new { message = "Logged out successfully." });
+        }
+
+        /// <summary>
+        /// Lightweight heartbeat / activity ping to update the acting user's last_active_at and today's first_login_at.
+        /// </summary>
+        [HttpPost("heartbeat")]
+        [HttpPost("activity")]
+        public async Task<IActionResult> Heartbeat([FromQuery] int userId)
+        {
+            if (userId <= 0)
+            {
+                return BadRequest("A valid user id is required.");
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null || !user.IsActive)
+            {
+                return Unauthorized("Your session is invalid or user is inactive.");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            user.IsOnline = true;
+            user.LastActiveAt = nowUtc;
+            if (user.FirstLoginAt == null || user.FirstLoginAt.Value.ToUniversalTime().Date < nowUtc.Date)
+            {
+                user.FirstLoginAt = nowUtc;
+            }
+            await _context.SaveChangesAsync();
+
+            await BroadcastUserStatusAsync(user.Id, true, user.LastActiveAt, user.FirstLoginAt);
+
+            return Ok(new HeartbeatResponseDto
+            {
+                Ok = true,
+                LastActiveAt = user.LastActiveAt,
+                FirstLoginAt = user.FirstLoginAt,
+                IsOnline = true,
+            });
         }
 
         /// <summary>All users for UI lists (password hash is never loaded or returned).</summary>
@@ -111,6 +220,7 @@ namespace CRM.Controllers
                 return err;
             }
 
+            var cutoffOnline = DateTime.UtcNow.AddMinutes(-10);
             var users = await _context.Users
                 .AsNoTracking()
                 .Include(u => u.Role)
@@ -124,7 +234,10 @@ namespace CRM.Controllers
                     Phone = u.Phone,
                     RoleId = u.RoleId,
                     Role = u.Role != null ? u.Role.Name : string.Empty,
-                    CreatedAt = u.CreatedAt
+                    CreatedAt = u.CreatedAt,
+                    LastActiveAt = u.LastActiveAt,
+                    FirstLoginAt = u.FirstLoginAt,
+                    IsOnline = u.IsOnline && u.LastActiveAt != null && u.LastActiveAt.Value >= cutoffOnline,
                 })
                 .ToListAsync();
 
@@ -356,6 +469,7 @@ namespace CRM.Controllers
         private async Task<UserSessionDto> ToSessionAsync(User u)
         {
             var perms = await _rbac.GetUserPermissionsAsync(u.Id);
+            var isOnline = u.IsOnline && u.LastActiveAt != null && (DateTime.UtcNow - u.LastActiveAt.Value).TotalMinutes <= 10;
             return new UserSessionDto
             {
                 Id = u.Id,
@@ -366,6 +480,9 @@ namespace CRM.Controllers
                 Role = u.Role?.Name ?? string.Empty,
                 Token = Convert.ToBase64String(Guid.NewGuid().ToByteArray())[..22],
                 Permissions = perms,
+                LastActiveAt = u.LastActiveAt,
+                FirstLoginAt = u.FirstLoginAt,
+                IsOnline = isOnline,
             };
         }
     }

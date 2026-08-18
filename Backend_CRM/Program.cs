@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using CRM.Configuration;
 using CRM.DATA;
 using CRM.Helpers;
+using CRM.Hubs;
 using CRM.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,7 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
@@ -31,7 +33,8 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins("http://localhost:4200")
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         });
 });
 
@@ -92,5 +95,6 @@ app.UseCors("AllowAngular");
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<UserStatusHub>("/hubs/user-status");
 
 app.Run();
