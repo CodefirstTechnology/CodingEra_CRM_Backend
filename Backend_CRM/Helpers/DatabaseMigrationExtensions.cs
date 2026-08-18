@@ -44,6 +44,7 @@ namespace CRM.Helpers
                 await LeadStatusMovedToDealSeed.EnsureAsync(db, logger);
                 await RbacSeed.EnsureAsync(db, logger);
 
+                await UserSchemaEnsure.EnsureAsync(db, logger);
                 await LeadSyncSeed.EnsureAsync(db, logger);
                 await UserTargetTypeSeed.EnsureAsync(db, logger);
             }

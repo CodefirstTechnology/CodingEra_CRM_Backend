@@ -57,6 +57,12 @@ namespace CRM.DTO
 
         /// <summary>Effective permissions for the user's role (loaded from DB).</summary>
         public IReadOnlyList<UserPermissionDto> Permissions { get; set; } = Array.Empty<UserPermissionDto>();
+
+        public DateTime? LastActiveAt { get; set; }
+
+        public DateTime? FirstLoginAt { get; set; }
+
+        public bool IsOnline { get; set; }
     }
 
     public class UpdateUserRequest
@@ -86,5 +92,22 @@ namespace CRM.DTO
         public string Role { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; }
+
+        public DateTime? LastActiveAt { get; set; }
+
+        public DateTime? FirstLoginAt { get; set; }
+
+        public bool IsOnline { get; set; }
+    }
+
+    public class HeartbeatResponseDto
+    {
+        public bool Ok { get; set; } = true;
+
+        public DateTime? LastActiveAt { get; set; }
+
+        public DateTime? FirstLoginAt { get; set; }
+
+        public bool IsOnline { get; set; } = true;
     }
 }
