@@ -1,0 +1,267 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using ClosedXML.Excel;
+using CRM.DTO;
+using CsvHelper;
+using CsvHelper.Configuration;
+
+namespace CRM.Services
+{
+    public sealed class ContactImportFileParser : IContactImportFileParser
+    {
+        public Task<IReadOnlyList<ContactImportRowDto>> ParseAsync(
+            Stream stream,
+            string fileName,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var extension = Path.GetExtension(fileName ?? string.Empty).ToLowerInvariant();
+            var matrix = extension switch
+            {
+                ".xlsx" => ParseXlsxMatrix(stream),
+                ".csv" => ParseCsvMatrix(stream),
+                _ => throw new InvalidOperationException("Only .xlsx and .csv files are supported."),
+            };
+
+            return Task.FromResult(ContactImportMatrixParser.Parse(matrix));
+        }
+
+        private static List<string[]> ParseXlsxMatrix(Stream stream)
+        {
+            using var workbook = new XLWorkbook(stream);
+            var worksheet = workbook.Worksheet(1);
+            var usedRange = worksheet.RangeUsed();
+            if (usedRange == null)
+            {
+                return new List<string[]>();
+            }
+
+            var rowCount = usedRange.RowCount();
+            var colCount = usedRange.ColumnCount();
+            var firstRow = usedRange.FirstRow().RowNumber();
+            var firstCol = usedRange.FirstColumn().ColumnNumber();
+            var matrix = new List<string[]>();
+
+            for (var r = 0; r < rowCount; r++)
+            {
+                var cells = new string[colCount];
+                for (var c = 0; c < colCount; c++)
+                {
+                    cells[c] = NormalizeCell(worksheet.Cell(firstRow + r, firstCol + c).GetFormattedString());
+                }
+
+                if (RowHasContent(cells))
+                {
+                    matrix.Add(cells);
+                }
+            }
+
+            return matrix;
+        }
+
+        private static List<string[]> ParseCsvMatrix(Stream stream)
+        {
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = false,
+                TrimOptions = TrimOptions.Trim,
+                IgnoreBlankLines = true,
+                BadDataFound = null,
+                MissingFieldFound = null,
+            };
+
+            using var csv = new CsvReader(reader, config);
+            var matrix = new List<string[]>();
+
+            while (csv.Read())
+            {
+                var record = csv.Parser.Record ?? Array.Empty<string>();
+                var cells = record.Select(NormalizeCell).ToArray();
+                if (RowHasContent(cells))
+                {
+                    matrix.Add(cells);
+                }
+            }
+
+            return matrix;
+        }
+
+        private static string NormalizeCell(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+        private static bool RowHasContent(IReadOnlyList<string> cells) =>
+            cells.Any(c => c.Length > 0);
+    }
+
+    /// <summary>Shared matrix → DTO mapping for Excel and CSV uploads.</summary>
+    internal static class ContactImportMatrixParser
+    {
+        public static IReadOnlyList<ContactImportRowDto> Parse(IReadOnlyList<string[]> matrix)
+        {
+            if (matrix.Count == 0)
+            {
+                return Array.Empty<ContactImportRowDto>();
+            }
+
+            var columns = ResolveColumns(matrix[0]);
+            var rows = new List<ContactImportRowDto>();
+
+            for (var i = 1; i < matrix.Count; i++)
+            {
+                var rawRow = matrix[i];
+                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var hasContent = false;
+
+                for (var c = 0; c < columns.Count; c++)
+                {
+                    var text = c < rawRow.Length ? NormalizeCell(rawRow[c]) : string.Empty;
+                    if (text.Length > 0)
+                    {
+                        hasContent = true;
+                    }
+
+                    values[columns[c]] = text;
+                }
+
+                if (!hasContent)
+                {
+                    continue;
+                }
+
+                if (IsTemplateHintRow(rawRow))
+                {
+                    continue;
+                }
+
+                rows.Add(MapRow(values, columns, i + 1));
+            }
+
+            return rows;
+        }
+
+        private static bool IsTemplateHintRow(string[] cells)
+        {
+            var tokens = cells
+                .Select(NormalizeCell)
+                .Where(c => c.Length > 0)
+                .Select(c => c.ToLowerInvariant())
+                .ToList();
+
+            if (tokens.Count == 0)
+            {
+                return false;
+            }
+
+            return tokens.All(t => t is "required" or "optional");
+        }
+
+        private static ContactImportRowDto MapRow(
+            IReadOnlyDictionary<string, string> values,
+            IReadOnlyList<string> columns,
+            int rowNumber)
+        {
+            var (firstName, lastName) = ResolveNameParts(values, columns);
+
+            return new ContactImportRowDto
+            {
+                RowNumber = rowNumber,
+                Salutation = Optional(Pick(values, columns, "salutation")),
+                FirstName = Optional(firstName),
+                LastName = Optional(lastName),
+                Mobile = Optional(Pick(values, columns, "mobile", "phone", "mobile number")),
+                Email = Optional(Pick(values, columns, "email", "e-mail")),
+                Gender = Optional(Pick(values, columns, "gender")),
+                Organization = Optional(Pick(values, columns, "company", "company name", "organization", "organisation")),
+                Designation = Optional(Pick(values, columns, "designation", "job title", "title")),
+                Address = Optional(Pick(values, columns, "address", "location")),
+            };
+        }
+
+        private static (string FirstName, string LastName) ResolveNameParts(
+            IReadOnlyDictionary<string, string> values,
+            IReadOnlyList<string> columns)
+        {
+            var fullName = Pick(values, columns, "full name", "fullname", "full_name", "name");
+            if (fullName.Length > 0)
+            {
+                return SplitFullName(fullName);
+            }
+
+            return (
+                Pick(values, columns, "first name", "firstname", "first_name"),
+                Pick(values, columns, "last name", "lastname", "last_name"));
+        }
+
+        private static (string First, string Last) SplitFullName(string fullName)
+        {
+            var trimmed = fullName.Trim();
+            if (trimmed.Length == 0)
+            {
+                return (string.Empty, string.Empty);
+            }
+
+            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1)
+            {
+                return (parts[0], string.Empty);
+            }
+
+            return (parts[0], string.Join(' ', parts.Skip(1)));
+        }
+
+        private static List<string> ResolveColumns(string[] headerRow)
+        {
+            var used = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var columns = new List<string>(headerRow.Length);
+
+            for (var index = 0; index < headerRow.Length; index++)
+            {
+                var label = NormalizeCell(headerRow[index]);
+                var baseName = label.Length > 0 ? label : $"Column {index + 1}";
+                var count = used.GetValueOrDefault(baseName.ToLowerInvariant());
+                used[baseName.ToLowerInvariant()] = count + 1;
+                columns.Add(count == 0 ? baseName : $"{baseName} ({count + 1})");
+            }
+
+            return columns;
+        }
+
+        private static string Pick(
+            IReadOnlyDictionary<string, string> values,
+            IReadOnlyList<string> columns,
+            params string[] aliases)
+        {
+            var aliasSet = new HashSet<string>(
+                aliases.Select(NormalizeHeaderKey),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var col in columns)
+            {
+                if (aliasSet.Contains(NormalizeHeaderKey(col)))
+                {
+                    return values.TryGetValue(col, out var val) ? val : string.Empty;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static string NormalizeHeaderKey(string value) =>
+            Regex.Replace(value.Trim(), @"\s+", " ").ToLowerInvariant();
+
+        private static string? Optional(string value) =>
+            value.Length > 0 ? value : null;
+
+        private static string NormalizeCell(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    }
+}

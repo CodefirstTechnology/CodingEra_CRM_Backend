@@ -569,7 +569,6 @@ namespace CRM.Services
                 .Include(i => i.VariantAttributeValues).ThenInclude(v => v.Attribute)
                 .Include(i => i.VariantAttributeValues).ThenInclude(v => v.AttributeValue)
                 .Where(i => i.Status == ItemStatus.Active)
-                .Where(i => i.ParentItemId != null || !i.HasVariants)
                 .OrderBy(i => i.ItemName)
                 .ThenBy(i => i.ItemCode)
                 .ToListAsync(ct);

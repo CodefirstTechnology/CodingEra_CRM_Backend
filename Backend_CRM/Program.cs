@@ -64,6 +64,8 @@ builder.Services.AddScoped<ICompanyProfileService, CompanyProfileService>();
 builder.Services.AddScoped<IItemMasterService, ItemMasterService>();
 builder.Services.AddScoped<ILeadImportService, LeadImportService>();
 builder.Services.AddScoped<ILeadImportFileParser, LeadImportFileParser>();
+builder.Services.AddScoped<IContactImportService, ContactImportService>();
+builder.Services.AddScoped<IContactImportFileParser, ContactImportFileParser>();
 builder.Services.AddScoped<ILeadExportService, LeadExportService>();
 builder.Services.AddScoped<IDealExportService, DealExportService>();
 builder.Services.AddSingleton<IJustdialWebhookMetrics, JustdialWebhookMetrics>();
