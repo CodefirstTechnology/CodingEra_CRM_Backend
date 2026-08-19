@@ -2529,6 +2529,19 @@ namespace ERP.Infrastructure.Production
                 throw new InvalidOperationException($"Finished goods already generated for {entry.EntryNumber}");
             }
 
+            var inspection = await _dbContext.FinalInspections
+                .FirstOrDefaultAsync(x => x.ProductionEntryId == entryId && !x.IsDeleted, cancellationToken);
+            if (inspection is null)
+            {
+                throw new InvalidOperationException("Cannot generate finished goods without a final inspection record.");
+            }
+
+            if (inspection.Status != ERP.Domain.Procurement.FinalInspectionStatus.Approved && 
+                inspection.Status != ERP.Domain.Procurement.FinalInspectionStatus.Closed)
+            {
+                throw new InvalidOperationException($"Cannot generate finished goods. Final inspection status is '{inspection.Status}', but must be Approved.");
+            }
+
             using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
             try
             {

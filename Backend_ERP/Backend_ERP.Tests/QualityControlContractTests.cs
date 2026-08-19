@@ -98,5 +98,93 @@ namespace Backend_ERP.Tests
             Assert.Equal("Dimensional Tolerance Violation", dto.Reason);
             Assert.Equal(RejectionAnalysisStatus.Open, dto.Status);
         }
+
+        [Fact]
+        public void InProcessCreateRequestDto_exposes_expected_contract_properties()
+        {
+            var req = new InProcessCreateRequestDto
+            {
+                ProductionEntryNumber = "ENT-001",
+                WorkOrderNumber = "WO-001",
+                MachineCode = "MCH-001",
+                MachineName = "Machine 1",
+                Operator = "Operator A",
+                Shift = Shift.A,
+                Stage = "Assembly",
+                ProductCode = "PRD-001",
+                ProductName = "Finished Product A",
+                BatchNumber = "BATCH-001",
+                Parameter = "Length",
+                Tolerance = "+/- 0.5mm",
+                ExpectedValue = "10.0mm",
+                ActualValue = "9.9mm",
+                Remarks = "Passed basic checks",
+                Notes = "No notes"
+            };
+
+            Assert.Equal("ENT-001", req.ProductionEntryNumber);
+            Assert.Equal("Operator A", req.Operator);
+            Assert.Equal(Shift.A, req.Shift);
+            Assert.Equal("10.0mm", req.ExpectedValue);
+        }
+
+        [Fact]
+        public void FinalCreateRequestDto_exposes_expected_contract_properties()
+        {
+            var req = new FinalCreateRequestDto
+            {
+                InspectionDate = System.DateTime.UtcNow,
+                FinishedProductCode = "PRD-001",
+                FinishedProductName = "Finished Product A",
+                ProductionEntryNumber = "ENT-001",
+                ProductionBatch = "BATCH-001",
+                Inspector = "Inspector A",
+                Dimension = "10x20",
+                Weight = "500g",
+                Strength = "High",
+                SurfaceFinish = "Smooth",
+                VisualCheck = "Pass",
+                AcceptedQuantity = 100m,
+                RejectedQuantity = 2m,
+                Remarks = "All parameters checked",
+                Notes = "N/A",
+                Parameters = new System.Collections.Generic.List<FinalInspectionParameterDto>()
+            };
+
+            Assert.Equal("Inspector A", req.Inspector);
+            Assert.Equal(100m, req.AcceptedQuantity);
+            Assert.Equal("500g", req.Weight);
+            Assert.Empty(req.Parameters);
+        }
+
+        [Fact]
+        public void QualityControlRules_validates_final_inspection_quantities()
+        {
+            var err1 = QualityControlRules.ValidateFinalInspectionQuantities(50m, 10m, 100m);
+            Assert.Null(err1);
+
+            var errNeg = QualityControlRules.ValidateFinalInspectionQuantities(-5m, 10m, 100m);
+            Assert.NotNull(errNeg);
+            Assert.Contains("cannot be negative", errNeg);
+
+            var errExcess = QualityControlRules.ValidateFinalInspectionQuantities(80m, 30m, 100m);
+            Assert.NotNull(errExcess);
+            Assert.Contains("cannot exceed production entry good quantity", errExcess);
+        }
+
+        [Fact]
+        public void QualityControlRules_validates_rejection_quantities()
+        {
+            var err1 = QualityControlRules.ValidateRejectionQuantities(5m, 10m);
+            Assert.Null(err1);
+
+            var errZero = QualityControlRules.ValidateRejectionQuantities(0m, 10m);
+            Assert.NotNull(errZero);
+            Assert.Contains("greater than zero", errZero);
+
+            var errExcess = QualityControlRules.ValidateRejectionQuantities(12m, 10m);
+            Assert.NotNull(errExcess);
+            Assert.Contains("cannot exceed applicable production quantity", errExcess);
+        }
     }
 }

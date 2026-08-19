@@ -289,6 +289,28 @@ namespace ERP.Infrastructure.Procurement
             if (!string.IsNullOrWhiteSpace(remarks)) entity.Remarks = remarks.Trim();
 
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (target == IncomingInspectionStatus.Rejected)
+            {
+                var rejRequest = new RejectionCreateRequestDto
+                {
+                    Source = RejectionSource.Incoming,
+                    SourceRecordId = entity.Id,
+                    SourceRecordNumber = entity.InspectionNumber,
+                    MaterialId = entity.MaterialId,
+                    MaterialCode = entity.MaterialCode,
+                    MaterialName = entity.MaterialName,
+                    BatchNumber = entity.BatchNumber,
+                    Quantity = entity.RejectedQuantity > 0 ? entity.RejectedQuantity : entity.SamplingQuantity,
+                    Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? "Incoming inspection rejected",
+                    Department = "Incoming QC",
+                    Operator = entity.Inspector,
+                    SupplierName = entity.SupplierName,
+                    Remarks = $"Auto-created from {entity.InspectionNumber}"
+                };
+                await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+            }
+
             return (await GetIncomingByIdAsync(id, cancellationToken))!;
         }
 
@@ -314,23 +336,40 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<InProcessDto> CreateInProcessAsync(InProcessCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(request.Operator))
+            {
+                throw new InvalidOperationException("Operator is required.");
+            }
+
+            var entry = await _db.ProductionEntries.FirstOrDefaultAsync(x => x.EntryNumber == request.ProductionEntryNumber.Trim() && !x.IsDeleted, cancellationToken);
+            if (entry is null) throw new InvalidOperationException("Production Entry not found.");
+
+            var wo = await _db.WorkOrders.FirstOrDefaultAsync(x => x.WorkOrderNumber == request.WorkOrderNumber.Trim() && !x.IsDeleted, cancellationToken);
+            if (wo is null) throw new InvalidOperationException("Work Order not found.");
+
+            var machine = await _db.Machines.FirstOrDefaultAsync(x => x.MachineCode == request.MachineCode.Trim() && !x.IsDeleted, cancellationToken);
+            if (machine is null) throw new InvalidOperationException("Machine not found.");
+
+            var product = await _db.FinishedGoods.FirstOrDefaultAsync(x => x.ProductCode == request.ProductCode.Trim() && !x.IsDeleted, cancellationToken);
+            if (product is null) throw new InvalidOperationException("Product not found.");
+
             var now = DateTime.UtcNow;
             var num = await _numberingService.NextNumberAsync("QC", cancellationToken);
 
             var entity = new InProcessCheck
             {
                 QCNumber = num,
-                ProductionEntryId = request.ProductionEntryId,
+                ProductionEntryId = entry.Id,
                 ProductionEntryNumber = request.ProductionEntryNumber.Trim(),
-                WorkOrderId = request.WorkOrderId,
+                WorkOrderId = wo.Id,
                 WorkOrderNumber = request.WorkOrderNumber.Trim(),
-                MachineId = request.MachineId,
+                MachineId = machine.Id,
                 MachineCode = request.MachineCode.Trim(),
                 MachineName = request.MachineName.Trim(),
                 Operator = request.Operator.Trim(),
                 Shift = request.Shift,
                 Stage = request.Stage.Trim(),
-                ProductId = request.ProductId,
+                ProductId = product.Id,
                 ProductCode = request.ProductCode.Trim(),
                 ProductName = request.ProductName.Trim(),
                 BatchNumber = request.BatchNumber.Trim(),
@@ -359,17 +398,39 @@ namespace ERP.Infrastructure.Procurement
             var entity = await _db.InProcessChecks.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return null;
 
-            entity.ProductionEntryId = request.ProductionEntryId;
+            if (entity.Status != InProcessQcStatus.Draft)
+            {
+                throw new InvalidOperationException("Only draft QC checks can be edited.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Operator))
+            {
+                throw new InvalidOperationException("Operator is required.");
+            }
+
+            var entry = await _db.ProductionEntries.FirstOrDefaultAsync(x => x.EntryNumber == request.ProductionEntryNumber.Trim() && !x.IsDeleted, cancellationToken);
+            if (entry is null) throw new InvalidOperationException("Production Entry not found.");
+
+            var wo = await _db.WorkOrders.FirstOrDefaultAsync(x => x.WorkOrderNumber == request.WorkOrderNumber.Trim() && !x.IsDeleted, cancellationToken);
+            if (wo is null) throw new InvalidOperationException("Work Order not found.");
+
+            var machine = await _db.Machines.FirstOrDefaultAsync(x => x.MachineCode == request.MachineCode.Trim() && !x.IsDeleted, cancellationToken);
+            if (machine is null) throw new InvalidOperationException("Machine not found.");
+
+            var product = await _db.FinishedGoods.FirstOrDefaultAsync(x => x.ProductCode == request.ProductCode.Trim() && !x.IsDeleted, cancellationToken);
+            if (product is null) throw new InvalidOperationException("Product not found.");
+
+            entity.ProductionEntryId = entry.Id;
             entity.ProductionEntryNumber = request.ProductionEntryNumber.Trim();
-            entity.WorkOrderId = request.WorkOrderId;
+            entity.WorkOrderId = wo.Id;
             entity.WorkOrderNumber = request.WorkOrderNumber.Trim();
-            entity.MachineId = request.MachineId;
+            entity.MachineId = machine.Id;
             entity.MachineCode = request.MachineCode.Trim();
             entity.MachineName = request.MachineName.Trim();
             entity.Operator = request.Operator.Trim();
             entity.Shift = request.Shift;
             entity.Stage = request.Stage.Trim();
-            entity.ProductId = request.ProductId;
+            entity.ProductId = product.Id;
             entity.ProductCode = request.ProductCode.Trim();
             entity.ProductName = request.ProductName.Trim();
             entity.BatchNumber = request.BatchNumber.Trim();
@@ -468,6 +529,30 @@ namespace ERP.Infrastructure.Procurement
             if (!string.IsNullOrWhiteSpace(remarks)) entity.Remarks = remarks.Trim();
 
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (target == InProcessQcStatus.Failed)
+            {
+                var rejRequest = new RejectionCreateRequestDto
+                {
+                    Source = RejectionSource.InProcess,
+                    SourceRecordId = entity.Id,
+                    SourceRecordNumber = entity.QCNumber,
+                    ProductId = entity.ProductId,
+                    ProductCode = entity.ProductCode,
+                    ProductName = entity.ProductName,
+                    BatchNumber = entity.BatchNumber,
+                    Quantity = 1,
+                    Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? $"{entity.Parameter} failed",
+                    Department = "Production",
+                    Operator = entity.Operator,
+                    MachineId = entity.MachineId,
+                    MachineCode = entity.MachineCode,
+                    MachineName = entity.MachineName,
+                    Remarks = $"Auto-created from {entity.QCNumber}"
+                };
+                await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+            }
+
             return MapToInProcessDto(entity);
         }
 
@@ -493,6 +578,32 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<FinalDto> CreateFinalAsync(FinalCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(request.Inspector))
+            {
+                throw new InvalidOperationException("Inspector is required.");
+            }
+
+            var product = await _db.FinishedGoods.FirstOrDefaultAsync(x => x.ProductCode == request.FinishedProductCode.Trim() && !x.IsDeleted, cancellationToken);
+            if (product is null) throw new InvalidOperationException("Finished Product not found.");
+
+            var entry = await _db.ProductionEntries.FirstOrDefaultAsync(x => x.EntryNumber == request.ProductionEntryNumber.Trim() && !x.IsDeleted, cancellationToken);
+            if (entry is null) throw new InvalidOperationException("Production Entry not found.");
+
+            if (entry.ProductId != product.Id)
+            {
+                throw new InvalidOperationException("Product does not match the source production record.");
+            }
+
+            if (request.AcceptedQuantity < 0 || request.RejectedQuantity < 0)
+            {
+                throw new InvalidOperationException("Quantities cannot be negative.");
+            }
+
+            if (request.AcceptedQuantity + request.RejectedQuantity > entry.GoodQuantity)
+            {
+                throw new InvalidOperationException("Accepted + rejected quantity cannot exceed production entry good quantity.");
+            }
+
             var now = DateTime.UtcNow;
             var num = await _numberingService.NextNumberAsync("FINSP", cancellationToken);
 
@@ -500,10 +611,10 @@ namespace ERP.Infrastructure.Procurement
             {
                 InspectionNumber = num,
                 InspectionDate = request.InspectionDate.ToUniversalTime(),
-                FinishedProductId = request.FinishedProductId,
+                FinishedProductId = product.Id,
                 FinishedProductCode = request.FinishedProductCode.Trim(),
                 FinishedProductName = request.FinishedProductName.Trim(),
-                ProductionEntryId = request.ProductionEntryId,
+                ProductionEntryId = entry.Id,
                 ProductionEntryNumber = request.ProductionEntryNumber.Trim(),
                 ProductionBatch = request.ProductionBatch.Trim(),
                 Inspector = request.Inspector.Trim(),
@@ -545,11 +656,42 @@ namespace ERP.Infrastructure.Procurement
             var entity = await _db.FinalInspections.Include(x => x.Parameters).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return null;
 
+            if (entity.Status != FinalInspectionStatus.Draft)
+            {
+                throw new InvalidOperationException("Only draft final inspections can be edited.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Inspector))
+            {
+                throw new InvalidOperationException("Inspector is required.");
+            }
+
+            var product = await _db.FinishedGoods.FirstOrDefaultAsync(x => x.ProductCode == request.FinishedProductCode.Trim() && !x.IsDeleted, cancellationToken);
+            if (product is null) throw new InvalidOperationException("Finished Product not found.");
+
+            var entry = await _db.ProductionEntries.FirstOrDefaultAsync(x => x.EntryNumber == request.ProductionEntryNumber.Trim() && !x.IsDeleted, cancellationToken);
+            if (entry is null) throw new InvalidOperationException("Production Entry not found.");
+
+            if (entry.ProductId != product.Id)
+            {
+                throw new InvalidOperationException("Product does not match the source production record.");
+            }
+
+            if (request.AcceptedQuantity < 0 || request.RejectedQuantity < 0)
+            {
+                throw new InvalidOperationException("Quantities cannot be negative.");
+            }
+
+            if (request.AcceptedQuantity + request.RejectedQuantity > entry.GoodQuantity)
+            {
+                throw new InvalidOperationException("Accepted + rejected quantity cannot exceed production entry good quantity.");
+            }
+
             entity.InspectionDate = request.InspectionDate.ToUniversalTime();
-            entity.FinishedProductId = request.FinishedProductId;
+            entity.FinishedProductId = product.Id;
             entity.FinishedProductCode = request.FinishedProductCode.Trim();
             entity.FinishedProductName = request.FinishedProductName.Trim();
-            entity.ProductionEntryId = request.ProductionEntryId;
+            entity.ProductionEntryId = entry.Id;
             entity.ProductionEntryNumber = request.ProductionEntryNumber.Trim();
             entity.ProductionBatch = request.ProductionBatch.Trim();
             entity.Inspector = request.Inspector.Trim();
@@ -698,6 +840,27 @@ namespace ERP.Infrastructure.Procurement
             if (!string.IsNullOrWhiteSpace(remarks)) entity.Remarks = remarks.Trim();
 
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (target == FinalInspectionStatus.Rejected)
+            {
+                var rejRequest = new RejectionCreateRequestDto
+                {
+                    Source = RejectionSource.FinalInspection,
+                    SourceRecordId = entity.Id,
+                    SourceRecordNumber = entity.InspectionNumber,
+                    ProductId = entity.FinishedProductId,
+                    ProductCode = entity.FinishedProductCode,
+                    ProductName = entity.FinishedProductName,
+                    BatchNumber = entity.ProductionBatch,
+                    Quantity = entity.RejectedQuantity > 0 ? entity.RejectedQuantity : 1,
+                    Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? "Final inspection rejected",
+                    Department = "Final QC",
+                    Operator = entity.Inspector,
+                    Remarks = $"Auto-created from {entity.InspectionNumber}"
+                };
+                await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+            }
+
             return (await GetFinalByIdAsync(id, cancellationToken))!;
         }
 
@@ -961,6 +1124,95 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<RejectionDto> RecordRejectionAsync(RejectionCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
         {
+            if (request.Quantity <= 0)
+            {
+                throw new InvalidOperationException("Quantity must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Reason))
+            {
+                throw new InvalidOperationException("Reason is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Department))
+            {
+                throw new InvalidOperationException("Department is required.");
+            }
+
+            int? resolvedMachineId = request.MachineId;
+            string? resolvedMachineCode = request.MachineCode;
+            string? resolvedMachineName = request.MachineName;
+            if (!string.IsNullOrWhiteSpace(request.MachineCode))
+            {
+                var machine = await _db.Machines.FirstOrDefaultAsync(x => x.MachineCode == request.MachineCode.Trim() && !x.IsDeleted, cancellationToken);
+                if (machine is null) throw new InvalidOperationException("Machine not found.");
+                resolvedMachineId = machine.Id;
+                resolvedMachineCode = machine.MachineCode;
+                resolvedMachineName = machine.MachineName;
+            }
+
+            int? resolvedProductId = request.ProductId;
+            string? resolvedProductCode = request.ProductCode;
+            string? resolvedProductName = request.ProductName;
+
+            int? resolvedMaterialId = request.MaterialId;
+            string? resolvedMaterialCode = request.MaterialCode;
+            string? resolvedMaterialName = request.MaterialName;
+            string? resolvedSupplierName = request.SupplierName;
+
+            if (request.Source == RejectionSource.Incoming)
+            {
+                var incoming = await _db.IncomingInspections.FirstOrDefaultAsync(x => x.InspectionNumber == request.SourceRecordNumber.Trim() && !x.IsDeleted, cancellationToken);
+                if (incoming is null) throw new InvalidOperationException("Source record not found.");
+
+                resolvedMaterialId = incoming.MaterialId;
+                resolvedMaterialCode = incoming.MaterialCode;
+                resolvedMaterialName = incoming.MaterialName;
+                resolvedSupplierName = incoming.SupplierName;
+
+                if (request.Quantity > incoming.RejectedQuantity && incoming.RejectedQuantity > 0)
+                {
+                    throw new InvalidOperationException("Rejection quantity cannot exceed source inspection rejected quantity.");
+                }
+            }
+            else if (request.Source == RejectionSource.InProcess)
+            {
+                var inprocess = await _db.InProcessChecks.FirstOrDefaultAsync(x => x.QCNumber == request.SourceRecordNumber.Trim() && !x.IsDeleted, cancellationToken);
+                if (inprocess is null) throw new InvalidOperationException("Source record not found.");
+
+                resolvedProductId = inprocess.ProductId;
+                resolvedProductCode = inprocess.ProductCode;
+                resolvedProductName = inprocess.ProductName;
+
+                var wo = await _db.WorkOrders.FirstOrDefaultAsync(x => x.Id == inprocess.WorkOrderId && !x.IsDeleted, cancellationToken);
+                if (wo is null) throw new InvalidOperationException("Work Order not found.");
+
+                if (request.Quantity > 1)
+                {
+                    throw new InvalidOperationException("Rejection quantity cannot exceed applicable production quantity.");
+                }
+            }
+            else if (request.Source == RejectionSource.FinalInspection)
+            {
+                var final = await _db.FinalInspections.FirstOrDefaultAsync(x => x.InspectionNumber == request.SourceRecordNumber.Trim() && !x.IsDeleted, cancellationToken);
+                if (final is null) throw new InvalidOperationException("Source record not found.");
+
+                resolvedProductId = final.FinishedProductId;
+                resolvedProductCode = final.FinishedProductCode;
+                resolvedProductName = final.FinishedProductName;
+
+                var entry = await _db.ProductionEntries.FirstOrDefaultAsync(x => x.Id == final.ProductionEntryId && !x.IsDeleted, cancellationToken);
+                if (entry is null) throw new InvalidOperationException("Production Entry not found.");
+
+                var wo = await _db.WorkOrders.FirstOrDefaultAsync(x => x.Id == entry.WorkOrderId && !x.IsDeleted, cancellationToken);
+                if (wo is null) throw new InvalidOperationException("Work Order not found.");
+
+                if (request.Quantity > final.RejectedQuantity)
+                {
+                    throw new InvalidOperationException("Rejection quantity cannot exceed final inspection rejected quantity.");
+                }
+            }
+
             var now = DateTime.UtcNow;
             var num = await _numberingService.NextNumberAsync("REJ", cancellationToken);
 
@@ -969,24 +1221,24 @@ namespace ERP.Infrastructure.Procurement
                 RejectionNumber = num,
                 RejectionDate = DateTime.UtcNow,
                 Source = request.Source,
-                SourceRecordId = request.SourceRecordId,
+                SourceRecordId = request.SourceRecordId > 0 ? request.SourceRecordId : 0,
                 SourceRecordNumber = request.SourceRecordNumber.Trim(),
-                MaterialId = request.MaterialId,
-                MaterialCode = request.MaterialCode?.Trim(),
-                MaterialName = request.MaterialName?.Trim(),
-                ProductId = request.ProductId,
-                ProductCode = request.ProductCode?.Trim(),
-                ProductName = request.ProductName?.Trim(),
+                MaterialId = resolvedMaterialId,
+                MaterialCode = resolvedMaterialCode,
+                MaterialName = resolvedMaterialName,
+                ProductId = resolvedProductId,
+                ProductCode = resolvedProductCode,
+                ProductName = resolvedProductName,
                 BatchNumber = request.BatchNumber.Trim(),
                 Quantity = request.Quantity,
                 Reason = request.Reason.Trim(),
                 RootCause = request.RootCause?.Trim() ?? string.Empty,
                 Department = request.Department.Trim(),
                 Operator = request.Operator?.Trim() ?? string.Empty,
-                MachineId = request.MachineId,
-                MachineCode = request.MachineCode?.Trim(),
-                MachineName = request.MachineName?.Trim(),
-                SupplierName = request.SupplierName?.Trim(),
+                MachineId = resolvedMachineId,
+                MachineCode = resolvedMachineCode,
+                MachineName = resolvedMachineName,
+                SupplierName = resolvedSupplierName,
                 CorrectiveAction = request.CorrectiveAction?.Trim() ?? string.Empty,
                 PreventiveAction = request.PreventiveAction?.Trim() ?? string.Empty,
                 Status = RejectionAnalysisStatus.Open,

@@ -93,5 +93,31 @@ namespace ERP.Application.Procurement
 
             return null;
         }
+
+        public static string? ValidateFinalInspectionQuantities(decimal accepted, decimal rejected, decimal sourceGoodQty)
+        {
+            if (accepted < 0 || rejected < 0)
+            {
+                return "Quantities cannot be negative.";
+            }
+            if (accepted + rejected > sourceGoodQty)
+            {
+                return "Accepted + rejected quantity cannot exceed production entry good quantity.";
+            }
+            return null;
+        }
+
+        public static string? ValidateRejectionQuantities(decimal quantity, decimal sourceLimit)
+        {
+            if (quantity <= 0)
+            {
+                return "Quantity must be greater than zero.";
+            }
+            if (quantity > sourceLimit)
+            {
+                return "Rejection quantity cannot exceed applicable production quantity.";
+            }
+            return null;
+        }
     }
 }
