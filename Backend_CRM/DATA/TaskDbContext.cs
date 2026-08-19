@@ -1,10 +1,11 @@
 using CRM.Helpers;
 using CRM.models;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.DATA
 {
-    public class TaskDbcontext : DbContext
+    public class TaskDbcontext : DbContext, IDataProtectionKeyContext
     {
         public TaskDbcontext(DbContextOptions<TaskDbcontext> options) : base(options)
         {
@@ -108,6 +109,7 @@ namespace CRM.DATA
         public DbSet<LeadSyncLog> LeadSyncLogs { get; set; }
 
         public DbSet<LeadSyncSourceCredentials> LeadSyncSourceCredentials { get; set; }
+        public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

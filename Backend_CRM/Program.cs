@@ -4,6 +4,7 @@ using CRM.DATA;
 using CRM.Helpers;
 using CRM.Hubs;
 using CRM.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -61,7 +62,9 @@ builder.Services.Configure<LeadSyncIndiaMartOptions>(
     builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
 builder.Services.Configure<JustdialWebhookOptions>(
     builder.Configuration.GetSection(JustdialWebhookOptions.SectionName));
-builder.Services.AddDataProtection();
+builder.Services.AddDataProtection()
+    .SetApplicationName("CodingEra_CRM")
+    .PersistKeysToDbContext<TaskDbcontext>();
 builder.Services.AddHttpClient("LeadSyncIndiaMart");
 builder.Services.AddHttpClient("LeadSyncMarketplace");
 builder.Services.AddScoped<ILeadSyncCredentialService, LeadSyncCredentialService>();
