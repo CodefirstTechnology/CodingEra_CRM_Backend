@@ -80,6 +80,9 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Procurement.IProcurementAuditTrailService, ERP.Infrastructure.Procurement.ProcurementAuditTrailService>();
             services.AddScoped<ERP.Application.Procurement.IProcurementReportsService, ERP.Infrastructure.Procurement.ProcurementReportsService>();
 
+            // Production Services
+            services.AddScoped<ERP.Application.Production.IProductionService, ERP.Infrastructure.Production.ProductionService>();
+
             return services;
         }
     }

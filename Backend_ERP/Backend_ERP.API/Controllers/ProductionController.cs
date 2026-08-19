@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using ERP.Application.Production;
 using ERP.Application.Production.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,204 +12,391 @@ namespace ERP.API.Controllers
     [Route("api/production")]
     public class ProductionController : ControllerBase
     {
+        private readonly IProductionService _productionService;
+
+        public ProductionController(IProductionService productionService)
+        {
+            _productionService = productionService;
+        }
+
+        private static string ResolveUser(int? userId) => userId is > 0 ? userId.Value.ToString() : "system";
+
         // ── BILL OF MATERIALS (BOM) ──
 
         [HttpGet("boms")]
-        public ActionResult<List<BomListItemDto>> GetBoms([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<BomListItemDto>>> GetBoms([FromQuery] string? search, [FromQuery] string? status, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<BomListItemDto>());
+            return Ok(await _productionService.GetBomsAsync(search, status, cancellationToken));
         }
 
         [HttpGet("boms/{id:int}")]
-        public ActionResult<BomDto> GetBomById(int id)
+        public async Task<ActionResult<BomDto>> GetBomById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new BomDto { Id = id });
+            var bom = await _productionService.GetBomByIdAsync(id, cancellationToken);
+            return bom is null ? NotFound() : Ok(bom);
         }
 
         [HttpPost("boms")]
-        public ActionResult<BomDto> CreateBom([FromBody] BomCreateRequestDto request)
+        public async Task<ActionResult<BomDto>> CreateBom([FromBody] BomCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return CreatedAtAction(nameof(GetBomById), new { id = 1 }, new BomDto { Id = 1 });
+            try
+            {
+                var created = await _productionService.CreateBomAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetBomById), new { id = created.Id }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPut("boms/{id:int}")]
-        public ActionResult<BomDto> UpdateBom(int id, [FromBody] BomUpdateRequestDto request)
+        public async Task<ActionResult<BomDto>> UpdateBom(int id, [FromBody] BomUpdateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new BomDto { Id = id });
+            try
+            {
+                var updated = await _productionService.UpdateBomAsync(id, request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpDelete("boms/{id:int}")]
-        public ActionResult DeleteBom(int id)
+        public async Task<ActionResult> DeleteBom(int id, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return NoContent();
+            try
+            {
+                var ok = await _productionService.DeleteBomAsync(id, ResolveUser(userId), cancellationToken);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("boms/{id:int}/duplicate")]
-        public ActionResult<BomDto> DuplicateBom(int id)
+        public async Task<ActionResult<BomDto>> DuplicateBom(int id, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new BomDto { Id = id });
+            try
+            {
+                var duplicated = await _productionService.DuplicateBomAsync(id, ResolveUser(userId), cancellationToken);
+                return duplicated is null ? NotFound() : Ok(duplicated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("boms/{id:int}/approve")]
-        public ActionResult<BomDto> ApproveBom(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<BomDto>> ApproveBom(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new BomDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ApproveBomAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("boms/{id:int}/activate")]
-        public ActionResult<BomDto> ActivateBom(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<BomDto>> ActivateBom(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new BomDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ActivateBomAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("boms/{id:int}/archive")]
-        public ActionResult<BomDto> ArchiveBom(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<BomDto>> ArchiveBom(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new BomDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ArchiveBomAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("boms/dashboard")]
-        public ActionResult<BomDashboardDto> GetBomDashboard()
+        public async Task<ActionResult<BomDashboardDto>> GetBomDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new BomDashboardDto());
+            return Ok(await _productionService.GetBomDashboardAsync(cancellationToken));
         }
 
 
         // ── PRODUCTION PLANNING ──
 
         [HttpGet("plans")]
-        public ActionResult<List<PlanListItemDto>> GetPlans([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<PlanListItemDto>>> GetPlans([FromQuery] string? search, [FromQuery] string? status, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<PlanListItemDto>());
+            return Ok(await _productionService.GetPlansAsync(search, status, cancellationToken));
         }
 
         [HttpGet("plans/{id:int}")]
-        public ActionResult<PlanDto> GetPlanById(int id)
+        public async Task<ActionResult<PlanDto>> GetPlanById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new PlanDto { Id = id });
+            var plan = await _productionService.GetPlanByIdAsync(id, cancellationToken);
+            return plan is null ? NotFound() : Ok(plan);
         }
 
         [HttpPost("plans")]
-        public ActionResult<PlanDto> CreatePlan([FromBody] PlanCreateRequestDto request)
+        public async Task<ActionResult<PlanDto>> CreatePlan([FromBody] PlanCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return CreatedAtAction(nameof(GetPlanById), new { id = 1 }, new PlanDto { Id = 1 });
+            try
+            {
+                var created = await _productionService.CreatePlanAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetPlanById), new { id = created.Id }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPut("plans/{id:int}")]
-        public ActionResult<PlanDto> UpdatePlan(int id, [FromBody] PlanUpdateRequestDto request)
+        public async Task<ActionResult<PlanDto>> UpdatePlan(int id, [FromBody] PlanUpdateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new PlanDto { Id = id });
+            try
+            {
+                var updated = await _productionService.UpdatePlanAsync(id, request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpDelete("plans/{id:int}")]
-        public ActionResult DeletePlan(int id)
+        public async Task<ActionResult> DeletePlan(int id, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return NoContent();
+            try
+            {
+                var ok = await _productionService.DeletePlanAsync(id, ResolveUser(userId), cancellationToken);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("plans/{id:int}/approve")]
-        public ActionResult<PlanDto> ApprovePlan(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<PlanDto>> ApprovePlan(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new PlanDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ApprovePlanAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("plans/{id:int}/release")]
-        public ActionResult<PlanDto> ReleasePlan(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<PlanDto>> ReleasePlan(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new PlanDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ReleasePlanAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("plans/{planId:int}/generate-work-orders")]
-        public ActionResult<List<WorkOrderDto>> GenerateWorkOrders(int planId)
+        public async Task<ActionResult<List<WorkOrderDto>>> GenerateWorkOrders(int planId, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<WorkOrderDto>());
+            try
+            {
+                return Ok(await _productionService.GenerateWorkOrdersAsync(planId, ResolveUser(userId), cancellationToken));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("plans/dashboard")]
-        public ActionResult<PlanDashboardDto> GetPlanDashboard()
+        public async Task<ActionResult<PlanDashboardDto>> GetPlanDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new PlanDashboardDto());
+            return Ok(await _productionService.GetPlanDashboardAsync(cancellationToken));
         }
 
 
         // ── WORK ORDERS ──
 
         [HttpGet("work-orders")]
-        public ActionResult<List<WorkOrderListItemDto>> GetWorkOrders([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<WorkOrderListItemDto>>> GetWorkOrders([FromQuery] string? search, [FromQuery] string? status, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<WorkOrderListItemDto>());
+            return Ok(await _productionService.GetWorkOrdersAsync(search, status, cancellationToken));
         }
 
         [HttpGet("work-orders/{id:int}")]
-        public ActionResult<WorkOrderDto> GetWorkOrderById(int id)
+        public async Task<ActionResult<WorkOrderDto>> GetWorkOrderById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            var wo = await _productionService.GetWorkOrderByIdAsync(id, cancellationToken);
+            return wo is null ? NotFound() : Ok(wo);
         }
 
         [HttpPost("work-orders")]
-        public ActionResult<WorkOrderDto> CreateWorkOrder([FromBody] WorkOrderCreateRequestDto request)
+        public async Task<ActionResult<WorkOrderDto>> CreateWorkOrder([FromBody] WorkOrderCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return CreatedAtAction(nameof(GetWorkOrderById), new { id = 1 }, new WorkOrderDto { Id = 1 });
+            try
+            {
+                var created = await _productionService.CreateWorkOrderAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetWorkOrderById), new { id = created.Id }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPut("work-orders/{id:int}")]
-        public ActionResult<WorkOrderDto> UpdateWorkOrder(int id, [FromBody] WorkOrderUpdateRequestDto request)
+        public async Task<ActionResult<WorkOrderDto>> UpdateWorkOrder(int id, [FromBody] WorkOrderUpdateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            try
+            {
+                var updated = await _productionService.UpdateWorkOrderAsync(id, request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpDelete("work-orders/{id:int}")]
-        public ActionResult DeleteWorkOrder(int id)
+        public async Task<ActionResult> DeleteWorkOrder(int id, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return NoContent();
+            try
+            {
+                var ok = await _productionService.DeleteWorkOrderAsync(id, ResolveUser(userId), cancellationToken);
+                return ok ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("work-orders/{id:int}/start")]
-        public ActionResult<WorkOrderDto> StartWorkOrder(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<WorkOrderDto>> StartWorkOrder(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            try
+            {
+                var updated = await _productionService.StartWorkOrderAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("work-orders/{id:int}/release")]
-        public ActionResult<WorkOrderDto> ReleaseWorkOrder(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<WorkOrderDto>> ReleaseWorkOrder(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ReleaseWorkOrderAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("work-orders/{id:int}/pause")]
-        public ActionResult<WorkOrderDto> PauseWorkOrder(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<WorkOrderDto>> PauseWorkOrder(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            try
+            {
+                var updated = await _productionService.PauseWorkOrderAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("work-orders/{id:int}/resume")]
-        public ActionResult<WorkOrderDto> ResumeWorkOrder(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<WorkOrderDto>> ResumeWorkOrder(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ResumeWorkOrderAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("work-orders/{id:int}/complete")]
-        public ActionResult<WorkOrderDto> CompleteWorkOrder(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<WorkOrderDto>> CompleteWorkOrder(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            try
+            {
+                var updated = await _productionService.CompleteWorkOrderAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("work-orders/{id:int}/close")]
-        public ActionResult<WorkOrderDto> CloseWorkOrder(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<WorkOrderDto>> CloseWorkOrder(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDto { Id = id });
+            try
+            {
+                var updated = await _productionService.CloseWorkOrderAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("work-orders/{workOrderId:int}/generate-entry")]
         public ActionResult<EntryDto> GenerateProductionEntry(int workOrderId)
         {
-            return Ok(new EntryDto { WorkOrderId = workOrderId });
+            return Ok(new EntryDto { WorkOrderId = workOrderId, Status = "Draft", EntryNumber = $"ENT-{DateTime.UtcNow.Year}-{workOrderId:D6}" });
         }
 
         [HttpGet("work-orders/dashboard")]
-        public ActionResult<WorkOrderDashboardDto> GetWorkOrderDashboard()
+        public async Task<ActionResult<WorkOrderDashboardDto>> GetWorkOrderDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new WorkOrderDashboardDto());
+            return Ok(await _productionService.GetWorkOrderDashboardAsync(cancellationToken));
         }
 
 
