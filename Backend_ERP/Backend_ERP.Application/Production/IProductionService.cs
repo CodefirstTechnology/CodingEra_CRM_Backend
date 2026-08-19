@@ -69,5 +69,10 @@ namespace ERP.Application.Production
         Task<List<ConsumptionListItemDto>> GetConsumptionsAsync(string? search, int? workOrderId, CancellationToken cancellationToken = default);
         Task<ConsumptionDto?> GetConsumptionByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<ConsumptionDashboardDto> GetConsumptionDashboardAsync(CancellationToken cancellationToken = default);
+
+        // Reports
+        Task<ReportDashboardDto> GetReportDashboardAsync(CancellationToken cancellationToken = default);
+        Task<DailyReportDto> GetDailyReportAsync(string? dateFrom, string? shift, int? machineId, int? productId, string? supervisor, CancellationToken cancellationToken = default);
+        Task<MonthlySummaryDto> GetMonthlySummaryAsync(string? month, CancellationToken cancellationToken = default);
     }
 }

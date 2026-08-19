@@ -239,5 +239,77 @@ namespace Backend_ERP.Tests
             Assert.Equal("STX-001", dto.StockOutReference);
             Assert.Equal(2m, dto.Variance);
         }
+
+        [Fact]
+        public void ReportDashboardDto_exposes_expected_contract_properties()
+        {
+            var dto = new ReportDashboardDto
+            {
+                TodaysProduced = 100m,
+                WeekProduced = 500m,
+                MonthProduced = 2000m,
+                RejectionRate = 2.5m,
+                AverageUtilization = 85.5m,
+                PendingWorkOrders = 5
+            };
+
+            Assert.Equal(100m, dto.TodaysProduced);
+            Assert.Equal(500m, dto.WeekProduced);
+            Assert.Equal(2000m, dto.MonthProduced);
+            Assert.Equal(2.5m, dto.RejectionRate);
+            Assert.Equal(85.5m, dto.AverageUtilization);
+            Assert.Equal(5, dto.PendingWorkOrders);
+        }
+
+        [Fact]
+        public void DailyReportDto_exposes_expected_contract_properties()
+        {
+            var dto = new DailyReportDto
+            {
+                Date = "2026-08-19",
+                Shift = "A",
+                ProductionSummary = new DailyProductionSummaryDto
+                {
+                    TotalProduced = 100m,
+                    GoodQuantity = 98m,
+                    RejectedQuantity = 2m,
+                    Productivity = 98m
+                },
+                ShiftSummary = new List<DailyShiftSummaryDto>(),
+                MachineSummary = new List<DailyMachineSummaryDto>(),
+                ProductSummary = new List<DailyProductSummaryDto>(),
+                MaterialConsumed = 200m,
+                Utilization = 80m,
+                PendingWorkOrders = 3
+            };
+
+            Assert.Equal("2026-08-19", dto.Date);
+            Assert.Equal("A", dto.Shift);
+            Assert.Equal(98m, dto.ProductionSummary.GoodQuantity);
+            Assert.Empty(dto.ShiftSummary);
+            Assert.Equal(200m, dto.MaterialConsumed);
+        }
+
+        [Fact]
+        public void MonthlySummaryDto_exposes_expected_contract_properties()
+        {
+            var dto = new MonthlySummaryDto
+            {
+                Month = "2026-08",
+                TotalProduced = 5000m,
+                GoodQuantity = 4900m,
+                RejectedQuantity = 100m,
+                MaterialConsumed = 10000m,
+                AverageUtilization = 82m,
+                WorkOrdersCompleted = 15,
+                RejectionRate = 2m,
+                DailyTrend = new List<DailyTrendItemDto>()
+            };
+
+            Assert.Equal("2026-08", dto.Month);
+            Assert.Equal(5000m, dto.TotalProduced);
+            Assert.Equal(15, dto.WorkOrdersCompleted);
+            Assert.Empty(dto.DailyTrend);
+        }
     }
 }

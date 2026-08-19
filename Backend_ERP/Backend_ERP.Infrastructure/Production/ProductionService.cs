@@ -2746,5 +2746,212 @@ namespace ERP.Infrastructure.Production
                 Timeline = timeline
             };
         }
+
+        public async Task<ReportDashboardDto> GetReportDashboardAsync(CancellationToken cancellationToken = default)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            int diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
+            var monday = today.AddDays(-1 * diff);
+            var sunday = monday.AddDays(6);
+
+            var startOfMonth = new DateOnly(today.Year, today.Month, 1);
+            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+
+            var entries = await _dbContext.ProductionEntries
+                .Where(x => !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            var todaysProduced = entries.Where(x => x.ProductionDate == today).Sum(x => x.ProducedQuantity);
+            var weekProduced = entries.Where(x => x.ProductionDate >= monday && x.ProductionDate <= sunday).Sum(x => x.ProducedQuantity);
+            var monthProduced = entries.Where(x => x.ProductionDate >= startOfMonth && x.ProductionDate <= endOfMonth).Sum(x => x.ProducedQuantity);
+
+            var totalProducedMonth = entries.Where(x => x.ProductionDate >= startOfMonth && x.ProductionDate <= endOfMonth).Sum(x => x.ProducedQuantity);
+            var totalRejectedMonth = entries.Where(x => x.ProductionDate >= startOfMonth && x.ProductionDate <= endOfMonth).Sum(x => x.RejectedQuantity);
+            var rejectionRate = totalProducedMonth > 0 ? (totalRejectedMonth / totalProducedMonth) * 100 : 0m;
+
+            var machines = await _dbContext.Machines.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+            var avgUtil = machines.Count > 0 ? machines.Average(x => x.UtilizationPercent) : 0m;
+
+            var pendingWorkOrders = await _dbContext.WorkOrders
+                .CountAsync(x => x.Status != WorkOrderStatus.Completed && x.Status != WorkOrderStatus.Closed && !x.IsDeleted, cancellationToken);
+
+            return new ReportDashboardDto
+            {
+                TodaysProduced = todaysProduced,
+                WeekProduced = weekProduced,
+                MonthProduced = monthProduced,
+                RejectionRate = Math.Round(rejectionRate, 1),
+                AverageUtilization = Math.Round(avgUtil, 1),
+                PendingWorkOrders = pendingWorkOrders
+            };
+        }
+
+        public async Task<DailyReportDto> GetDailyReportAsync(string? dateFrom, string? shift, int? machineId, int? productId, string? supervisor, CancellationToken cancellationToken = default)
+        {
+            DateOnly filterDate;
+            if (string.IsNullOrWhiteSpace(dateFrom) || !DateOnly.TryParse(dateFrom, out filterDate))
+            {
+                filterDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            }
+
+            var q = _dbContext.ProductionEntries.Where(x => x.ProductionDate == filterDate && !x.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(shift) && Enum.TryParse<Shift>(shift, true, out var shiftEnum))
+            {
+                q = q.Where(x => x.Shift == shiftEnum);
+            }
+
+            if (machineId.HasValue)
+            {
+                q = q.Where(x => x.MachineId == machineId.Value);
+            }
+
+            if (productId.HasValue)
+            {
+                q = q.Where(x => x.ProductId == productId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(supervisor))
+            {
+                var s = supervisor.Trim().ToLower();
+                q = q.Where(x => x.Operator.ToLower().Contains(s));
+            }
+
+            var entries = await q.ToListAsync(cancellationToken);
+
+            var totalProduced = entries.Sum(x => x.ProducedQuantity);
+            var goodQuantity = entries.Sum(x => x.GoodQuantity);
+            var rejectedQuantity = entries.Sum(x => x.RejectedQuantity);
+            var productivity = totalProduced > 0 ? (goodQuantity / totalProduced) * 100 : 0m;
+
+            var shiftSummary = new List<DailyShiftSummaryDto>();
+            foreach (Shift s in Enum.GetValues(typeof(Shift)))
+            {
+                var sEntries = entries.Where(x => x.Shift == s).ToList();
+                shiftSummary.Add(new DailyShiftSummaryDto
+                {
+                    Shift = s.ToString(),
+                    Produced = sEntries.Sum(x => x.ProducedQuantity),
+                    Good = sEntries.Sum(x => x.GoodQuantity),
+                    Rejected = sEntries.Sum(x => x.RejectedQuantity)
+                });
+            }
+
+            var machineSummary = entries
+                .GroupBy(x => new { x.MachineCode, x.MachineName })
+                .Select(g => new DailyMachineSummaryDto
+                {
+                    MachineCode = g.Key.MachineCode,
+                    MachineName = g.Key.MachineName,
+                    Produced = g.Sum(x => x.ProducedQuantity),
+                    Utilization = _dbContext.Machines.Where(m => m.MachineCode == g.Key.MachineCode && !m.IsDeleted).Select(m => m.UtilizationPercent).FirstOrDefault()
+                })
+                .ToList();
+
+            var productSummary = entries
+                .GroupBy(x => new { x.ProductCode, x.ProductName })
+                .Select(g => new DailyProductSummaryDto
+                {
+                    ProductCode = g.Key.ProductCode,
+                    ProductName = g.Key.ProductName,
+                    Produced = g.Sum(x => x.ProducedQuantity),
+                    Good = g.Sum(x => x.GoodQuantity),
+                    Rejected = g.Sum(x => x.RejectedQuantity)
+                })
+                .ToList();
+
+            var entryIds = entries.Select(x => x.Id).ToList();
+            var materialConsumed = await _dbContext.MaterialConsumptions
+                .Where(x => x.EntryId.HasValue && entryIds.Contains(x.EntryId.Value) && !x.IsDeleted)
+                .SumAsync(x => x.ActualQuantity, cancellationToken);
+
+            var machines = await _dbContext.Machines.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+            var avgUtil = machines.Count > 0 ? machines.Average(x => x.UtilizationPercent) : 0m;
+
+            var pendingWorkOrders = await _dbContext.WorkOrders
+                .CountAsync(x => x.Status != WorkOrderStatus.Completed && x.Status != WorkOrderStatus.Closed && !x.IsDeleted, cancellationToken);
+
+            return new DailyReportDto
+            {
+                Date = filterDate.ToString("yyyy-MM-dd"),
+                Shift = shift,
+                ProductionSummary = new DailyProductionSummaryDto
+                {
+                    TotalProduced = totalProduced,
+                    GoodQuantity = goodQuantity,
+                    RejectedQuantity = rejectedQuantity,
+                    Productivity = Math.Round(productivity, 1)
+                },
+                ShiftSummary = shiftSummary,
+                MachineSummary = machineSummary,
+                ProductSummary = productSummary,
+                MaterialConsumed = materialConsumed,
+                Utilization = Math.Round(avgUtil, 1),
+                PendingWorkOrders = pendingWorkOrders
+            };
+        }
+
+        public async Task<MonthlySummaryDto> GetMonthlySummaryAsync(string? month, CancellationToken cancellationToken = default)
+        {
+            int year = DateTime.UtcNow.Year;
+            int monthVal = DateTime.UtcNow.Month;
+            if (!string.IsNullOrWhiteSpace(month) && month.Length == 7 && month[4] == '-')
+            {
+                int.TryParse(month.Substring(0, 4), out year);
+                int.TryParse(month.Substring(5, 2), out monthVal);
+            }
+
+            var startOfMonth = new DateOnly(year, monthVal, 1);
+            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+
+            var monthEntries = await _dbContext.ProductionEntries
+                .Where(x => x.ProductionDate >= startOfMonth && x.ProductionDate <= endOfMonth && !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            var totalProduced = monthEntries.Sum(x => x.ProducedQuantity);
+            var goodQuantity = monthEntries.Sum(x => x.GoodQuantity);
+            var rejectedQuantity = monthEntries.Sum(x => x.RejectedQuantity);
+            var rejectionRate = totalProduced > 0 ? (rejectedQuantity / totalProduced) * 100 : 0m;
+
+            var entryIds = monthEntries.Select(x => x.Id).ToList();
+            var materialConsumed = await _dbContext.MaterialConsumptions
+                .Where(x => x.EntryId.HasValue && entryIds.Contains(x.EntryId.Value) && !x.IsDeleted)
+                .SumAsync(x => x.ActualQuantity, cancellationToken);
+
+            var machines = await _dbContext.Machines.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+            var averageUtilization = machines.Count > 0 ? machines.Average(x => x.UtilizationPercent) : 0m;
+
+            var startDateTime = new DateTime(year, monthVal, 1, 0, 0, 0, DateTimeKind.Utc);
+            var endDateTime = startDateTime.AddMonths(1).AddTicks(-1);
+            var workOrdersCompleted = await _dbContext.WorkOrders
+                .CountAsync(x => (x.Status == WorkOrderStatus.Completed || x.Status == WorkOrderStatus.Closed) &&
+                                 x.UpdatedAt >= startDateTime && x.UpdatedAt <= endDateTime && !x.IsDeleted, cancellationToken);
+
+            var dailyTrend = monthEntries
+                .GroupBy(x => x.ProductionDate)
+                .Select(g => new DailyTrendItemDto
+                {
+                    Date = g.Key.ToString("yyyy-MM-dd"),
+                    Produced = g.Sum(x => x.ProducedQuantity),
+                    Good = g.Sum(x => x.GoodQuantity),
+                    Rejected = g.Sum(x => x.RejectedQuantity)
+                })
+                .OrderBy(x => x.Date)
+                .ToList();
+
+            return new MonthlySummaryDto
+            {
+                Month = $"{year}-{monthVal:D2}",
+                TotalProduced = totalProduced,
+                GoodQuantity = goodQuantity,
+                RejectedQuantity = rejectedQuantity,
+                MaterialConsumed = materialConsumed,
+                AverageUtilization = Math.Round(averageUtilization, 1),
+                WorkOrdersCompleted = workOrdersCompleted,
+                RejectionRate = Math.Round(rejectionRate, 1),
+                DailyTrend = dailyTrend
+            };
+        }
     }
 }

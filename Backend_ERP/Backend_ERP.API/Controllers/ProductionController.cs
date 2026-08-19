@@ -623,25 +623,30 @@ namespace ERP.API.Controllers
             return Ok(new RejectionDashboardDto());
         }
 
-
         // ── REPORTS ──
 
         [HttpGet("reports/daily")]
-        public ActionResult<DailyReportDto> GetDailyReport([FromQuery] string? date, [FromQuery] string? shift)
+        public async Task<ActionResult<DailyReportDto>> GetDailyReport(
+            [FromQuery] string? dateFrom,
+            [FromQuery] string? shift,
+            [FromQuery] int? machineId,
+            [FromQuery] int? productId,
+            [FromQuery] string? supervisor,
+            CancellationToken cancellationToken = default)
         {
-            return Ok(new DailyReportDto());
+            return Ok(await _productionService.GetDailyReportAsync(dateFrom, shift, machineId, productId, supervisor, cancellationToken));
         }
 
         [HttpGet("reports/monthly")]
-        public ActionResult<MonthlySummaryDto> GetMonthlySummary([FromQuery] string? month)
+        public async Task<ActionResult<MonthlySummaryDto>> GetMonthlySummary([FromQuery] string? month, CancellationToken cancellationToken = default)
         {
-            return Ok(new MonthlySummaryDto());
+            return Ok(await _productionService.GetMonthlySummaryAsync(month, cancellationToken));
         }
 
         [HttpGet("reports/dashboard")]
-        public ActionResult<ReportDashboardDto> GetReportDashboard()
+        public async Task<ActionResult<ReportDashboardDto>> GetReportDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new ReportDashboardDto());
+            return Ok(await _productionService.GetReportDashboardAsync(cancellationToken));
         }
     }
 }
