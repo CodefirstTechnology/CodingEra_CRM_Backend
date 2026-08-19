@@ -27,7 +27,7 @@ namespace ERP.Application.Procurement
 
             return current switch
             {
-                InProcessQcStatus.Draft => target is InProcessQcStatus.Running or InProcessQcStatus.Passed or InProcessQcStatus.Failed or InProcessQcStatus.Closed,
+                InProcessQcStatus.Draft => target is InProcessQcStatus.Running or InProcessQcStatus.Closed,
                 InProcessQcStatus.Running => target is InProcessQcStatus.Passed or InProcessQcStatus.Failed or InProcessQcStatus.Closed,
                 InProcessQcStatus.Passed => target == InProcessQcStatus.Closed,
                 InProcessQcStatus.Failed => target == InProcessQcStatus.Closed,

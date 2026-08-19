@@ -32,6 +32,21 @@ namespace Backend_ERP.Tests
             Assert.Equal(expected, QualityControlRules.CanTransitionIncoming(current, target));
         }
 
+        [Theory]
+        [InlineData(InProcessQcStatus.Draft, InProcessQcStatus.Running, true)]
+        [InlineData(InProcessQcStatus.Draft, InProcessQcStatus.Passed, false)]
+        [InlineData(InProcessQcStatus.Draft, InProcessQcStatus.Failed, false)]
+        [InlineData(InProcessQcStatus.Running, InProcessQcStatus.Passed, true)]
+        [InlineData(InProcessQcStatus.Running, InProcessQcStatus.Failed, true)]
+        [InlineData(InProcessQcStatus.Passed, InProcessQcStatus.Closed, true)]
+        [InlineData(InProcessQcStatus.Failed, InProcessQcStatus.Closed, true)]
+        [InlineData(InProcessQcStatus.Failed, InProcessQcStatus.Passed, false)]
+        [InlineData(InProcessQcStatus.Closed, InProcessQcStatus.Running, false)]
+        public void QualityControlRules_validates_in_process_status_transitions(InProcessQcStatus current, InProcessQcStatus target, bool expected)
+        {
+            Assert.Equal(expected, QualityControlRules.CanTransitionInProcess(current, target));
+        }
+
         [Fact]
         public void IncomingDto_exposes_expected_json_contract_properties()
         {

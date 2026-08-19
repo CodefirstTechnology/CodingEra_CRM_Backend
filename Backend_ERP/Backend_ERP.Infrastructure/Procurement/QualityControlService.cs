@@ -469,6 +469,11 @@ namespace ERP.Infrastructure.Procurement
             var entity = await _db.InProcessChecks.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return false;
 
+            if (entity.Status != InProcessQcStatus.Draft)
+            {
+                throw new InvalidOperationException("Only draft QC checks can be deleted.");
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = actingUser;
@@ -485,17 +490,60 @@ namespace ERP.Infrastructure.Procurement
             var entity = await _db.InProcessChecks.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return null;
 
+            if (entity.Status != InProcessQcStatus.Running)
+            {
+                throw new InvalidOperationException("Results can only be recorded when QC check is in Running status.");
+            }
+
             if (!string.IsNullOrWhiteSpace(actualValue)) entity.ActualValue = actualValue.Trim();
             if (!string.IsNullOrWhiteSpace(result) && Enum.TryParse<QcCheckResult>(result, true, out var rEnum))
             {
                 entity.Result = rEnum;
-                entity.Status = rEnum == QcCheckResult.Pass ? InProcessQcStatus.Passed : InProcessQcStatus.Failed;
+                if (rEnum == QcCheckResult.Pass)
+                {
+                    entity.Status = InProcessQcStatus.Passed;
+                }
+                else if (rEnum == QcCheckResult.Fail)
+                {
+                    entity.Status = InProcessQcStatus.Failed;
+                }
             }
 
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = actingUser;
 
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (entity.Status == InProcessQcStatus.Failed)
+            {
+                var existingRejection = await _db.RejectionAnalyses.FirstOrDefaultAsync(
+                    x => x.Source == RejectionSource.InProcess && x.SourceRecordId == entity.Id && !x.IsDeleted,
+                    cancellationToken);
+
+                if (existingRejection is null)
+                {
+                    var rejRequest = new RejectionCreateRequestDto
+                    {
+                        Source = RejectionSource.InProcess,
+                        SourceRecordId = entity.Id,
+                        SourceRecordNumber = entity.QCNumber,
+                        ProductId = entity.ProductId,
+                        ProductCode = entity.ProductCode,
+                        ProductName = entity.ProductName,
+                        BatchNumber = entity.BatchNumber,
+                        Quantity = 1,
+                        Reason = entity.Remarks?.Trim() ?? $"{entity.Parameter} failed",
+                        Department = "Production",
+                        Operator = entity.Operator,
+                        MachineId = entity.MachineId,
+                        MachineCode = entity.MachineCode,
+                        MachineName = entity.MachineName,
+                        Remarks = $"Auto-created from {entity.QCNumber}"
+                    };
+                    await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+                }
+            }
+
             return MapToInProcessDto(entity);
         }
 
@@ -549,25 +597,32 @@ namespace ERP.Infrastructure.Procurement
 
             if (target == InProcessQcStatus.Failed)
             {
-                var rejRequest = new RejectionCreateRequestDto
+                var existingRejection = await _db.RejectionAnalyses.FirstOrDefaultAsync(
+                    x => x.Source == RejectionSource.InProcess && x.SourceRecordId == entity.Id && !x.IsDeleted,
+                    cancellationToken);
+
+                if (existingRejection is null)
                 {
-                    Source = RejectionSource.InProcess,
-                    SourceRecordId = entity.Id,
-                    SourceRecordNumber = entity.QCNumber,
-                    ProductId = entity.ProductId,
-                    ProductCode = entity.ProductCode,
-                    ProductName = entity.ProductName,
-                    BatchNumber = entity.BatchNumber,
-                    Quantity = 1,
-                    Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? $"{entity.Parameter} failed",
-                    Department = "Production",
-                    Operator = entity.Operator,
-                    MachineId = entity.MachineId,
-                    MachineCode = entity.MachineCode,
-                    MachineName = entity.MachineName,
-                    Remarks = $"Auto-created from {entity.QCNumber}"
-                };
-                await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+                    var rejRequest = new RejectionCreateRequestDto
+                    {
+                        Source = RejectionSource.InProcess,
+                        SourceRecordId = entity.Id,
+                        SourceRecordNumber = entity.QCNumber,
+                        ProductId = entity.ProductId,
+                        ProductCode = entity.ProductCode,
+                        ProductName = entity.ProductName,
+                        BatchNumber = entity.BatchNumber,
+                        Quantity = 1,
+                        Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? $"{entity.Parameter} failed",
+                        Department = "Production",
+                        Operator = entity.Operator,
+                        MachineId = entity.MachineId,
+                        MachineCode = entity.MachineCode,
+                        MachineName = entity.MachineName,
+                        Remarks = $"Auto-created from {entity.QCNumber}"
+                    };
+                    await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+                }
             }
 
             return MapToInProcessDto(entity);
