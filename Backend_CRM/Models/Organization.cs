@@ -24,6 +24,10 @@ namespace CRM.models
         [MaxLength(32)]
         public string Gst { get; set; } = string.Empty;
 
+        [Column("address")]
+        [MaxLength(1024)]
+        public string Address { get; set; } = string.Empty;
+
         [Column("industry_id")]
         public int? IndustryId { get; set; }
 

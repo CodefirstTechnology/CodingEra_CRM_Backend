@@ -37,6 +37,7 @@ namespace CRM.Helpers
 
                 await DataProtectionKeysSchemaEnsure.EnsureAsync(db, logger);
                 await LeadDealAmountSchemaEnsure.EnsureAsync(db, logger);
+                await OrganizationAddressSchemaEnsure.EnsureAsync(db, logger);
                 await CompanyProfileFaviconSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTemplateSchemaEnsure.EnsureAsync(db, logger);
