@@ -648,5 +648,11 @@ namespace ERP.API.Controllers
         {
             return Ok(await _productionService.GetReportDashboardAsync(cancellationToken));
         }
+
+        [HttpGet("permissions")]
+        public async Task<ActionResult<IReadOnlyList<string>>> GetPermissions()
+        {
+            return Ok(await _productionService.GetPermissionsAsync());
+        }
     }
 }

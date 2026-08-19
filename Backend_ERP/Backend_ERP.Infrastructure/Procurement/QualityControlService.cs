@@ -1635,5 +1635,27 @@ namespace ERP.Infrastructure.Procurement
             UpdatedBy = x.UpdatedBy,
             UpdatedAt = x.UpdatedAt
         };
+
+        public Task<IReadOnlyList<string>> GetPermissionsAsync()
+        {
+            IReadOnlyList<string> permissions = new List<string>
+            {
+                "quality-control.view",
+                "quality-control.create",
+                "quality-control.edit",
+                "quality-control.delete",
+                "quality-control.approve",
+                "quality-control.reject",
+                "quality-control.inspect",
+                "quality-control.certificate",
+                "quality-control.load-test",
+                "quality-control.analysis.view",
+                "quality-control.dashboard.view",
+                "quality-control.export",
+                "quality-control.print",
+                "quality-control.audit.view"
+            };
+            return Task.FromResult(permissions);
+        }
     }
 }

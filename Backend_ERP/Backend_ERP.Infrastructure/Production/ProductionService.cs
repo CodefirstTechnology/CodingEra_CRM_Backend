@@ -2953,5 +2953,28 @@ namespace ERP.Infrastructure.Production
                 DailyTrend = dailyTrend
             };
         }
+
+        public Task<IReadOnlyList<string>> GetPermissionsAsync()
+        {
+            IReadOnlyList<string> permissions = new List<string>
+            {
+                "production.view",
+                "production.create",
+                "production.edit",
+                "production.delete",
+                "production.approve",
+                "production.release",
+                "production.schedule",
+                "production.enter",
+                "production.consume",
+                "production.reject",
+                "production.report.view",
+                "production.dashboard.view",
+                "production.export",
+                "production.print",
+                "production.audit.view"
+            };
+            return Task.FromResult(permissions);
+        }
     }
 }

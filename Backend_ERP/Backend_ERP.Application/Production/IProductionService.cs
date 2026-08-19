@@ -74,5 +74,6 @@ namespace ERP.Application.Production
         Task<ReportDashboardDto> GetReportDashboardAsync(CancellationToken cancellationToken = default);
         Task<DailyReportDto> GetDailyReportAsync(string? dateFrom, string? shift, int? machineId, int? productId, string? supervisor, CancellationToken cancellationToken = default);
         Task<MonthlySummaryDto> GetMonthlySummaryAsync(string? month, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<string>> GetPermissionsAsync();
     }
 }

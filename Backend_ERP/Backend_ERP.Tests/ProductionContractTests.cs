@@ -311,5 +311,18 @@ namespace Backend_ERP.Tests
             Assert.Equal(15, dto.WorkOrdersCompleted);
             Assert.Empty(dto.DailyTrend);
         }
+
+        [Fact]
+        public async Task Production_GetPermissions_returns_expected_RBAC_list()
+        {
+            var service = new ERP.Infrastructure.Production.ProductionService(null!, null!);
+            var perms = await service.GetPermissionsAsync();
+
+            Assert.Contains("production.view", perms);
+            Assert.Contains("production.create", perms);
+            Assert.Contains("production.approve", perms);
+            Assert.Contains("production.report.view", perms);
+            Assert.Contains("production.dashboard.view", perms);
+        }
     }
 }

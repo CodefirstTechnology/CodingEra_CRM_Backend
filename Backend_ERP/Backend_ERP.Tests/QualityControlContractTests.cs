@@ -186,5 +186,18 @@ namespace Backend_ERP.Tests
             Assert.NotNull(errExcess);
             Assert.Contains("cannot exceed applicable production quantity", errExcess);
         }
+
+        [Fact]
+        public async Task QualityControl_GetPermissions_returns_expected_RBAC_list()
+        {
+            var service = new ERP.Infrastructure.Procurement.QualityControlService(null!, null!);
+            var perms = await service.GetPermissionsAsync();
+
+            Assert.Contains("quality-control.view", perms);
+            Assert.Contains("quality-control.create", perms);
+            Assert.Contains("quality-control.approve", perms);
+            Assert.Contains("quality-control.inspect", perms);
+            Assert.Contains("quality-control.certificate", perms);
+        }
     }
 }

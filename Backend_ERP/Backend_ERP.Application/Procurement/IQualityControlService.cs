@@ -75,5 +75,6 @@ namespace ERP.Application.Procurement
         Task<RejectionDto?> CloseRejectionAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default);
         Task<RejectionDashboardDto> GetRejectionDashboardAsync(CancellationToken cancellationToken = default);
         Task<RejectionReportDto> GetRejectionReportAsync(CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<string>> GetPermissionsAsync();
     }
 }

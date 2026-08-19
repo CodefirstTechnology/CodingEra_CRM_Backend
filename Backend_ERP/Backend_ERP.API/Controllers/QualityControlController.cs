@@ -435,6 +435,12 @@ namespace ERP.API.Controllers
             return updated is null ? NotFound() : Ok(updated);
         }
 
+        [HttpGet("permissions")]
+        public async Task<ActionResult<IReadOnlyList<string>>> GetPermissions()
+        {
+            return Ok(await _qcService.GetPermissionsAsync());
+        }
+
         private static string ResolveUser(int? userId) => userId is > 0 ? userId.Value.ToString() : "system";
     }
 
