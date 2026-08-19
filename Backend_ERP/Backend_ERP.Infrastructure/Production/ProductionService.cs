@@ -12,6 +12,10 @@ using ERP.Domain.Production;
 using ERP.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using StatusActionRequestDto = ERP.Application.Production.Dtos.StatusActionRequestDto;
+using RejectionListItemDto = ERP.Application.Production.Dtos.RejectionListItemDto;
+using RejectionDto = ERP.Application.Production.Dtos.RejectionDto;
+using RejectionDashboardDto = ERP.Application.Production.Dtos.RejectionDashboardDto;
+using RejectionReasonCountDto = ERP.Application.Production.Dtos.RejectionReasonCountDto;
 
 namespace ERP.Infrastructure.Production
 {
@@ -2951,6 +2955,180 @@ namespace ERP.Infrastructure.Production
                 WorkOrdersCompleted = workOrdersCompleted,
                 RejectionRate = Math.Round(rejectionRate, 1),
                 DailyTrend = dailyTrend
+            };
+        }
+
+        // ── GENERATE PRODUCTION ENTRY FROM WORK ORDER ──
+
+        public async Task<EntryDto> GenerateProductionEntryAsync(int workOrderId, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var wo = await _dbContext.WorkOrders
+                .FirstOrDefaultAsync(x => x.Id == workOrderId && !x.IsDeleted, cancellationToken);
+            if (wo is null)
+                throw new InvalidOperationException("Work order not found");
+
+            if (wo.Status != WorkOrderStatus.InProgress && wo.Status != WorkOrderStatus.Released)
+                throw new InvalidOperationException("Work order must be In Progress or Released to generate an entry");
+
+            var entryNumber = await GenerateDocNumberAsync("ENT", cancellationToken);
+
+            var entry = new ProductionEntry
+            {
+                EntryNumber = entryNumber,
+                WorkOrderId = wo.Id,
+                WorkOrderNumber = wo.WorkOrderNumber,
+                ProductId = wo.ProductId,
+                ProductCode = wo.ProductCode,
+                ProductName = wo.ProductName,
+                ProducedQuantity = 0,
+                GoodQuantity = 0,
+                RejectedQuantity = 0,
+                Shift = Shift.A,
+                Operator = actingUser,
+                MachineId = wo.MachineId ?? 0,
+                MachineCode = wo.MachineCode ?? string.Empty,
+                MachineName = wo.MachineName ?? string.Empty,
+                ProductionDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                Status = EntryStatus.Draft,
+                Notes = string.Empty,
+                CreatedBy = actingUser,
+                UpdatedBy = actingUser
+            };
+
+            _dbContext.ProductionEntries.Add(entry);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return MapToEntryDto(entry, new List<ProductionTimelineEventDto>());
+        }
+
+        // ── PRODUCTION REJECTIONS ──
+
+        public async Task<List<RejectionListItemDto>> GetRejectionsAsync(string? search, string? status, CancellationToken cancellationToken = default)
+        {
+            var q = _dbContext.RejectionRecords.Where(x => !x.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                q = q.Where(x => x.RejectionNumber.ToLower().Contains(s) || x.ProductCode.ToLower().Contains(s) || x.ProductName.ToLower().Contains(s));
+            }
+
+            var items = await q.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
+
+            return items.Select(x => new RejectionListItemDto
+            {
+                Id = x.Id,
+                RejectionNumber = x.RejectionNumber,
+                WorkOrderNumber = x.WorkOrderNumber,
+                ProductCode = x.ProductCode,
+                ProductName = x.ProductName,
+                Quantity = x.Quantity,
+                Reason = x.Reason,
+                Category = x.Category,
+                Operator = x.Operator,
+                MachineName = x.MachineName,
+                RejectionDate = x.RejectionDate.ToString("yyyy-MM-dd")
+            }).ToList();
+        }
+
+        public async Task<RejectionDto?> GetRejectionByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var x = await _dbContext.RejectionRecords
+                .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, cancellationToken);
+            if (x is null) return null;
+
+            return new RejectionDto
+            {
+                Id = x.Id,
+                RejectionNumber = x.RejectionNumber,
+                WorkOrderId = x.WorkOrderId,
+                WorkOrderNumber = x.WorkOrderNumber,
+                EntryId = x.EntryId,
+                ProductId = x.ProductId,
+                ProductCode = x.ProductCode,
+                ProductName = x.ProductName,
+                Quantity = x.Quantity,
+                Reason = x.Reason,
+                Category = x.Category,
+                Operator = x.Operator,
+                MachineId = x.MachineId,
+                MachineCode = x.MachineCode,
+                MachineName = x.MachineName,
+                RejectionDate = x.RejectionDate.ToString("yyyy-MM-dd"),
+                CorrectiveAction = x.CorrectiveAction,
+                Notes = x.Notes,
+                Timeline = new List<ProductionTimelineEventDto>(),
+                CreatedBy = x.CreatedBy,
+                CreatedAt = x.CreatedAt.ToString("o"),
+                UpdatedBy = x.UpdatedBy,
+                UpdatedAt = x.UpdatedAt.ToString("o")
+            };
+        }
+
+        public async Task<RejectionDto?> RecordRejectionFromEntryAsync(int entryId, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var entry = await _dbContext.ProductionEntries
+                .FirstOrDefaultAsync(x => x.Id == entryId && !x.IsDeleted, cancellationToken);
+            if (entry is null) return null;
+
+            if (entry.RejectedQuantity <= 0)
+                throw new InvalidOperationException("No rejected quantity to record");
+
+            var rejNumber = await GenerateDocNumberAsync("REJ", cancellationToken);
+
+            var rejection = new RejectionRecord
+            {
+                RejectionNumber = rejNumber,
+                WorkOrderId = entry.WorkOrderId,
+                WorkOrderNumber = entry.WorkOrderNumber,
+                EntryId = entry.Id,
+                ProductId = entry.ProductId,
+                ProductCode = entry.ProductCode,
+                ProductName = entry.ProductName,
+                Quantity = entry.RejectedQuantity,
+                Reason = "Production rejection",
+                Category = "Production",
+                Operator = entry.Operator,
+                MachineId = entry.MachineId,
+                MachineCode = entry.MachineCode,
+                MachineName = entry.MachineName,
+                RejectionDate = entry.ProductionDate,
+                CorrectiveAction = string.Empty,
+                Notes = $"Auto-recorded from entry {entry.EntryNumber}",
+                CreatedBy = actingUser,
+                UpdatedBy = actingUser
+            };
+
+            _dbContext.RejectionRecords.Add(rejection);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return await GetRejectionByIdAsync(rejection.Id, cancellationToken);
+        }
+
+        public async Task<RejectionDashboardDto> GetRejectionDashboardAsync(CancellationToken cancellationToken = default)
+        {
+            var rejections = await _dbContext.RejectionRecords
+                .Where(x => !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            var totalRejections = rejections.Count;
+            var totalProduced = await _dbContext.ProductionEntries
+                .Where(x => !x.IsDeleted)
+                .SumAsync(x => x.ProducedQuantity, cancellationToken);
+            var totalRejected = rejections.Sum(x => x.Quantity);
+            var rejectionRate = totalProduced > 0 ? Math.Round((totalRejected / totalProduced) * 100, 1) : 0m;
+
+            var topReasons = rejections
+                .GroupBy(x => x.Reason)
+                .Select(g => new RejectionReasonCountDto { Reason = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToList();
+
+            return new RejectionDashboardDto
+            {
+                TotalRejections = totalRejections,
+                TopReasons = topReasons,
+                RejectionRate = rejectionRate
             };
         }
 

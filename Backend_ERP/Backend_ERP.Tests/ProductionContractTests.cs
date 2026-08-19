@@ -324,5 +324,88 @@ namespace Backend_ERP.Tests
             Assert.Contains("production.report.view", perms);
             Assert.Contains("production.dashboard.view", perms);
         }
+
+        [Fact]
+        public void RejectionListItemDto_exposes_expected_contract_properties()
+        {
+            var dto = new RejectionListItemDto
+            {
+                Id = 1,
+                RejectionNumber = "REJ-001",
+                WorkOrderNumber = "WO-001",
+                ProductCode = "PRD-001",
+                ProductName = "Finished Product A",
+                Quantity = 10m,
+                Reason = "Scratches",
+                Category = "Cosmetic",
+                Operator = "Operator A",
+                MachineName = "Machine A",
+                RejectionDate = "2026-08-18"
+            };
+
+            Assert.Equal(1, dto.Id);
+            Assert.Equal("REJ-001", dto.RejectionNumber);
+            Assert.Equal("WO-001", dto.WorkOrderNumber);
+            Assert.Equal(10m, dto.Quantity);
+            Assert.Equal("Scratches", dto.Reason);
+        }
+
+        [Fact]
+        public void RejectionDto_exposes_expected_contract_properties()
+        {
+            var dto = new RejectionDto
+            {
+                Id = 1,
+                RejectionNumber = "REJ-001",
+                WorkOrderId = 2,
+                WorkOrderNumber = "WO-001",
+                EntryId = 3,
+                ProductId = 4,
+                ProductCode = "PRD-001",
+                ProductName = "Finished Product A",
+                Quantity = 10m,
+                Reason = "Scratches",
+                Category = "Cosmetic",
+                Operator = "Operator A",
+                MachineId = 5,
+                MachineCode = "MAC-001",
+                MachineName = "Machine A",
+                RejectionDate = "2026-08-18",
+                CorrectiveAction = "Adjust speed",
+                Notes = "Rejection notes",
+                Timeline = new List<ProductionTimelineEventDto>(),
+                CreatedBy = "user",
+                CreatedAt = "2026-08-18T10:00:00Z",
+                UpdatedBy = "user",
+                UpdatedAt = "2026-08-18T10:00:00Z"
+            };
+
+            Assert.Equal(1, dto.Id);
+            Assert.Equal("REJ-001", dto.RejectionNumber);
+            Assert.Equal(2, dto.WorkOrderId);
+            Assert.Equal(3, dto.EntryId);
+            Assert.Equal(10m, dto.Quantity);
+            Assert.Equal("Adjust speed", dto.CorrectiveAction);
+        }
+
+        [Fact]
+        public void RejectionDashboardDto_exposes_expected_contract_properties()
+        {
+            var dto = new RejectionDashboardDto
+            {
+                TotalRejections = 5,
+                RejectionRate = 1.5m,
+                TopReasons = new List<RejectionReasonCountDto>
+                {
+                    new RejectionReasonCountDto { Reason = "Scratches", Count = 3 }
+                }
+            };
+
+            Assert.Equal(5, dto.TotalRejections);
+            Assert.Equal(1.5m, dto.RejectionRate);
+            Assert.Single(dto.TopReasons);
+            Assert.Equal("Scratches", dto.TopReasons[0].Reason);
+            Assert.Equal(3, dto.TopReasons[0].Count);
+        }
     }
 }

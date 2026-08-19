@@ -388,9 +388,17 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("work-orders/{workOrderId:int}/generate-entry")]
-        public ActionResult<EntryDto> GenerateProductionEntry(int workOrderId)
+        public async Task<ActionResult<EntryDto>> GenerateProductionEntry(int workOrderId, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new EntryDto { WorkOrderId = workOrderId, Status = "Draft", EntryNumber = $"ENT-{DateTime.UtcNow.Year}-{workOrderId:D6}" });
+            try
+            {
+                var entry = await _productionService.GenerateProductionEntryAsync(workOrderId, ResolveUser(userId), cancellationToken);
+                return Ok(entry);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("work-orders/dashboard")]
@@ -600,27 +608,36 @@ namespace ERP.API.Controllers
         // ── REJECTIONS ──
 
         [HttpGet("rejections")]
-        public ActionResult<List<RejectionListItemDto>> GetRejections([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<RejectionListItemDto>>> GetRejections([FromQuery] string? search, [FromQuery] string? status, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<RejectionListItemDto>());
+            return Ok(await _productionService.GetRejectionsAsync(search, status, cancellationToken));
         }
 
         [HttpGet("rejections/{id:int}")]
-        public ActionResult<RejectionDto> GetRejectionById(int id)
+        public async Task<ActionResult<RejectionDto>> GetRejectionById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new RejectionDto { Id = id });
+            var item = await _productionService.GetRejectionByIdAsync(id, cancellationToken);
+            return item is null ? NotFound() : Ok(item);
         }
 
         [HttpPost("rejections/record/{entryId:int}")]
-        public ActionResult<RejectionDto> RecordRejection(int entryId)
+        public async Task<ActionResult<RejectionDto>> RecordRejection(int entryId, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new RejectionDto { EntryId = entryId });
+            try
+            {
+                var result = await _productionService.RecordRejectionFromEntryAsync(entryId, ResolveUser(userId), cancellationToken);
+                return result is null ? NotFound() : Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("rejections/dashboard")]
-        public ActionResult<RejectionDashboardDto> GetRejectionDashboard()
+        public async Task<ActionResult<RejectionDashboardDto>> GetRejectionDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new RejectionDashboardDto());
+            return Ok(await _productionService.GetRejectionDashboardAsync(cancellationToken));
         }
 
         // ── REPORTS ──

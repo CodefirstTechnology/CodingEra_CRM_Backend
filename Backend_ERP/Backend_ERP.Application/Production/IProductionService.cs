@@ -64,11 +64,18 @@ namespace ERP.Application.Production
         Task<EntryDashboardDto> GetEntryDashboardAsync(CancellationToken cancellationToken = default);
         Task<List<ConsumptionDto>> GenerateMaterialConsumptionAsync(int entryId, string actingUser, CancellationToken cancellationToken = default);
         Task<object> GenerateFinishedGoodsAsync(int entryId, string actingUser, CancellationToken cancellationToken = default);
+        Task<EntryDto> GenerateProductionEntryAsync(int workOrderId, string actingUser, CancellationToken cancellationToken = default);
 
         // Material Consumption
         Task<List<ConsumptionListItemDto>> GetConsumptionsAsync(string? search, int? workOrderId, CancellationToken cancellationToken = default);
         Task<ConsumptionDto?> GetConsumptionByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<ConsumptionDashboardDto> GetConsumptionDashboardAsync(CancellationToken cancellationToken = default);
+
+        // Production Rejections
+        Task<List<RejectionListItemDto>> GetRejectionsAsync(string? search, string? status, CancellationToken cancellationToken = default);
+        Task<RejectionDto?> GetRejectionByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<RejectionDto?> RecordRejectionFromEntryAsync(int entryId, string actingUser, CancellationToken cancellationToken = default);
+        Task<RejectionDashboardDto> GetRejectionDashboardAsync(CancellationToken cancellationToken = default);
 
         // Reports
         Task<ReportDashboardDto> GetReportDashboardAsync(CancellationToken cancellationToken = default);
