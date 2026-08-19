@@ -20,8 +20,12 @@ namespace Backend_ERP.Tests
 
         [Theory]
         [InlineData(IncomingInspectionStatus.Draft, IncomingInspectionStatus.Submitted, true)]
+        [InlineData(IncomingInspectionStatus.Draft, IncomingInspectionStatus.Approved, false)]
         [InlineData(IncomingInspectionStatus.Submitted, IncomingInspectionStatus.Approved, true)]
+        [InlineData(IncomingInspectionStatus.Submitted, IncomingInspectionStatus.Rejected, true)]
         [InlineData(IncomingInspectionStatus.Approved, IncomingInspectionStatus.Closed, true)]
+        [InlineData(IncomingInspectionStatus.Rejected, IncomingInspectionStatus.Closed, true)]
+        [InlineData(IncomingInspectionStatus.Rejected, IncomingInspectionStatus.Approved, false)]
         [InlineData(IncomingInspectionStatus.Closed, IncomingInspectionStatus.Approved, false)]
         public void QualityControlRules_validates_incoming_status_transitions(IncomingInspectionStatus current, IncomingInspectionStatus target, bool expected)
         {

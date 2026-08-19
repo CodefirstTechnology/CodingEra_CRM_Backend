@@ -133,6 +133,11 @@ namespace ERP.Infrastructure.Procurement
             var entity = await _db.IncomingInspections.Include(x => x.Checklist).FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return null;
 
+            if (entity.Status != IncomingInspectionStatus.Draft)
+            {
+                throw new InvalidOperationException("Only Draft inspections can be edited.");
+            }
+
             var valErr = QualityControlRules.ValidateIncomingQuantities(request.SamplingQuantity, request.AcceptedQuantity, request.RejectedQuantity, request.PendingQuantity);
             if (valErr != null) throw new InvalidOperationException(valErr);
 
@@ -190,6 +195,11 @@ namespace ERP.Infrastructure.Procurement
         {
             var entity = await _db.IncomingInspections.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return false;
+
+            if (entity.Status != IncomingInspectionStatus.Draft)
+            {
+                throw new InvalidOperationException("Only Draft inspections can be deleted.");
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -292,23 +302,30 @@ namespace ERP.Infrastructure.Procurement
 
             if (target == IncomingInspectionStatus.Rejected)
             {
-                var rejRequest = new RejectionCreateRequestDto
+                var existingRejection = await _db.RejectionAnalyses.FirstOrDefaultAsync(
+                    x => x.Source == RejectionSource.Incoming && x.SourceRecordId == entity.Id && !x.IsDeleted,
+                    cancellationToken);
+
+                if (existingRejection is null)
                 {
-                    Source = RejectionSource.Incoming,
-                    SourceRecordId = entity.Id,
-                    SourceRecordNumber = entity.InspectionNumber,
-                    MaterialId = entity.MaterialId,
-                    MaterialCode = entity.MaterialCode,
-                    MaterialName = entity.MaterialName,
-                    BatchNumber = entity.BatchNumber,
-                    Quantity = entity.RejectedQuantity > 0 ? entity.RejectedQuantity : entity.SamplingQuantity,
-                    Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? "Incoming inspection rejected",
-                    Department = "Incoming QC",
-                    Operator = entity.Inspector,
-                    SupplierName = entity.SupplierName,
-                    Remarks = $"Auto-created from {entity.InspectionNumber}"
-                };
-                await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+                    var rejRequest = new RejectionCreateRequestDto
+                    {
+                        Source = RejectionSource.Incoming,
+                        SourceRecordId = entity.Id,
+                        SourceRecordNumber = entity.InspectionNumber,
+                        MaterialId = entity.MaterialId,
+                        MaterialCode = entity.MaterialCode,
+                        MaterialName = entity.MaterialName,
+                        BatchNumber = entity.BatchNumber,
+                        Quantity = entity.RejectedQuantity > 0 ? entity.RejectedQuantity : entity.SamplingQuantity,
+                        Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? "Incoming inspection rejected",
+                        Department = "Incoming QC",
+                        Operator = entity.Inspector,
+                        SupplierName = entity.SupplierName,
+                        Remarks = $"Auto-created from {entity.InspectionNumber}"
+                    };
+                    await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+                }
             }
 
             return (await GetIncomingByIdAsync(id, cancellationToken))!;
