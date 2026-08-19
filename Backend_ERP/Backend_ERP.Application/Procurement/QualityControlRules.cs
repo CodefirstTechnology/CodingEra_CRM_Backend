@@ -42,7 +42,7 @@ namespace ERP.Application.Procurement
 
             return current switch
             {
-                FinalInspectionStatus.Draft => target is FinalInspectionStatus.Submitted or FinalInspectionStatus.Approved or FinalInspectionStatus.Rejected or FinalInspectionStatus.Closed,
+                FinalInspectionStatus.Draft => target is FinalInspectionStatus.Submitted or FinalInspectionStatus.Closed,
                 FinalInspectionStatus.Submitted => target is FinalInspectionStatus.Approved or FinalInspectionStatus.Rejected or FinalInspectionStatus.Closed,
                 FinalInspectionStatus.Approved => target == FinalInspectionStatus.Closed,
                 FinalInspectionStatus.Rejected => target == FinalInspectionStatus.Closed,

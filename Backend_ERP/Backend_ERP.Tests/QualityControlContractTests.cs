@@ -47,6 +47,21 @@ namespace Backend_ERP.Tests
             Assert.Equal(expected, QualityControlRules.CanTransitionInProcess(current, target));
         }
 
+        [Theory]
+        [InlineData(FinalInspectionStatus.Draft, FinalInspectionStatus.Submitted, true)]
+        [InlineData(FinalInspectionStatus.Draft, FinalInspectionStatus.Approved, false)]
+        [InlineData(FinalInspectionStatus.Draft, FinalInspectionStatus.Rejected, false)]
+        [InlineData(FinalInspectionStatus.Submitted, FinalInspectionStatus.Approved, true)]
+        [InlineData(FinalInspectionStatus.Submitted, FinalInspectionStatus.Rejected, true)]
+        [InlineData(FinalInspectionStatus.Approved, FinalInspectionStatus.Closed, true)]
+        [InlineData(FinalInspectionStatus.Rejected, FinalInspectionStatus.Closed, true)]
+        [InlineData(FinalInspectionStatus.Rejected, FinalInspectionStatus.Approved, false)]
+        [InlineData(FinalInspectionStatus.Closed, FinalInspectionStatus.Submitted, false)]
+        public void QualityControlRules_validates_final_status_transitions(FinalInspectionStatus current, FinalInspectionStatus target, bool expected)
+        {
+            Assert.Equal(expected, QualityControlRules.CanTransitionFinal(current, target));
+        }
+
         [Fact]
         public void IncomingDto_exposes_expected_json_contract_properties()
         {

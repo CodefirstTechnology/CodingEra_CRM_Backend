@@ -803,6 +803,11 @@ namespace ERP.Infrastructure.Procurement
             var entity = await _db.FinalInspections.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return false;
 
+            if (entity.Status != FinalInspectionStatus.Draft)
+            {
+                throw new InvalidOperationException("Only draft final inspections can be deleted.");
+            }
+
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = actingUser;
@@ -827,6 +832,17 @@ namespace ERP.Infrastructure.Procurement
         {
             var fin = await _db.FinalInspections.FirstOrDefaultAsync(x => x.Id == finalId && !x.IsDeleted, cancellationToken);
             if (fin is null) throw new InvalidOperationException($"Final inspection {finalId} not found.");
+
+            if (fin.Status != FinalInspectionStatus.Approved && fin.Status != FinalInspectionStatus.Closed)
+            {
+                throw new InvalidOperationException("Test Certificate can only be generated for Approved or Closed Final Inspections.");
+            }
+
+            if (fin.TestCertificateId.HasValue && fin.TestCertificateId.Value > 0)
+            {
+                var existing = await GetCertificateByIdAsync(fin.TestCertificateId.Value, cancellationToken);
+                if (existing != null) return existing;
+            }
 
             var certReq = new CertificateCreateRequestDto
             {
@@ -856,6 +872,17 @@ namespace ERP.Infrastructure.Procurement
             var fin = await _db.FinalInspections.FirstOrDefaultAsync(x => x.Id == finalId && !x.IsDeleted, cancellationToken);
             if (fin is null) throw new InvalidOperationException($"Final inspection {finalId} not found.");
 
+            if (fin.Status != FinalInspectionStatus.Approved && fin.Status != FinalInspectionStatus.Closed)
+            {
+                throw new InvalidOperationException("Load Test Report can only be generated for Approved or Closed Final Inspections.");
+            }
+
+            if (fin.LoadTestId.HasValue && fin.LoadTestId.Value > 0)
+            {
+                var existing = await GetLoadTestByIdAsync(fin.LoadTestId.Value, cancellationToken);
+                if (existing != null) return existing;
+            }
+
             var ltReq = new LoadTestCreateRequestDto
             {
                 TestDate = DateTime.UtcNow,
@@ -870,7 +897,6 @@ namespace ERP.Infrastructure.Procurement
                 LoadCapacity = 1000m,
                 AppliedLoad = 500m,
                 DurationMinutes = 30,
-                Result = LoadTestStatus.Passed,
                 Remarks = $"Auto-generated load test report for Final Inspection {fin.InspectionNumber}"
             };
 
@@ -915,22 +941,29 @@ namespace ERP.Infrastructure.Procurement
 
             if (target == FinalInspectionStatus.Rejected)
             {
-                var rejRequest = new RejectionCreateRequestDto
+                var existingRejection = await _db.RejectionAnalyses.FirstOrDefaultAsync(
+                    x => x.Source == RejectionSource.FinalInspection && x.SourceRecordId == entity.Id && !x.IsDeleted,
+                    cancellationToken);
+
+                if (existingRejection is null)
                 {
-                    Source = RejectionSource.FinalInspection,
-                    SourceRecordId = entity.Id,
-                    SourceRecordNumber = entity.InspectionNumber,
-                    ProductId = entity.FinishedProductId,
-                    ProductCode = entity.FinishedProductCode,
-                    ProductName = entity.FinishedProductName,
-                    BatchNumber = entity.ProductionBatch,
-                    Quantity = entity.RejectedQuantity > 0 ? entity.RejectedQuantity : 1,
-                    Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? "Final inspection rejected",
-                    Department = "Final QC",
-                    Operator = entity.Inspector,
-                    Remarks = $"Auto-created from {entity.InspectionNumber}"
-                };
-                await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+                    var rejRequest = new RejectionCreateRequestDto
+                    {
+                        Source = RejectionSource.FinalInspection,
+                        SourceRecordId = entity.Id,
+                        SourceRecordNumber = entity.InspectionNumber,
+                        ProductId = entity.FinishedProductId,
+                        ProductCode = entity.FinishedProductCode,
+                        ProductName = entity.FinishedProductName,
+                        BatchNumber = entity.ProductionBatch,
+                        Quantity = entity.RejectedQuantity > 0 ? entity.RejectedQuantity : 1,
+                        Reason = remarks?.Trim() ?? entity.Remarks?.Trim() ?? "Final inspection rejected",
+                        Department = "Final QC",
+                        Operator = entity.Inspector,
+                        Remarks = $"Auto-created from {entity.InspectionNumber}"
+                    };
+                    await RecordRejectionAsync(rejRequest, actingUser, cancellationToken);
+                }
             }
 
             return (await GetFinalByIdAsync(id, cancellationToken))!;
