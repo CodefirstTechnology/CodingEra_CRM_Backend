@@ -5,20 +5,25 @@ using System.Threading;
 using System.Threading.Tasks;
 using ERP.Application.Production;
 using ERP.Application.Production.Dtos;
+using ERP.Application.Procurement;
+using ERP.Application.Procurement.Dtos;
 using ERP.Domain.Procurement;
 using ERP.Domain.Production;
 using ERP.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using StatusActionRequestDto = ERP.Application.Production.Dtos.StatusActionRequestDto;
 
 namespace ERP.Infrastructure.Production
 {
     public class ProductionService : IProductionService
     {
         private readonly ERPDbContext _dbContext;
+        private readonly IStoreInventoryService _inventoryService;
 
-        public ProductionService(ERPDbContext dbContext)
+        public ProductionService(ERPDbContext dbContext, IStoreInventoryService inventoryService)
         {
             _dbContext = dbContext;
+            _inventoryService = inventoryService;
         }
 
         // ── DOCUMENT NUMBER GENERATOR ──
@@ -1982,6 +1987,750 @@ namespace ERP.Infrastructure.Production
                 IdleMachines = idle,
                 Breakdown = breakdown,
                 AverageUtilization = Math.Round(avgUtil)
+            };
+        }
+
+        // ── PRODUCTION ENTRY METHODS ──
+
+        public async Task<List<EntryListItemDto>> GetEntriesAsync(string? search, string? status, CancellationToken cancellationToken = default)
+        {
+            var q = _dbContext.ProductionEntries.Where(x => !x.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                q = q.Where(x => x.EntryNumber.ToLower().Contains(s) ||
+                                 x.WorkOrderNumber.ToLower().Contains(s) ||
+                                 x.ProductCode.ToLower().Contains(s) ||
+                                 x.ProductName.ToLower().Contains(s) ||
+                                 x.Operator.ToLower().Contains(s) ||
+                                 x.MachineName.ToLower().Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (Enum.TryParse<EntryStatus>(status, true, out var statusEnum))
+                {
+                    q = q.Where(x => x.Status == statusEnum);
+                }
+            }
+
+            var items = await q.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
+            return items.Select(MapToEntryListItemDto).ToList();
+        }
+
+        public async Task<EntryDto?> GetEntryByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var e = await _dbContext.ProductionEntries
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+            if (e is null) return null;
+
+            // Fetch dynamic timeline events
+            var timeline = new List<ProductionTimelineEventDto>
+            {
+                new()
+                {
+                    Id = $"entry-tl-created-{e.Id}",
+                    Date = e.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = e.CreatedBy,
+                    Action = "Created",
+                    ToStatus = EntryStatus.Draft.ToString()
+                }
+            };
+
+            if (e.Status == EntryStatus.Approved || e.Status == EntryStatus.Posted)
+            {
+                timeline.Insert(0, new ProductionTimelineEventDto
+                {
+                    Id = $"entry-tl-approved-{e.Id}",
+                    Date = e.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = e.UpdatedBy,
+                    Action = "Approved",
+                    ToStatus = EntryStatus.Approved.ToString()
+                });
+            }
+
+            if (e.Status == EntryStatus.Posted)
+            {
+                timeline.Insert(0, new ProductionTimelineEventDto
+                {
+                    Id = $"entry-tl-posted-{e.Id}",
+                    Date = e.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = e.UpdatedBy,
+                    Action = "Posted",
+                    ToStatus = EntryStatus.Posted.ToString()
+                });
+            }
+
+            if (e.Notes.Contains("[Finished Goods generated]"))
+            {
+                timeline.Insert(0, new ProductionTimelineEventDto
+                {
+                    Id = $"entry-tl-fg-{e.Id}",
+                    Date = e.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = e.UpdatedBy,
+                    Action = "Finished Goods generated and posted to inventory",
+                    Remarks = "Good quantity posted to Finished Goods store."
+                });
+            }
+
+            var hasConsumption = await _dbContext.MaterialConsumptions
+                .AnyAsync(x => x.EntryId == e.Id && !x.IsDeleted, cancellationToken);
+            if (hasConsumption)
+            {
+                timeline.Insert(0, new ProductionTimelineEventDto
+                {
+                    Id = $"entry-tl-mc-{e.Id}",
+                    Date = e.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = e.UpdatedBy,
+                    Action = "Material consumption generated",
+                    Remarks = "Material consumption generated and Store stock reduced."
+                });
+            }
+
+            return MapToEntryDto(e, timeline);
+        }
+
+        public async Task<EntryDto> CreateEntryAsync(EntryCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var wo = await _dbContext.WorkOrders
+                .FirstOrDefaultAsync(x => x.Id == request.WorkOrderId && !x.IsDeleted, cancellationToken);
+            if (wo is null)
+            {
+                throw new InvalidOperationException("Work Order not found");
+            }
+
+            var machine = await _dbContext.Machines
+                .FirstOrDefaultAsync(x => x.Id == request.MachineId && !x.IsDeleted, cancellationToken);
+            if (machine is null)
+            {
+                throw new InvalidOperationException("Machine not found");
+            }
+
+            if (request.ProducedQuantity <= 0)
+            {
+                throw new InvalidOperationException("Produced quantity must be greater than zero");
+            }
+
+            if (request.GoodQuantity < 0 || request.RejectedQuantity < 0)
+            {
+                throw new InvalidOperationException("Good and Rejected quantities cannot be negative");
+            }
+
+            if (request.GoodQuantity + request.RejectedQuantity != request.ProducedQuantity)
+            {
+                throw new InvalidOperationException("Produced quantity must equal Good + Rejected quantity");
+            }
+
+            if (!Enum.TryParse<Shift>(request.Shift, true, out var shiftEnum))
+            {
+                throw new InvalidOperationException("Invalid Shift");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Operator))
+            {
+                throw new InvalidOperationException("Operator is required");
+            }
+
+            var prodDate = DateOnly.Parse(request.ProductionDate);
+
+            var entryNum = await GenerateDocNumberAsync("ENT", cancellationToken);
+
+            var entry = new ProductionEntry
+            {
+                EntryNumber = entryNum,
+                WorkOrderId = wo.Id,
+                WorkOrderNumber = wo.WorkOrderNumber,
+                ProductId = wo.ProductId,
+                ProductCode = wo.ProductCode,
+                ProductName = wo.ProductName,
+                ProducedQuantity = request.ProducedQuantity,
+                GoodQuantity = request.GoodQuantity,
+                RejectedQuantity = request.RejectedQuantity,
+                Shift = shiftEnum,
+                Operator = request.Operator.Trim(),
+                MachineId = machine.Id,
+                MachineCode = machine.MachineCode,
+                MachineName = machine.MachineName,
+                ProductionDate = prodDate,
+                Status = EntryStatus.Draft,
+                Notes = request.Notes?.Trim() ?? string.Empty,
+                CreatedBy = actingUser,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = actingUser,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.ProductionEntries.Add(entry);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            var initialTimeline = new List<ProductionTimelineEventDto>
+            {
+                new()
+                {
+                    Id = $"entry-tl-created-{entry.Id}",
+                    Date = entry.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = entry.CreatedBy,
+                    Action = "Created",
+                    ToStatus = EntryStatus.Draft.ToString()
+                }
+            };
+
+            return MapToEntryDto(entry, initialTimeline);
+        }
+
+        public async Task<EntryDto?> UpdateEntryAsync(int id, EntryUpdateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var entry = await _dbContext.ProductionEntries
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+            if (entry is null) return null;
+
+            if (entry.Status != EntryStatus.Draft)
+            {
+                throw new InvalidOperationException("Only Draft production entries can be updated");
+            }
+
+            var wo = await _dbContext.WorkOrders
+                .FirstOrDefaultAsync(x => x.Id == (request.WorkOrderId ?? entry.WorkOrderId) && !x.IsDeleted, cancellationToken);
+            if (wo is null)
+            {
+                throw new InvalidOperationException("Work Order not found");
+            }
+
+            var machine = await _dbContext.Machines
+                .FirstOrDefaultAsync(x => x.Id == request.MachineId && !x.IsDeleted, cancellationToken);
+            if (machine is null)
+            {
+                throw new InvalidOperationException("Machine not found");
+            }
+
+            if (request.ProducedQuantity <= 0)
+            {
+                throw new InvalidOperationException("Produced quantity must be greater than zero");
+            }
+
+            if (request.GoodQuantity < 0 || request.RejectedQuantity < 0)
+            {
+                throw new InvalidOperationException("Good and Rejected quantities cannot be negative");
+            }
+
+            if (request.GoodQuantity + request.RejectedQuantity != request.ProducedQuantity)
+            {
+                throw new InvalidOperationException("Produced quantity must equal Good + Rejected quantity");
+            }
+
+            if (!Enum.TryParse<Shift>(request.Shift, true, out var shiftEnum))
+            {
+                throw new InvalidOperationException("Invalid Shift");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Operator))
+            {
+                throw new InvalidOperationException("Operator is required");
+            }
+
+            var prodDate = DateOnly.Parse(request.ProductionDate);
+
+            entry.WorkOrderId = wo.Id;
+            entry.WorkOrderNumber = wo.WorkOrderNumber;
+            entry.ProductId = wo.ProductId;
+            entry.ProductCode = wo.ProductCode;
+            entry.ProductName = wo.ProductName;
+            entry.ProducedQuantity = request.ProducedQuantity;
+            entry.GoodQuantity = request.GoodQuantity;
+            entry.RejectedQuantity = request.RejectedQuantity;
+            entry.Shift = shiftEnum;
+            entry.Operator = request.Operator.Trim();
+            entry.MachineId = machine.Id;
+            entry.MachineCode = machine.MachineCode;
+            entry.MachineName = machine.MachineName;
+            entry.ProductionDate = prodDate;
+            entry.Notes = request.Notes?.Trim() ?? string.Empty;
+            entry.UpdatedBy = actingUser;
+            entry.UpdatedAt = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return await GetEntryByIdAsync(entry.Id, cancellationToken);
+        }
+
+        public async Task<EntryDto?> ApproveEntryAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var entry = await _dbContext.ProductionEntries
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+            if (entry is null) return null;
+
+            if (entry.Status != EntryStatus.Draft && entry.Status != EntryStatus.Submitted)
+            {
+                throw new InvalidOperationException($"Cannot approve entry in status {entry.Status}");
+            }
+
+            if (entry.ProducedQuantity <= 0 || entry.GoodQuantity + entry.RejectedQuantity != entry.ProducedQuantity)
+            {
+                throw new InvalidOperationException("Cannot approve entry with invalid quantities");
+            }
+
+            entry.Status = EntryStatus.Approved;
+            entry.UpdatedBy = actingUser;
+            entry.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(payload?.Remarks))
+            {
+                entry.Notes = string.IsNullOrWhiteSpace(entry.Notes) ? payload.Remarks : $"{entry.Notes}\n[{actingUser}]: {payload.Remarks}";
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return await GetEntryByIdAsync(entry.Id, cancellationToken);
+        }
+
+        public async Task<EntryDto?> PostEntryAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var entry = await _dbContext.ProductionEntries
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+            if (entry is null) return null;
+
+            if (entry.Status != EntryStatus.Approved)
+            {
+                throw new InvalidOperationException($"Cannot post entry in status {entry.Status}");
+            }
+
+            using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                entry.Status = EntryStatus.Posted;
+                entry.UpdatedBy = actingUser;
+                entry.UpdatedAt = DateTime.UtcNow;
+
+                if (!string.IsNullOrWhiteSpace(payload?.Remarks))
+                {
+                    entry.Notes = string.IsNullOrWhiteSpace(entry.Notes) ? payload.Remarks : $"{entry.Notes}\n[{actingUser}]: {payload.Remarks}";
+                }
+
+                // Update Work Order production quantities
+                var wo = await _dbContext.WorkOrders
+                    .FirstOrDefaultAsync(x => x.Id == entry.WorkOrderId && !x.IsDeleted, cancellationToken);
+                if (wo != null)
+                {
+                    wo.ProducedQuantity += entry.GoodQuantity;
+                    wo.PendingQuantity = Math.Max(0m, wo.PlannedQuantity - wo.ProducedQuantity);
+                    wo.UpdatedBy = actingUser;
+                    wo.UpdatedAt = DateTime.UtcNow;
+                    wo.Notes = string.IsNullOrWhiteSpace(wo.Notes) 
+                        ? $"Entry {entry.EntryNumber} posted: +{entry.GoodQuantity} good" 
+                        : $"{wo.Notes}\n[{actingUser}]: Entry {entry.EntryNumber} posted: +{entry.GoodQuantity} good";
+                }
+
+                // Record Quality Rejection if rejected > 0
+                if (entry.RejectedQuantity > 0)
+                {
+                    var rejNum = await GenerateDocNumberAsync("RJ", cancellationToken);
+                    var rejection = new RejectionRecord
+                    {
+                        RejectionNumber = rejNum,
+                        WorkOrderId = entry.WorkOrderId,
+                        WorkOrderNumber = entry.WorkOrderNumber,
+                        EntryId = entry.Id,
+                        ProductId = entry.ProductId,
+                        ProductCode = entry.ProductCode,
+                        ProductName = entry.ProductName,
+                        Quantity = entry.RejectedQuantity,
+                        Reason = "Quality rejection recorded from production entry",
+                        Category = "Process",
+                        Operator = entry.Operator,
+                        MachineId = entry.MachineId,
+                        MachineCode = entry.MachineCode,
+                        MachineName = entry.MachineName,
+                        RejectionDate = entry.ProductionDate,
+                        CorrectiveAction = "Pending review",
+                        Notes = $"Auto-generated from {entry.EntryNumber}",
+                        CreatedBy = actingUser,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedBy = actingUser,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    _dbContext.RejectionRecords.Add(rejection);
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+
+            return await GetEntryByIdAsync(entry.Id, cancellationToken);
+        }
+
+        public async Task<EntryDashboardDto> GetEntryDashboardAsync(CancellationToken cancellationToken = default)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var list = await _dbContext.ProductionEntries
+                .Where(x => !x.IsDeleted && x.ProductionDate == today)
+                .ToListAsync(cancellationToken);
+
+            var total = list.Sum(x => x.ProducedQuantity);
+            var good = list.Sum(x => x.GoodQuantity);
+            var rejected = list.Sum(x => x.RejectedQuantity);
+            var productivity = total > 0 ? (good / total) * 100m : 0m;
+
+            return new EntryDashboardDto
+            {
+                TodaysProduction = total,
+                GoodQuantity = good,
+                RejectedQuantity = rejected,
+                Productivity = Math.Round(productivity, 1)
+            };
+        }
+
+        public async Task<List<ConsumptionDto>> GenerateMaterialConsumptionAsync(int entryId, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var entry = await _dbContext.ProductionEntries
+                .FirstOrDefaultAsync(x => x.Id == entryId && !x.IsDeleted, cancellationToken);
+
+            if (entry is null)
+            {
+                throw new InvalidOperationException("Entry not found");
+            }
+
+            if (entry.Status != EntryStatus.Approved && entry.Status != EntryStatus.Posted)
+            {
+                throw new InvalidOperationException("Entry must be Approved or Posted to record material consumption");
+            }
+
+            if (entry.ProducedQuantity <= 0)
+            {
+                throw new InvalidOperationException("Cannot consume materials for zero production quantity");
+            }
+
+            var existing = await _dbContext.MaterialConsumptions
+                .Where(x => x.EntryId == entryId && !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            if (existing.Count > 0)
+            {
+                throw new InvalidOperationException($"Material consumption already recorded for {entry.EntryNumber} ({existing.Count} lines).");
+            }
+
+            var wo = await _dbContext.WorkOrders
+                .FirstOrDefaultAsync(x => x.Id == entry.WorkOrderId && !x.IsDeleted, cancellationToken);
+            if (wo is null)
+            {
+                throw new InvalidOperationException("Work order not found");
+            }
+
+            var bom = await _dbContext.BillOfMaterials
+                .Include(x => x.Materials)
+                .FirstOrDefaultAsync(x => x.Id == wo.BomId && !x.IsDeleted, cancellationToken);
+            if (bom is null)
+            {
+                throw new InvalidOperationException("BOM not found");
+            }
+
+            var createdList = new List<MaterialConsumption>();
+
+            using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                foreach (var m in bom.Materials)
+                {
+                    var plannedQuantity = Math.Round(m.Quantity * entry.ProducedQuantity, 2);
+                    var actualQuantity = Math.Round(plannedQuantity * (1 + m.WastagePercent / 100), 2);
+                    var variance = Math.Round(actualQuantity - plannedQuantity, 2);
+
+                    var stockOutRequest = new StockOutRequestDto
+                    {
+                        MaterialId = m.MaterialId,
+                        WarehouseId = m.WarehouseId,
+                        Quantity = actualQuantity,
+                        Reason = "Production material consumption",
+                        ReferenceType = "ProductionOrder",
+                        ReferenceNumber = wo.WorkOrderNumber,
+                        Remarks = $"{entry.EntryNumber} · WO {wo.WorkOrderNumber}"
+                    };
+
+                    var txn = await _inventoryService.StockOutAsync(stockOutRequest, actingUser, cancellationToken);
+
+                    var mc = new MaterialConsumption
+                    {
+                        ConsumptionNumber = await GenerateDocNumberAsync("MC", cancellationToken),
+                        WorkOrderId = wo.Id,
+                        WorkOrderNumber = wo.WorkOrderNumber,
+                        BomId = bom.Id,
+                        BomNumber = bom.BomNumber,
+                        EntryId = entry.Id,
+                        MaterialId = m.MaterialId,
+                        MaterialCode = m.MaterialCode,
+                        MaterialName = m.MaterialName,
+                        PlannedQuantity = plannedQuantity,
+                        ActualQuantity = actualQuantity,
+                        Variance = variance,
+                        Uom = m.Uom,
+                        WarehouseId = m.WarehouseId,
+                        WarehouseName = m.WarehouseName,
+                        StockOutReference = txn.TransactionNumber,
+                        Notes = $"Linked Store txn {txn.TransactionNumber} from {entry.EntryNumber}",
+                        CreatedBy = actingUser,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedBy = actingUser,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    _dbContext.MaterialConsumptions.Add(mc);
+                    createdList.Add(mc);
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+                foreach (var mc in createdList)
+                {
+                    mc.BatchNumber = $"BATCH-{mc.MaterialCode.Substring(Math.Max(0, mc.MaterialCode.Length - 3)).ToUpper()}-AUTO{mc.Id}";
+                }
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+
+            return createdList.Select(MapToConsumptionDto).ToList();
+        }
+
+        public async Task<object> GenerateFinishedGoodsAsync(int entryId, string actingUser, CancellationToken cancellationToken = default)
+        {
+            var entry = await _dbContext.ProductionEntries
+                .FirstOrDefaultAsync(x => x.Id == entryId && !x.IsDeleted, cancellationToken);
+
+            if (entry is null)
+            {
+                throw new InvalidOperationException("Entry not found");
+            }
+
+            if (entry.Status != EntryStatus.Approved && entry.Status != EntryStatus.Posted)
+            {
+                throw new InvalidOperationException("Entry must be Approved or Posted to generate finished goods");
+            }
+
+            if (entry.GoodQuantity <= 0)
+            {
+                throw new InvalidOperationException("Good quantity must be greater than zero");
+            }
+
+            if (entry.Notes.Contains("[Finished Goods generated]"))
+            {
+                throw new InvalidOperationException($"Finished goods already generated for {entry.EntryNumber}");
+            }
+
+            using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var adjustRequest = new FinishedGoodAdjustRequestDto
+                {
+                    ProductId = entry.ProductId,
+                    QuantityDelta = entry.GoodQuantity,
+                    Reason = "Finished goods from production entry",
+                    Remarks = $"{entry.EntryNumber} · WO {entry.WorkOrderNumber}"
+                };
+
+                var res = await _inventoryService.AdjustFinishedGoodAsync(adjustRequest, actingUser, cancellationToken);
+                if (res is null)
+                {
+                    throw new InvalidOperationException($"No finished-goods SKU found for {entry.ProductCode}");
+                }
+
+                entry.Notes = string.IsNullOrWhiteSpace(entry.Notes)
+                    ? "[Finished Goods generated]"
+                    : $"{entry.Notes}\n[Finished Goods generated]";
+                entry.UpdatedBy = actingUser;
+                entry.UpdatedAt = DateTime.UtcNow;
+
+                await _dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return new
+                {
+                    message = $"{entry.GoodQuantity} {res.Unit} of {res.ProductName} ({res.ProductCode}) posted to Finished Goods Inventory.",
+                    quantity = entry.GoodQuantity
+                };
+            }
+            catch
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        // ── MATERIAL CONSUMPTION METHODS ──
+
+        public async Task<List<ConsumptionListItemDto>> GetConsumptionsAsync(string? search, int? workOrderId, CancellationToken cancellationToken = default)
+        {
+            var q = _dbContext.MaterialConsumptions.Where(x => !x.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                q = q.Where(x => x.ConsumptionNumber.ToLower().Contains(s) ||
+                                 x.WorkOrderNumber.ToLower().Contains(s) ||
+                                 x.BomNumber.ToLower().Contains(s) ||
+                                 x.MaterialCode.ToLower().Contains(s) ||
+                                 x.MaterialName.ToLower().Contains(s));
+            }
+
+            if (workOrderId.HasValue)
+            {
+                q = q.Where(x => x.WorkOrderId == workOrderId.Value);
+            }
+
+            var items = await q.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
+            return items.Select(MapToConsumptionListItemDto).ToList();
+        }
+
+        public async Task<ConsumptionDto?> GetConsumptionByIdAsync(int id, CancellationToken cancellationToken = default)
+        {
+            var mc = await _dbContext.MaterialConsumptions
+                .Include(x => x.Entry)
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+            return mc is null ? null : MapToConsumptionDto(mc);
+        }
+
+        public async Task<ConsumptionDashboardDto> GetConsumptionDashboardAsync(CancellationToken cancellationToken = default)
+        {
+            var list = await _dbContext.MaterialConsumptions.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
+
+            var totalPlanned = list.Sum(x => x.PlannedQuantity);
+            var totalActual = list.Sum(x => x.ActualQuantity);
+            var totalVariance = list.Sum(x => x.Variance);
+
+            return new ConsumptionDashboardDto
+            {
+                PlannedConsumption = totalPlanned,
+                ActualConsumption = totalActual,
+                Variance = totalVariance
+            };
+        }
+
+        // ── MAPPER HELPERS FOR ENTRIES & CONSUMPTIONS ──
+
+        private static EntryListItemDto MapToEntryListItemDto(ProductionEntry e)
+        {
+            return new EntryListItemDto
+            {
+                Id = e.Id,
+                EntryNumber = e.EntryNumber,
+                WorkOrderNumber = e.WorkOrderNumber,
+                ProductCode = e.ProductCode,
+                ProductName = e.ProductName,
+                ProducedQuantity = e.ProducedQuantity,
+                GoodQuantity = e.GoodQuantity,
+                RejectedQuantity = e.RejectedQuantity,
+                Shift = e.Shift.ToString(),
+                Operator = e.Operator,
+                MachineName = e.MachineName,
+                ProductionDate = e.ProductionDate.ToString("yyyy-MM-dd"),
+                Status = e.Status.ToString()
+            };
+        }
+
+        private static EntryDto MapToEntryDto(ProductionEntry e, List<ProductionTimelineEventDto> timeline)
+        {
+            return new EntryDto
+            {
+                Id = e.Id,
+                EntryNumber = e.EntryNumber,
+                WorkOrderId = e.WorkOrderId,
+                WorkOrderNumber = e.WorkOrderNumber,
+                ProductId = e.ProductId,
+                ProductCode = e.ProductCode,
+                ProductName = e.ProductName,
+                ProducedQuantity = e.ProducedQuantity,
+                GoodQuantity = e.GoodQuantity,
+                RejectedQuantity = e.RejectedQuantity,
+                Shift = e.Shift.ToString(),
+                Operator = e.Operator,
+                MachineId = e.MachineId,
+                MachineCode = e.MachineCode,
+                MachineName = e.MachineName,
+                ProductionDate = e.ProductionDate.ToString("yyyy-MM-dd"),
+                Status = e.Status.ToString(),
+                Notes = e.Notes,
+                Attachments = new List<ProductionAttachmentDto>(),
+                Timeline = timeline,
+                CreatedBy = e.CreatedBy,
+                CreatedAt = e.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                UpdatedBy = e.UpdatedBy,
+                UpdatedAt = e.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            };
+        }
+
+        private static ConsumptionListItemDto MapToConsumptionListItemDto(MaterialConsumption mc)
+        {
+            return new ConsumptionListItemDto
+            {
+                Id = mc.Id,
+                ConsumptionNumber = mc.ConsumptionNumber,
+                WorkOrderNumber = mc.WorkOrderNumber,
+                BomNumber = mc.BomNumber,
+                MaterialCode = mc.MaterialCode,
+                MaterialName = mc.MaterialName,
+                PlannedQuantity = mc.PlannedQuantity,
+                ActualQuantity = mc.ActualQuantity,
+                Variance = mc.Variance,
+                Uom = mc.Uom,
+                WarehouseName = mc.WarehouseName,
+                BatchNumber = mc.BatchNumber,
+                StockOutReference = mc.StockOutReference
+            };
+        }
+
+        private static ConsumptionDto MapToConsumptionDto(MaterialConsumption mc)
+        {
+            var timeline = new List<ProductionTimelineEventDto>
+            {
+                new()
+                {
+                    Id = $"cons-tl-{mc.Id}",
+                    Date = mc.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    User = mc.CreatedBy,
+                    Action = "Recorded",
+                    Remarks = $"Linked stock-out txn: {mc.StockOutReference}"
+                }
+            };
+
+            return new ConsumptionDto
+            {
+                Id = mc.Id,
+                ConsumptionNumber = mc.ConsumptionNumber,
+                WorkOrderId = mc.WorkOrderId,
+                WorkOrderNumber = mc.WorkOrderNumber,
+                BomId = mc.BomId,
+                BomNumber = mc.BomNumber,
+                EntryId = mc.EntryId,
+                MaterialId = mc.MaterialId,
+                MaterialCode = mc.MaterialCode,
+                MaterialName = mc.MaterialName,
+                PlannedQuantity = mc.PlannedQuantity,
+                ActualQuantity = mc.ActualQuantity,
+                Variance = mc.Variance,
+                Uom = mc.Uom,
+                WarehouseId = mc.WarehouseId,
+                WarehouseName = mc.WarehouseName,
+                BatchNumber = mc.BatchNumber,
+                StockOutReference = mc.StockOutReference,
+                Notes = mc.Notes,
+                CreatedBy = mc.CreatedBy,
+                CreatedAt = mc.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                UpdatedBy = mc.UpdatedBy,
+                UpdatedAt = mc.UpdatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                Timeline = timeline
             };
         }
     }

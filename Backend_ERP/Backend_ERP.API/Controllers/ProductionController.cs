@@ -458,84 +458,142 @@ namespace ERP.API.Controllers
         // ── PRODUCTION ENTRY ──
 
         [HttpGet("entries")]
-        public ActionResult<List<EntryListItemDto>> GetEntries([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<EntryListItemDto>>> GetEntries([FromQuery] string? search, [FromQuery] string? status, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<EntryListItemDto>());
+            return Ok(await _productionService.GetEntriesAsync(search, status, cancellationToken));
         }
 
         [HttpGet("entries/{id:int}")]
-        public ActionResult<EntryDto> GetEntryById(int id)
+        public async Task<ActionResult<EntryDto>> GetEntryById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new EntryDto { Id = id });
+            var entry = await _productionService.GetEntryByIdAsync(id, cancellationToken);
+            return entry is null ? NotFound() : Ok(entry);
         }
 
         [HttpPost("entries")]
-        public ActionResult<EntryDto> CreateEntry([FromBody] EntryCreateRequestDto request)
+        public async Task<ActionResult<EntryDto>> CreateEntry([FromBody] EntryCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return CreatedAtAction(nameof(GetEntryById), new { id = 1 }, new EntryDto { Id = 1 });
+            try
+            {
+                var created = await _productionService.CreateEntryAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetEntryById), new { id = created.Id }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPut("entries/{id:int}")]
-        public ActionResult<EntryDto> UpdateEntry(int id, [FromBody] EntryUpdateRequestDto request)
+        public async Task<ActionResult<EntryDto>> UpdateEntry(int id, [FromBody] EntryUpdateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new EntryDto { Id = id });
+            try
+            {
+                var updated = await _productionService.UpdateEntryAsync(id, request, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("entries/{id:int}/approve")]
-        public ActionResult<EntryDto> ApproveEntry(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<EntryDto>> ApproveEntry(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new EntryDto { Id = id });
+            try
+            {
+                var updated = await _productionService.ApproveEntryAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("entries/{id:int}/post")]
-        public ActionResult<EntryDto> PostEntry(int id, [FromBody] StatusActionRequestDto? payload)
+        public async Task<ActionResult<EntryDto>> PostEntry(int id, [FromBody] StatusActionRequestDto? payload, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new EntryDto { Id = id });
+            try
+            {
+                var updated = await _productionService.PostEntryAsync(id, payload, ResolveUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("entries/{entryId:int}/generate-material-consumption")]
-        public ActionResult<List<ConsumptionDto>> GenerateMaterialConsumption(int entryId)
+        public async Task<ActionResult<List<ConsumptionDto>>> GenerateMaterialConsumption(int entryId, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<ConsumptionDto>());
+            try
+            {
+                var list = await _productionService.GenerateMaterialConsumptionAsync(entryId, ResolveUser(userId), cancellationToken);
+                return Ok(list);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("entries/{entryId:int}/generate-finished-goods")]
-        public ActionResult<object> GenerateFinishedGoods(int entryId)
+        public async Task<ActionResult<object>> GenerateFinishedGoods(int entryId, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new { message = "Finished goods generated.", quantity = 10 });
+            try
+            {
+                var res = await _productionService.GenerateFinishedGoodsAsync(entryId, ResolveUser(userId), cancellationToken);
+                return Ok(res);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("entries/dashboard")]
-        public ActionResult<EntryDashboardDto> GetEntryDashboard()
+        public async Task<ActionResult<EntryDashboardDto>> GetEntryDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new EntryDashboardDto());
+            return Ok(await _productionService.GetEntryDashboardAsync(cancellationToken));
         }
 
 
         // ── MATERIAL CONSUMPTION ──
 
         [HttpGet("consumptions")]
-        public ActionResult<List<ConsumptionListItemDto>> GetConsumptions([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<ConsumptionListItemDto>>> GetConsumptions([FromQuery] string? search, [FromQuery] int? workOrderId, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<ConsumptionListItemDto>());
+            return Ok(await _productionService.GetConsumptionsAsync(search, workOrderId, cancellationToken));
         }
 
         [HttpGet("consumptions/{id:int}")]
-        public ActionResult<ConsumptionDto> GetConsumptionById(int id)
+        public async Task<ActionResult<ConsumptionDto>> GetConsumptionById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new ConsumptionDto { Id = id });
+            var consumption = await _productionService.GetConsumptionByIdAsync(id, cancellationToken);
+            return consumption is null ? NotFound() : Ok(consumption);
         }
 
         [HttpPost("consumptions/record/{entryId:int}")]
-        public ActionResult<List<ConsumptionDto>> RecordConsumption(int entryId)
+        public async Task<ActionResult<List<ConsumptionDto>>> RecordConsumption(int entryId, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
-            return Ok(new List<ConsumptionDto>());
+            try
+            {
+                var list = await _productionService.GenerateMaterialConsumptionAsync(entryId, ResolveUser(userId), cancellationToken);
+                return Ok(list);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpGet("consumptions/dashboard")]
-        public ActionResult<ConsumptionDashboardDto> GetConsumptionDashboard()
+        public async Task<ActionResult<ConsumptionDashboardDto>> GetConsumptionDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new ConsumptionDashboardDto());
+            return Ok(await _productionService.GetConsumptionDashboardAsync(cancellationToken));
         }
 
 

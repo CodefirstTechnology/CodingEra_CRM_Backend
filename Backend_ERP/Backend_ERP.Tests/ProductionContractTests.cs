@@ -145,5 +145,99 @@ namespace Backend_ERP.Tests
             Assert.Equal("A", dto.Shift);
             Assert.Equal("Running", dto.Status);
         }
+
+        [Fact]
+        public void EntryCreateRequestDto_exposes_expected_contract_properties()
+        {
+            var req = new EntryCreateRequestDto
+            {
+                WorkOrderId = 1,
+                MachineId = 2,
+                ProductionDate = "2026-08-19",
+                Shift = "A",
+                Operator = "Operator A",
+                ProducedQuantity = 10m,
+                GoodQuantity = 8m,
+                RejectedQuantity = 2m,
+                Notes = "Test Notes"
+            };
+
+            Assert.Equal(1, req.WorkOrderId);
+            Assert.Equal("A", req.Shift);
+            Assert.Equal(10m, req.ProducedQuantity);
+            Assert.Equal("Test Notes", req.Notes);
+        }
+
+        [Fact]
+        public void EntryDto_exposes_expected_contract_properties()
+        {
+            var dto = new EntryDto
+            {
+                Id = 1,
+                EntryNumber = "ENT-001",
+                WorkOrderId = 2,
+                WorkOrderNumber = "WO-002",
+                ProductId = 3,
+                ProductCode = "PRD-003",
+                ProductName = "Product B",
+                ProducedQuantity = 100m,
+                GoodQuantity = 95m,
+                RejectedQuantity = 5m,
+                Shift = "B",
+                Operator = "Operator B",
+                MachineId = 4,
+                MachineCode = "MCH-004",
+                MachineName = "Machine 4",
+                ProductionDate = "2026-08-19",
+                Status = "Draft",
+                Notes = "Notes",
+                Attachments = new List<ProductionAttachmentDto>(),
+                Timeline = new List<ProductionTimelineEventDto>(),
+                CreatedBy = "Admin",
+                CreatedAt = "2026-08-19T11:00:00Z",
+                UpdatedBy = "Admin",
+                UpdatedAt = "2026-08-19T11:00:00Z"
+            };
+
+            Assert.Equal("ENT-001", dto.EntryNumber);
+            Assert.Equal("Draft", dto.Status);
+            Assert.Equal(95m, dto.GoodQuantity);
+        }
+
+        [Fact]
+        public void ConsumptionDto_exposes_expected_contract_properties()
+        {
+            var dto = new ConsumptionDto
+            {
+                Id = 1,
+                ConsumptionNumber = "MC-001",
+                WorkOrderId = 2,
+                WorkOrderNumber = "WO-002",
+                BomId = 3,
+                BomNumber = "BOM-003",
+                EntryId = 4,
+                MaterialId = 5,
+                MaterialCode = "MAT-005",
+                MaterialName = "Material C",
+                PlannedQuantity = 50m,
+                ActualQuantity = 52m,
+                Variance = 2m,
+                Uom = "KG",
+                WarehouseId = 6,
+                WarehouseName = "Warehouse 6",
+                BatchNumber = "BATCH-001",
+                StockOutReference = "STX-001",
+                Notes = "Consumption Notes",
+                Timeline = new List<ProductionTimelineEventDto>(),
+                CreatedBy = "Admin",
+                CreatedAt = "2026-08-19T11:00:00Z",
+                UpdatedBy = "Admin",
+                UpdatedAt = "2026-08-19T11:00:00Z"
+            };
+
+            Assert.Equal("MC-001", dto.ConsumptionNumber);
+            Assert.Equal("STX-001", dto.StockOutReference);
+            Assert.Equal(2m, dto.Variance);
+        }
     }
 }

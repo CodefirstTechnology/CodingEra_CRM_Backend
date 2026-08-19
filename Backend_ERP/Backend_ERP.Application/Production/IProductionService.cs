@@ -53,5 +53,21 @@ namespace ERP.Application.Production
         Task<List<MachineListItemDto>> GetMachinesAsync(string? search, string? status, CancellationToken cancellationToken = default);
         Task<MachineDto?> GetMachineByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<MachineDashboardDto> GetMachineDashboardAsync(CancellationToken cancellationToken = default);
+
+        // Production Entry
+        Task<List<EntryListItemDto>> GetEntriesAsync(string? search, string? status, CancellationToken cancellationToken = default);
+        Task<EntryDto?> GetEntryByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<EntryDto> CreateEntryAsync(EntryCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default);
+        Task<EntryDto?> UpdateEntryAsync(int id, EntryUpdateRequestDto request, string actingUser, CancellationToken cancellationToken = default);
+        Task<EntryDto?> ApproveEntryAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default);
+        Task<EntryDto?> PostEntryAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default);
+        Task<EntryDashboardDto> GetEntryDashboardAsync(CancellationToken cancellationToken = default);
+        Task<List<ConsumptionDto>> GenerateMaterialConsumptionAsync(int entryId, string actingUser, CancellationToken cancellationToken = default);
+        Task<object> GenerateFinishedGoodsAsync(int entryId, string actingUser, CancellationToken cancellationToken = default);
+
+        // Material Consumption
+        Task<List<ConsumptionListItemDto>> GetConsumptionsAsync(string? search, int? workOrderId, CancellationToken cancellationToken = default);
+        Task<ConsumptionDto?> GetConsumptionByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<ConsumptionDashboardDto> GetConsumptionDashboardAsync(CancellationToken cancellationToken = default);
     }
 }
