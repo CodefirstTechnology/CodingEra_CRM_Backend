@@ -403,42 +403,55 @@ namespace ERP.API.Controllers
         // ── SCHEDULING ──
 
         [HttpGet("schedules")]
-        public ActionResult<List<ScheduleListItemDto>> GetSchedules([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<ScheduleListItemDto>>> GetSchedules(
+            [FromQuery] string? search,
+            [FromQuery] string? status,
+            [FromQuery] string? shift,
+            [FromQuery] int? workOrderId,
+            [FromQuery] int? machineId,
+            [FromQuery] string? dateFrom,
+            [FromQuery] string? dateTo,
+            CancellationToken cancellationToken = default)
         {
-            return Ok(new List<ScheduleListItemDto>());
+            return Ok(await _productionService.GetSchedulesAsync(search, status, shift, workOrderId, machineId, dateFrom, dateTo, cancellationToken));
         }
 
         [HttpGet("schedules/{id:int}")]
-        public ActionResult<ScheduleDto> GetScheduleById(int id)
+        public async Task<ActionResult<ScheduleDto>> GetScheduleById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new ScheduleDto { Id = id });
+            var schedule = await _productionService.GetScheduleByIdAsync(id, cancellationToken);
+            return schedule is null ? NotFound() : Ok(schedule);
         }
 
         [HttpGet("schedules/dashboard")]
-        public ActionResult<ScheduleDashboardDto> GetScheduleDashboard()
+        public async Task<ActionResult<ScheduleDashboardDto>> GetScheduleDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new ScheduleDashboardDto());
+            return Ok(await _productionService.GetScheduleDashboardAsync(cancellationToken));
         }
 
 
         // ── MACHINES ──
 
         [HttpGet("machines")]
-        public ActionResult<List<MachineListItemDto>> GetMachines([FromQuery] string? search, [FromQuery] string? status)
+        public async Task<ActionResult<List<MachineListItemDto>>> GetMachines(
+            [FromQuery] string? search,
+            [FromQuery] string? status,
+            CancellationToken cancellationToken = default)
         {
-            return Ok(new List<MachineListItemDto>());
+            return Ok(await _productionService.GetMachinesAsync(search, status, cancellationToken));
         }
 
         [HttpGet("machines/{id:int}")]
-        public ActionResult<MachineDto> GetMachineById(int id)
+        public async Task<ActionResult<MachineDto>> GetMachineById(int id, CancellationToken cancellationToken = default)
         {
-            return Ok(new MachineDto { Id = id });
+            var machine = await _productionService.GetMachineByIdAsync(id, cancellationToken);
+            return machine is null ? NotFound() : Ok(machine);
         }
 
         [HttpGet("machines/dashboard")]
-        public ActionResult<MachineDashboardDto> GetMachineDashboard()
+        public async Task<ActionResult<MachineDashboardDto>> GetMachineDashboard(CancellationToken cancellationToken = default)
         {
-            return Ok(new MachineDashboardDto());
+            return Ok(await _productionService.GetMachineDashboardAsync(cancellationToken));
         }
 
 

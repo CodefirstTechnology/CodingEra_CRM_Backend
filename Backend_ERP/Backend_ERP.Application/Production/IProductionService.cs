@@ -43,5 +43,15 @@ namespace ERP.Application.Production
         Task<WorkOrderDto?> CompleteWorkOrderAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default);
         Task<WorkOrderDto?> CloseWorkOrderAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default);
         Task<WorkOrderDashboardDto> GetWorkOrderDashboardAsync(CancellationToken cancellationToken = default);
+
+        // Scheduling
+        Task<List<ScheduleListItemDto>> GetSchedulesAsync(string? search, string? status, string? shift, int? workOrderId, int? machineId, string? dateFrom, string? dateTo, CancellationToken cancellationToken = default);
+        Task<ScheduleDto?> GetScheduleByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<ScheduleDashboardDto> GetScheduleDashboardAsync(CancellationToken cancellationToken = default);
+
+        // Machines
+        Task<List<MachineListItemDto>> GetMachinesAsync(string? search, string? status, CancellationToken cancellationToken = default);
+        Task<MachineDto?> GetMachineByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<MachineDashboardDto> GetMachineDashboardAsync(CancellationToken cancellationToken = default);
     }
 }

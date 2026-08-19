@@ -99,5 +99,51 @@ namespace Backend_ERP.Tests
             Assert.Equal("Team Alpha", req.AssignedTeam);
             Assert.Equal(3, req.MachineId);
         }
+
+        [Fact]
+        public void MachineListItemDto_exposes_expected_contract_properties()
+        {
+            var dto = new MachineListItemDto
+            {
+                Id = 1,
+                MachineCode = "MCH-001",
+                MachineName = "Machine 1",
+                Department = "Assembly",
+                RunningHours = 100m,
+                IdleHours = 10m,
+                BreakdownHours = 5m,
+                UtilizationPercent = 90m,
+                MaintenanceDue = "2026-08-18",
+                Status = "Running",
+                AssignedWorkOrderCount = 2
+            };
+
+            Assert.Equal("MCH-001", dto.MachineCode);
+            Assert.Equal("Running", dto.Status);
+            Assert.Equal(2, dto.AssignedWorkOrderCount);
+        }
+
+        [Fact]
+        public void ScheduleListItemDto_exposes_expected_contract_properties()
+        {
+            var dto = new ScheduleListItemDto
+            {
+                Id = 5,
+                ScheduleNumber = "SCH-001",
+                WorkOrderNumber = "WO-001",
+                ProductName = "Product A",
+                MachineCode = "MCH-001",
+                MachineName = "Machine 1",
+                Shift = "A",
+                Operator = "Operator A",
+                StartTime = "2026-08-18T08:00:00Z",
+                UtilizationPercent = 95m,
+                Status = "Running"
+            };
+
+            Assert.Equal("SCH-001", dto.ScheduleNumber);
+            Assert.Equal("A", dto.Shift);
+            Assert.Equal("Running", dto.Status);
+        }
     }
 }
