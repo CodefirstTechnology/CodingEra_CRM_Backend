@@ -1091,6 +1091,26 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<CertificateDto> CreateCertificateAsync(CertificateCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
         {
+            var dateErr = QualityControlRules.ValidateCertificateDateRange(request.CertificateDate, request.ExpiryDate);
+            if (dateErr != null)
+            {
+                throw new InvalidOperationException(dateErr);
+            }
+
+            var fin = await _db.FinalInspections.FirstOrDefaultAsync(
+                x => (x.Id == request.FinalInspectionId || x.InspectionNumber == request.FinalInspectionNumber.Trim()) && !x.IsDeleted,
+                cancellationToken);
+
+            if (fin is null)
+            {
+                throw new InvalidOperationException($"Final Inspection \"{request.FinalInspectionNumber}\" not found.");
+            }
+
+            if (fin.Status != FinalInspectionStatus.Approved && fin.Status != FinalInspectionStatus.Closed)
+            {
+                throw new InvalidOperationException("Certificate requires an Approved Final Inspection.");
+            }
+
             var now = DateTime.UtcNow;
             var num = await _numberingService.NextNumberAsync("TC", cancellationToken);
 
@@ -1100,14 +1120,14 @@ namespace ERP.Infrastructure.Procurement
                 CertificateDate = request.CertificateDate.ToUniversalTime(),
                 CustomerId = request.CustomerId,
                 CustomerName = request.CustomerName.Trim(),
-                ProductId = request.ProductId,
-                ProductCode = request.ProductCode.Trim(),
-                ProductName = request.ProductName.Trim(),
-                FinalInspectionId = request.FinalInspectionId,
-                FinalInspectionNumber = request.FinalInspectionNumber.Trim(),
-                LoadTestId = request.LoadTestId,
+                ProductId = fin.FinishedProductId > 0 ? fin.FinishedProductId : request.ProductId,
+                ProductCode = !string.IsNullOrWhiteSpace(request.ProductCode) ? request.ProductCode.Trim() : fin.FinishedProductCode,
+                ProductName = !string.IsNullOrWhiteSpace(request.ProductName) ? request.ProductName.Trim() : fin.FinishedProductName,
+                FinalInspectionId = fin.Id,
+                FinalInspectionNumber = fin.InspectionNumber,
+                LoadTestId = request.LoadTestId ?? fin.LoadTestId,
                 LoadTestNumber = request.LoadTestNumber?.Trim(),
-                BatchNumber = request.BatchNumber.Trim(),
+                BatchNumber = !string.IsNullOrWhiteSpace(request.BatchNumber) ? request.BatchNumber.Trim() : fin.ProductionBatch,
                 IssuedBy = string.IsNullOrWhiteSpace(request.IssuedBy) ? actingUser : request.IssuedBy.Trim(),
                 ExpiryDate = request.ExpiryDate?.ToUniversalTime(),
                 Remarks = request.Remarks?.Trim() ?? string.Empty,
@@ -1120,6 +1140,11 @@ namespace ERP.Infrastructure.Procurement
             };
 
             _db.TestCertificates.Add(entity);
+            if (!fin.TestCertificateId.HasValue || fin.TestCertificateId.Value == 0)
+            {
+                fin.TestCertificateId = entity.Id;
+            }
+
             await _db.SaveChangesAsync(cancellationToken);
 
             return MapToCertificateDto(entity);
@@ -1129,6 +1154,17 @@ namespace ERP.Infrastructure.Procurement
         {
             var entity = await _db.TestCertificates.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return null;
+
+            if (entity.Status != CertificateStatus.Draft)
+            {
+                throw new InvalidOperationException("Only Draft certificates can be edited.");
+            }
+
+            var dateErr = QualityControlRules.ValidateCertificateDateRange(request.CertificateDate, request.ExpiryDate);
+            if (dateErr != null)
+            {
+                throw new InvalidOperationException(dateErr);
+            }
 
             entity.CertificateDate = request.CertificateDate.ToUniversalTime();
             entity.CustomerId = request.CustomerId;
@@ -1156,6 +1192,11 @@ namespace ERP.Infrastructure.Procurement
         {
             var entity = await _db.TestCertificates.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             if (entity is null) return false;
+
+            if (entity.Status != CertificateStatus.Draft)
+            {
+                throw new InvalidOperationException("Only Draft certificates can be deleted.");
+            }
 
             entity.IsDeleted = true;
             entity.UpdatedAt = DateTime.UtcNow;

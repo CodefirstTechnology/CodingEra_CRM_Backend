@@ -57,7 +57,7 @@ namespace ERP.Application.Procurement
 
             return current switch
             {
-                CertificateStatus.Draft => target is CertificateStatus.Approved or CertificateStatus.Issued or CertificateStatus.Cancelled,
+                CertificateStatus.Draft => target is CertificateStatus.Approved or CertificateStatus.Cancelled,
                 CertificateStatus.Approved => target is CertificateStatus.Issued or CertificateStatus.Cancelled,
                 CertificateStatus.Issued => target is CertificateStatus.Expired or CertificateStatus.Cancelled,
                 CertificateStatus.Expired => false,
@@ -137,6 +137,15 @@ namespace ERP.Application.Procurement
             if (applied > capacity * 1.5m)
             {
                 return "Applied load cannot exceed 150% of load capacity.";
+            }
+            return null;
+        }
+
+        public static string? ValidateCertificateDateRange(DateTime certDate, DateTime? expiryDate)
+        {
+            if (expiryDate.HasValue && expiryDate.Value < certDate)
+            {
+                return "Certificate date must be on or before expiry date.";
             }
             return null;
         }

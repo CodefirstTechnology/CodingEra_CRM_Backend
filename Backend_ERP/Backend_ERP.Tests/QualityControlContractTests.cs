@@ -62,6 +62,21 @@ namespace Backend_ERP.Tests
             Assert.Equal(expected, QualityControlRules.CanTransitionFinal(current, target));
         }
 
+        [Theory]
+        [InlineData(CertificateStatus.Draft, CertificateStatus.Approved, true)]
+        [InlineData(CertificateStatus.Draft, CertificateStatus.Issued, false)]
+        [InlineData(CertificateStatus.Draft, CertificateStatus.Cancelled, true)]
+        [InlineData(CertificateStatus.Approved, CertificateStatus.Issued, true)]
+        [InlineData(CertificateStatus.Approved, CertificateStatus.Cancelled, true)]
+        [InlineData(CertificateStatus.Issued, CertificateStatus.Expired, true)]
+        [InlineData(CertificateStatus.Issued, CertificateStatus.Cancelled, true)]
+        [InlineData(CertificateStatus.Cancelled, CertificateStatus.Approved, false)]
+        [InlineData(CertificateStatus.Expired, CertificateStatus.Issued, false)]
+        public void QualityControlRules_validates_certificate_status_transitions(CertificateStatus current, CertificateStatus target, bool expected)
+        {
+            Assert.Equal(expected, QualityControlRules.CanTransitionCertificate(current, target));
+        }
+
         [Fact]
         public void IncomingDto_exposes_expected_json_contract_properties()
         {
@@ -276,6 +291,60 @@ namespace Backend_ERP.Tests
             Assert.Equal(500m, dto.AppliedLoad);
             Assert.Equal(LoadTestStatus.Passed, dto.Result);
             Assert.Equal("Pass", dto.PassFail);
+        }
+
+        [Fact]
+        public void QualityControlRules_validates_certificate_date_range()
+        {
+            var certDate = new DateTime(2026, 8, 20, 0, 0, 0, DateTimeKind.Utc);
+            var validExpiry = new DateTime(2027, 8, 20, 0, 0, 0, DateTimeKind.Utc);
+            var invalidExpiry = new DateTime(2026, 8, 19, 0, 0, 0, DateTimeKind.Utc);
+
+            var errValid = QualityControlRules.ValidateCertificateDateRange(certDate, validExpiry);
+            Assert.Null(errValid);
+
+            var errNull = QualityControlRules.ValidateCertificateDateRange(certDate, null);
+            Assert.Null(errNull);
+
+            var errInvalid = QualityControlRules.ValidateCertificateDateRange(certDate, invalidExpiry);
+            Assert.NotNull(errInvalid);
+            Assert.Contains("on or before expiry date", errInvalid);
+        }
+
+        [Fact]
+        public void CertificateDto_exposes_expected_json_contract_properties()
+        {
+            var certDate = new DateTime(2026, 8, 20, 0, 0, 0, DateTimeKind.Utc);
+            var expiryDate = new DateTime(2027, 8, 20, 0, 0, 0, DateTimeKind.Utc);
+            var dto = new CertificateDto
+            {
+                Id = 1,
+                CertificateNumber = "TC-2026-000001",
+                CertificateDate = certDate,
+                CustomerId = 101,
+                CustomerName = "Tata Motors",
+                ProductId = 5,
+                ProductCode = "FG-001",
+                ProductName = "High Tension Bolt",
+                FinalInspectionId = 10,
+                FinalInspectionNumber = "FINSP-2026-000001",
+                LoadTestId = 2,
+                LoadTestNumber = "LTR-2026-000001",
+                BatchNumber = "BATCH-2026-01",
+                IssuedBy = "Inspector Raj",
+                ApprovedBy = "Manager Sharma",
+                Status = CertificateStatus.Approved,
+                ExpiryDate = expiryDate,
+                Remarks = "Passed all compliance specifications"
+            };
+
+            Assert.Equal("TC-2026-000001", dto.CertificateNumber);
+            Assert.Equal("Tata Motors", dto.CustomerName);
+            Assert.Equal("FG-001", dto.ProductCode);
+            Assert.Equal("FINSP-2026-000001", dto.FinalInspectionNumber);
+            Assert.Equal("LTR-2026-000001", dto.LoadTestNumber);
+            Assert.Equal(CertificateStatus.Approved, dto.Status);
+            Assert.Equal("Inspector Raj", dto.IssuedBy);
         }
 
         [Fact]
