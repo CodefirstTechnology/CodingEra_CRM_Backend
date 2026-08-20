@@ -91,8 +91,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Sales.VehicleAssignmentNumberingService>();
             services.AddScoped<ERP.Infrastructure.Sales.TransportNumberingService>();
             services.AddScoped<ERP.Infrastructure.Sales.LrNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Sales.EwayNumberingService>();
             services.AddScoped<ERP.Application.Sales.IVehicleAssignmentService, ERP.Infrastructure.Sales.VehicleAssignmentService>();
             services.AddScoped<ERP.Application.Sales.ITransportDetailsService, ERP.Infrastructure.Sales.TransportDetailsService>();
+            services.AddScoped<ERP.Application.Sales.ILrManagementService, ERP.Infrastructure.Sales.LrManagementService>();
 
             return services;
         }

@@ -28,6 +28,9 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.VehicleTypeConverter());
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.TransportStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.TransportModeConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.LrStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.FreightPaymentTypeConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.EwayStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
