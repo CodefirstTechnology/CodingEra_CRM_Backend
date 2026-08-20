@@ -30,7 +30,7 @@ namespace ERP.API.Controllers
             {
                 Module = "Accounting",
                 Status = "Healthy",
-                Phase = 1
+                Phase = 7
             });
         }
     }
