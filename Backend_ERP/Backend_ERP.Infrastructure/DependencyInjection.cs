@@ -83,6 +83,10 @@ namespace ERP.Infrastructure
             // Production Services
             services.AddScoped<ERP.Application.Production.IProductionService, ERP.Infrastructure.Production.ProductionService>();
 
+            // Dispatch & Logistics - Dispatch Planning Services
+            services.AddScoped<ERP.Infrastructure.Sales.DispatchPlanningNumberingService>();
+            services.AddScoped<ERP.Application.Sales.IDispatchPlanningService, ERP.Infrastructure.Sales.DispatchPlanningService>();
+
             return services;
         }
     }

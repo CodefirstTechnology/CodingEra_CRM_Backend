@@ -22,6 +22,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new FgDispatchStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new StockAgeBandConverter());
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Production.WorkOrderStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.DispatchPlanStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.DispatchPriorityConverter());
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
