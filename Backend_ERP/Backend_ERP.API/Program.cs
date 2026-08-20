@@ -24,6 +24,10 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Production.WorkOrderStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.DispatchPlanStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.DispatchPriorityConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.VehicleAssignmentStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.VehicleTypeConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.TransportStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.TransportModeConverter());
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 

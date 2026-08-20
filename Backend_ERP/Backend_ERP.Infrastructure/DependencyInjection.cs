@@ -87,6 +87,11 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Sales.DispatchPlanningNumberingService>();
             services.AddScoped<ERP.Application.Sales.IDispatchPlanningService, ERP.Infrastructure.Sales.DispatchPlanningService>();
 
+            // Dispatch & Logistics - Vehicle Assignment Services
+            services.AddScoped<ERP.Infrastructure.Sales.VehicleAssignmentNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Sales.TransportNumberingService>();
+            services.AddScoped<ERP.Application.Sales.IVehicleAssignmentService, ERP.Infrastructure.Sales.VehicleAssignmentService>();
+
             return services;
         }
     }

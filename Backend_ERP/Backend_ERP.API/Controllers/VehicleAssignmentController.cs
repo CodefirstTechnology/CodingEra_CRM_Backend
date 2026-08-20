@@ -9,24 +9,21 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
-    [Route("api/dispatch-logistics/plans")]
+    [Route("api/dispatch-logistics/vehicles")]
     [ApiController]
-    public class DispatchPlanningController : ControllerBase
+    public class VehicleAssignmentController : ControllerBase
     {
-        private readonly IDispatchPlanningService _service;
-        private readonly IVehicleAssignmentService _vehicleService;
+        private readonly IVehicleAssignmentService _service;
 
-        public DispatchPlanningController(IDispatchPlanningService service, IVehicleAssignmentService vehicleService)
+        public VehicleAssignmentController(IVehicleAssignmentService service)
         {
             _service = service;
-            _vehicleService = vehicleService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<DispatchPlanListItemDto>>> GetPlans(
+        public async Task<ActionResult<List<VehicleAssignmentListItemDto>>> GetVehicles(
             [FromQuery] string? search,
             [FromQuery] string? status,
-            [FromQuery] int? customerId,
             [FromQuery] int? dispatchId,
             [FromQuery] string? dateFrom,
             [FromQuery] string? dateTo,
@@ -36,30 +33,29 @@ namespace ERP.API.Controllers
             {
                 Search = search,
                 Status = status,
-                CustomerId = customerId,
                 DispatchId = dispatchId,
                 DateFrom = dateFrom,
                 DateTo = dateTo
             };
 
-            var list = await _service.GetDispatchPlansAsync(query, cancellationToken);
+            var list = await _service.GetVehicleAssignmentsAsync(query, cancellationToken);
             return Ok(list);
         }
 
         [HttpGet("dashboard")]
-        public async Task<ActionResult<DispatchPlanDashboardDto>> GetDashboard(CancellationToken cancellationToken)
+        public async Task<ActionResult<VehicleAssignmentDashboardDto>> GetDashboard(CancellationToken cancellationToken)
         {
-            var dashboard = await _service.GetDispatchPlanDashboardAsync(cancellationToken);
+            var dashboard = await _service.GetVehicleAssignmentDashboardAsync(cancellationToken);
             return Ok(dashboard);
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<DispatchPlanDto>> GetById(int id, CancellationToken cancellationToken)
+        public async Task<ActionResult<VehicleAssignmentDto>> GetById(int id, CancellationToken cancellationToken)
         {
             try
             {
-                var plan = await _service.GetDispatchPlanByIdAsync(id, cancellationToken);
-                return Ok(plan);
+                var assignment = await _service.GetVehicleAssignmentByIdAsync(id, cancellationToken);
+                return Ok(assignment);
             }
             catch (KeyNotFoundException ex)
             {
@@ -68,14 +64,14 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<DispatchPlanDto>> Create(
-            [FromBody] DispatchPlanCreateRequestDto payload,
+        public async Task<ActionResult<VehicleAssignmentDto>> Create(
+            [FromBody] VehicleAssignmentCreateRequestDto payload,
             CancellationToken cancellationToken)
         {
             try
             {
                 var currentUser = GetCurrentUser();
-                var created = await _service.CreateDispatchPlanAsync(payload, currentUser, cancellationToken);
+                var created = await _service.CreateVehicleAssignmentAsync(payload, currentUser, cancellationToken);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
             }
             catch (ArgumentException ex)
@@ -85,15 +81,15 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<DispatchPlanDto>> Update(
+        public async Task<ActionResult<VehicleAssignmentDto>> Update(
             int id,
-            [FromBody] DispatchPlanUpdateRequestDto payload,
+            [FromBody] VehicleAssignmentUpdateRequestDto payload,
             CancellationToken cancellationToken)
         {
             try
             {
                 var currentUser = GetCurrentUser();
-                var updated = await _service.UpdateDispatchPlanAsync(id, payload, currentUser, cancellationToken);
+                var updated = await _service.UpdateVehicleAssignmentAsync(id, payload, currentUser, cancellationToken);
                 return Ok(updated);
             }
             catch (KeyNotFoundException ex)
@@ -115,7 +111,7 @@ namespace ERP.API.Controllers
         {
             try
             {
-                await _service.DeleteDispatchPlanAsync(id, cancellationToken);
+                await _service.DeleteVehicleAssignmentAsync(id, cancellationToken);
                 return NoContent();
             }
             catch (KeyNotFoundException ex)
@@ -128,32 +124,17 @@ namespace ERP.API.Controllers
             }
         }
 
-        [HttpPost("{id:int}/duplicate")]
-        public async Task<ActionResult<DispatchPlanDto>> Duplicate(int id, CancellationToken cancellationToken)
-        {
-            try
-            {
-                var currentUser = GetCurrentUser();
-                var duplicated = await _service.DuplicateDispatchPlanAsync(id, currentUser, cancellationToken);
-                return CreatedAtAction(nameof(GetById), new { id = duplicated.Id }, duplicated);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("{id:int}/plan")]
-        public async Task<ActionResult<DispatchPlanDto>> Plan(
+        [HttpPost("{id:int}/change")]
+        public async Task<ActionResult<VehicleAssignmentDto>> ChangeVehicle(
             int id,
-            [FromBody] StatusActionRequestDto? payload,
+            [FromBody] VehicleAssignmentUpdateRequestDto payload,
             CancellationToken cancellationToken)
         {
             try
             {
                 var currentUser = GetCurrentUser();
-                var result = await _service.PlanDispatchAsync(id, payload, currentUser, cancellationToken);
-                return Ok(result);
+                var updated = await _service.ChangeVehicleAsync(id, payload, currentUser, cancellationToken);
+                return Ok(updated);
             }
             catch (KeyNotFoundException ex)
             {
@@ -163,10 +144,14 @@ namespace ERP.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        [HttpPost("{id:int}/approve")]
-        public async Task<ActionResult<DispatchPlanDto>> Approve(
+        [HttpPost("{id:int}/cancel")]
+        public async Task<ActionResult<VehicleAssignmentDto>> Cancel(
             int id,
             [FromBody] StatusActionRequestDto? payload,
             CancellationToken cancellationToken)
@@ -174,74 +159,8 @@ namespace ERP.API.Controllers
             try
             {
                 var currentUser = GetCurrentUser();
-                var result = await _service.ApproveDispatchAsync(id, payload, currentUser, cancellationToken);
+                var result = await _service.CancelVehicleAssignmentAsync(id, payload, currentUser, cancellationToken);
                 return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("{id:int}/ready")]
-        public async Task<ActionResult<DispatchPlanDto>> MarkReady(
-            int id,
-            [FromBody] StatusActionRequestDto? payload,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var currentUser = GetCurrentUser();
-                var result = await _service.MarkReadyForDispatchAsync(id, payload, currentUser, cancellationToken);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("{id:int}/close")]
-        public async Task<ActionResult<DispatchPlanDto>> Close(
-            int id,
-            [FromBody] StatusActionRequestDto? payload,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var currentUser = GetCurrentUser();
-                var result = await _service.CloseDispatchAsync(id, payload, currentUser, cancellationToken);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("{dispatchId:int}/assign-vehicle")]
-        public async Task<ActionResult<VehicleAssignmentDto>> AssignVehicle(
-            int dispatchId,
-            [FromBody] VehicleAssignmentCreateRequestDto payload,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var currentUser = GetCurrentUser();
-                var result = await _vehicleService.AssignVehicleToDispatchAsync(dispatchId, payload, currentUser, cancellationToken);
-                return Created($"/api/dispatch-logistics/vehicles/{result.Id}", result);
             }
             catch (KeyNotFoundException ex)
             {
@@ -254,6 +173,93 @@ namespace ERP.API.Controllers
             catch (InvalidOperationException ex)
             {
                 return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/loaded")]
+        public async Task<ActionResult<VehicleAssignmentDto>> MarkLoaded(
+            int id,
+            [FromBody] StatusActionRequestDto? payload,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                var result = await _service.MarkLoadedAsync(id, payload, currentUser, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/dispatched")]
+        public async Task<ActionResult<VehicleAssignmentDto>> MarkDispatched(
+            int id,
+            [FromBody] StatusActionRequestDto? payload,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                var result = await _service.MarkVehicleDispatchedAsync(id, payload, currentUser, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/complete")]
+        public async Task<ActionResult<VehicleAssignmentDto>> Complete(
+            int id,
+            [FromBody] StatusActionRequestDto? payload,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                var result = await _service.CompleteVehicleAssignmentAsync(id, payload, currentUser, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/generate-transport")]
+        public async Task<ActionResult<TransportDto>> GenerateTransport(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var currentUser = GetCurrentUser();
+                var result = await _service.GenerateTransportAsync(id, currentUser, cancellationToken);
+                return Created($"/api/dispatch-logistics/transports/{result.Id}", result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
             }
         }
 
