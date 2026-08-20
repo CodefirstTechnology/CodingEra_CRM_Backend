@@ -92,4 +92,63 @@ namespace ERP.Application.Sales.Dtos
         public string UpdatedBy { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
     }
+
+    public class LrCreateRequestDto
+    {
+        public int DispatchId { get; set; }
+        public string DispatchNumber { get; set; } = string.Empty;
+        public int TransportId { get; set; }
+        public string TransportNumber { get; set; } = string.Empty;
+        public string VehicleNumber { get; set; } = string.Empty;
+        public int CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string LrDate { get; set; } = string.Empty;
+        public string Consignor { get; set; } = string.Empty;
+        public string Consignee { get; set; } = string.Empty;
+        public int Packages { get; set; }
+        public decimal WeightKg { get; set; }
+        public decimal FreightCharges { get; set; }
+        public FreightPaymentType PaymentType { get; set; } = FreightPaymentType.ToBeBilled;
+        public string? Remarks { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class LrUpdateRequestDto : LrCreateRequestDto
+    {
+    }
+
+    public class LrDashboardDto
+    {
+        public int Generated { get; set; }
+        public int Issued { get; set; }
+        public int Pending { get; set; }
+    }
+
+    public class EwayDto
+    {
+        public int Id { get; set; }
+        public string EwayBillNumber { get; set; } = string.Empty;
+        public int DispatchId { get; set; }
+        public string DispatchNumber { get; set; } = string.Empty;
+        public string InvoiceNumber { get; set; } = string.Empty;
+        public int CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string GstNumber { get; set; } = string.Empty;
+        public string VehicleNumber { get; set; } = string.Empty;
+        public int TransportId { get; set; }
+        public string TransportNumber { get; set; } = string.Empty;
+        public string ValidityFrom { get; set; } = string.Empty;
+        public string ValidityTo { get; set; } = string.Empty;
+        public decimal DistanceKm { get; set; }
+        public decimal TotalValue { get; set; }
+        public string Remarks { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+        public List<DispatchAttachmentDto> Attachments { get; set; } = new();
+        public List<DispatchTimelineEventDto> Timeline { get; set; } = new();
+        public EwayStatus Status { get; set; } = EwayStatus.Generated;
+        public string CreatedBy { get; set; } = string.Empty;
+        public string CreatedAt { get; set; } = string.Empty;
+        public string UpdatedBy { get; set; } = string.Empty;
+        public string UpdatedAt { get; set; } = string.Empty;
+    }
 }

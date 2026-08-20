@@ -224,6 +224,50 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.DispatchId);
             builder.HasIndex(x => x.TransportId);
             builder.HasIndex(x => x.CustomerId);
+
+            builder.HasMany(x => x.Attachments)
+                .WithOne(x => x.LorryReceipt)
+                .HasForeignKey(x => x.LorryReceiptId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.Timeline)
+                .WithOne(x => x.LorryReceipt)
+                .HasForeignKey(x => x.LorryReceiptId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class LrAttachmentConfiguration : IEntityTypeConfiguration<LrAttachment>
+    {
+        public void Configure(EntityTypeBuilder<LrAttachment> builder)
+        {
+            builder.ToTable("LrAttachments");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.AttachmentId).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.Name).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.UploadedBy).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.Kind).HasMaxLength(32);
+
+            builder.HasIndex(x => x.LorryReceiptId);
+        }
+    }
+
+    public class LrTimelineEventConfiguration : IEntityTypeConfiguration<LrTimelineEvent>
+    {
+        public void Configure(EntityTypeBuilder<LrTimelineEvent> builder)
+        {
+            builder.ToTable("LrTimelineEvents");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.EventId).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.User).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.Action).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.FromStatus).HasMaxLength(32);
+            builder.Property(x => x.ToStatus).HasMaxLength(32);
+            builder.Property(x => x.Remarks).HasMaxLength(1000);
+
+            builder.HasIndex(x => x.LorryReceiptId);
         }
     }
 
@@ -232,6 +276,49 @@ namespace ERP.Infrastructure.Data.Configurations
         public void Configure(EntityTypeBuilder<LrDocumentSequence> builder)
         {
             builder.ToTable("LrDocumentSequences");
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Prefix).IsRequired().HasMaxLength(32);
+            builder.HasIndex(x => x.Prefix).IsUnique();
+        }
+    }
+
+    public class EwayBillConfiguration : IEntityTypeConfiguration<EwayBill>
+    {
+        public void Configure(EntityTypeBuilder<EwayBill> builder)
+        {
+            builder.ToTable("EwayBills");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.EwayBillNumber).IsRequired().HasMaxLength(64);
+            builder.HasIndex(x => x.EwayBillNumber).IsUnique();
+
+            builder.Property(x => x.DispatchNumber).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.InvoiceNumber).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.CustomerName).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.GstNumber).IsRequired().HasMaxLength(32);
+            builder.Property(x => x.VehicleNumber).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.TransportNumber).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.DistanceKm).HasPrecision(18, 2);
+            builder.Property(x => x.TotalValue).HasPrecision(18, 2);
+            builder.Property(x => x.Remarks).HasMaxLength(1000);
+            builder.Property(x => x.Notes).HasMaxLength(1000);
+            builder.Property(x => x.CreatedBy).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(128);
+
+            builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+
+            builder.HasIndex(x => x.Status);
+            builder.HasIndex(x => x.DispatchId);
+            builder.HasIndex(x => x.TransportId);
+            builder.HasIndex(x => x.CustomerId);
+        }
+    }
+
+    public class EwayDocumentSequenceConfiguration : IEntityTypeConfiguration<EwayDocumentSequence>
+    {
+        public void Configure(EntityTypeBuilder<EwayDocumentSequence> builder)
+        {
+            builder.ToTable("EwayDocumentSequences");
             builder.HasKey(x => x.Id);
             builder.Property(x => x.Prefix).IsRequired().HasMaxLength(32);
             builder.HasIndex(x => x.Prefix).IsUnique();
