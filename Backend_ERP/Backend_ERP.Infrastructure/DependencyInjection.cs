@@ -109,6 +109,8 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Accounting.IAccountingFoundationService, ERP.Infrastructure.Accounting.AccountingFoundationService>();
             services.AddScoped<ERP.Application.Accounting.ICustomerLedgerService, ERP.Infrastructure.Accounting.CustomerLedgerService>();
             services.AddScoped<ERP.Application.Accounting.IOutstandingService, ERP.Infrastructure.Accounting.OutstandingService>();
+            services.AddScoped<ERP.Application.Accounting.IPaymentService, ERP.Infrastructure.Accounting.PaymentService>();
+            services.AddScoped<ERP.Application.Accounting.IReceiptService, ERP.Infrastructure.Accounting.ReceiptService>();
 
             return services;
         }
