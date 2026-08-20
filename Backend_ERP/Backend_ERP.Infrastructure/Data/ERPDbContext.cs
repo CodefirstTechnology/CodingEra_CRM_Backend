@@ -245,6 +245,23 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Sales.PodTimelineEvent> PodTimelineEvents => Set<ERP.Domain.Sales.PodTimelineEvent>();
         public DbSet<ERP.Domain.Sales.PodDocumentSequence> PodDocumentSequences => Set<ERP.Domain.Sales.PodDocumentSequence>();
 
+        // Accounting Module DbSets
+        public DbSet<ERP.Domain.Accounting.CustomerLedgerEntry> CustomerLedgerEntries => Set<ERP.Domain.Accounting.CustomerLedgerEntry>();
+        public DbSet<ERP.Domain.Accounting.CustomerLedgerDocumentSequence> CustomerLedgerDocumentSequences => Set<ERP.Domain.Accounting.CustomerLedgerDocumentSequence>();
+        public DbSet<ERP.Domain.Accounting.GstTransaction> GstTransactions => Set<ERP.Domain.Accounting.GstTransaction>();
+        public DbSet<ERP.Domain.Accounting.GstReturn> GstReturns => Set<ERP.Domain.Accounting.GstReturn>();
+        public DbSet<ERP.Domain.Accounting.GstDocumentSequence> GstDocumentSequences => Set<ERP.Domain.Accounting.GstDocumentSequence>();
+        public DbSet<ERP.Domain.Accounting.PaymentEntry> PaymentEntries => Set<ERP.Domain.Accounting.PaymentEntry>();
+        public DbSet<ERP.Domain.Accounting.PaymentDocumentSequence> PaymentDocumentSequences => Set<ERP.Domain.Accounting.PaymentDocumentSequence>();
+        public DbSet<ERP.Domain.Accounting.ReceiptEntry> ReceiptEntries => Set<ERP.Domain.Accounting.ReceiptEntry>();
+        public DbSet<ERP.Domain.Accounting.ReceiptDocumentSequence> ReceiptDocumentSequences => Set<ERP.Domain.Accounting.ReceiptDocumentSequence>();
+        public DbSet<ERP.Domain.Accounting.OutstandingRecord> OutstandingRecords => Set<ERP.Domain.Accounting.OutstandingRecord>();
+        public DbSet<ERP.Domain.Accounting.BankReconciliation> BankReconciliations => Set<ERP.Domain.Accounting.BankReconciliation>();
+        public DbSet<ERP.Domain.Accounting.BankReconDocumentSequence> BankReconDocumentSequences => Set<ERP.Domain.Accounting.BankReconDocumentSequence>();
+        public DbSet<ERP.Domain.Accounting.AccountingNote> AccountingNotes => Set<ERP.Domain.Accounting.AccountingNote>();
+        public DbSet<ERP.Domain.Accounting.AccountingAttachment> AccountingAttachments => Set<ERP.Domain.Accounting.AccountingAttachment>();
+        public DbSet<ERP.Domain.Accounting.AccountingTimelineEvent> AccountingTimelineEvents => Set<ERP.Domain.Accounting.AccountingTimelineEvent>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

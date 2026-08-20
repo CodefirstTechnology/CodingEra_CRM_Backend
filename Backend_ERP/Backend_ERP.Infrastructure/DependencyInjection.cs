@@ -100,6 +100,14 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Sales.IDispatchStatusService, ERP.Infrastructure.Sales.DispatchStatusService>();
             services.AddScoped<ERP.Application.Sales.IPodService, ERP.Infrastructure.Sales.PodService>();
 
+            // Accounting Phase 1 Foundation Services
+            services.AddScoped<ERP.Infrastructure.Accounting.CustomerLedgerNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Accounting.GstNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Accounting.PaymentNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Accounting.ReceiptNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Accounting.BankReconNumberingService>();
+            services.AddScoped<ERP.Application.Accounting.IAccountingFoundationService, ERP.Infrastructure.Accounting.AccountingFoundationService>();
+
             return services;
         }
     }
