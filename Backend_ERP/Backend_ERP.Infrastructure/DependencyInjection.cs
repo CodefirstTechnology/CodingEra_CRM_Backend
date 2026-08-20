@@ -113,6 +113,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Accounting.IReceiptService, ERP.Infrastructure.Accounting.ReceiptService>();
             services.AddScoped<ERP.Application.Accounting.IGstService, ERP.Infrastructure.Accounting.GstService>();
             services.AddScoped<ERP.Application.Accounting.IBankReconciliationService, ERP.Infrastructure.Accounting.BankReconciliationService>();
+            services.AddScoped<ERP.Application.Accounting.IFinancialReportService, ERP.Infrastructure.Accounting.FinancialReportService>();
 
             return services;
         }
