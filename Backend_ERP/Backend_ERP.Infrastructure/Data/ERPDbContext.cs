@@ -214,6 +214,13 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Production.RejectionRecord> RejectionRecords => Set<ERP.Domain.Production.RejectionRecord>();
         public DbSet<ERP.Domain.Production.ProductionDocumentSequence> ProductionDocumentSequences => Set<ERP.Domain.Production.ProductionDocumentSequence>();
 
+        // Dispatch & Logistics - Dispatch Planning DbSets
+        public DbSet<ERP.Domain.Sales.DispatchPlan> DispatchPlans => Set<ERP.Domain.Sales.DispatchPlan>();
+        public DbSet<ERP.Domain.Sales.DispatchPlanItem> DispatchPlanItems => Set<ERP.Domain.Sales.DispatchPlanItem>();
+        public DbSet<ERP.Domain.Sales.DispatchPlanAttachment> DispatchPlanAttachments => Set<ERP.Domain.Sales.DispatchPlanAttachment>();
+        public DbSet<ERP.Domain.Sales.DispatchPlanTimelineEvent> DispatchPlanTimelineEvents => Set<ERP.Domain.Sales.DispatchPlanTimelineEvent>();
+        public DbSet<ERP.Domain.Sales.DispatchDocumentSequence> DispatchDocumentSequences => Set<ERP.Domain.Sales.DispatchDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
