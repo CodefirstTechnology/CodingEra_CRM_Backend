@@ -222,6 +222,63 @@ namespace Backend_ERP.Tests
         }
 
         [Fact]
+        public void QualityControlRules_validates_load_test_limits()
+        {
+            var errValid = QualityControlRules.ValidateLoadTestLimits(1000m, 500m, 30);
+            Assert.Null(errValid);
+
+            var errZeroCap = QualityControlRules.ValidateLoadTestLimits(0m, 500m, 30);
+            Assert.NotNull(errZeroCap);
+            Assert.Contains("greater than 0", errZeroCap);
+
+            var errNegApplied = QualityControlRules.ValidateLoadTestLimits(1000m, -10m, 30);
+            Assert.NotNull(errNegApplied);
+            Assert.Contains("cannot be negative", errNegApplied);
+
+            var errZeroDur = QualityControlRules.ValidateLoadTestLimits(1000m, 500m, 0);
+            Assert.NotNull(errZeroDur);
+            Assert.Contains("greater than 0", errZeroDur);
+
+            var errExceed = QualityControlRules.ValidateLoadTestLimits(1000m, 1600m, 30);
+            Assert.NotNull(errExceed);
+            Assert.Contains("cannot exceed 150%", errExceed);
+        }
+
+        [Fact]
+        public void LoadTestDto_exposes_expected_json_contract_properties()
+        {
+            var testDate = new DateTime(2026, 8, 20, 0, 0, 0, DateTimeKind.Utc);
+            var dto = new LoadTestDto
+            {
+                Id = 1,
+                ReportNumber = "LTR-2026-000001",
+                TestDate = testDate,
+                ProductId = 5,
+                ProductCode = "FG-001",
+                ProductName = "High Tension Bolt",
+                FinalInspectionId = 10,
+                FinalInspectionNumber = "FINSP-2026-000001",
+                MachineId = 1,
+                MachineCode = "MCH-001",
+                MachineName = "Universal Load Test Rig",
+                LoadCapacity = 1000m,
+                AppliedLoad = 500m,
+                DurationMinutes = 30,
+                Result = LoadTestStatus.Passed,
+                PassFail = "Pass",
+                Remarks = "All parameters nominal"
+            };
+
+            Assert.Equal("LTR-2026-000001", dto.ReportNumber);
+            Assert.Equal("FG-001", dto.ProductCode);
+            Assert.Equal("FINSP-2026-000001", dto.FinalInspectionNumber);
+            Assert.Equal(1000m, dto.LoadCapacity);
+            Assert.Equal(500m, dto.AppliedLoad);
+            Assert.Equal(LoadTestStatus.Passed, dto.Result);
+            Assert.Equal("Pass", dto.PassFail);
+        }
+
+        [Fact]
         public async Task QualityControl_GetPermissions_returns_expected_RBAC_list()
         {
             var service = new ERP.Infrastructure.Procurement.QualityControlService(null!, null!);
@@ -232,6 +289,7 @@ namespace Backend_ERP.Tests
             Assert.Contains("quality-control.approve", perms);
             Assert.Contains("quality-control.inspect", perms);
             Assert.Contains("quality-control.certificate", perms);
+            Assert.Contains("quality-control.load-test", perms);
         }
     }
 }

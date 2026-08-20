@@ -991,26 +991,52 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<LoadTestDto> CreateLoadTestAsync(LoadTestCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
         {
+            var valErr = QualityControlRules.ValidateLoadTestLimits(request.LoadCapacity, request.AppliedLoad, request.DurationMinutes);
+            if (valErr != null)
+            {
+                throw new InvalidOperationException(valErr);
+            }
+
+            var fin = await _db.FinalInspections.FirstOrDefaultAsync(
+                x => (x.Id == request.FinalInspectionId || x.InspectionNumber == request.FinalInspectionNumber.Trim()) && !x.IsDeleted,
+                cancellationToken);
+
+            if (fin is null)
+            {
+                throw new InvalidOperationException($"Final Inspection \"{request.FinalInspectionNumber}\" not found.");
+            }
+
+            if (fin.Status != FinalInspectionStatus.Approved && fin.Status != FinalInspectionStatus.Closed)
+            {
+                throw new InvalidOperationException("Load test requires an Approved (or Closed) Final Inspection.");
+            }
+
             var now = DateTime.UtcNow;
             var num = await _numberingService.NextNumberAsync("LTR", cancellationToken);
+
+            var result = request.Result != LoadTestStatus.Pending
+                ? request.Result
+                : (request.AppliedLoad >= request.LoadCapacity ? LoadTestStatus.Passed : LoadTestStatus.Pending);
+
+            var passFail = result == LoadTestStatus.Passed ? "Pass" : (result == LoadTestStatus.Failed ? "Fail" : "Pending");
 
             var entity = new LoadTestReport
             {
                 ReportNumber = num,
                 TestDate = request.TestDate.ToUniversalTime(),
-                ProductId = request.ProductId,
-                ProductCode = request.ProductCode.Trim(),
-                ProductName = request.ProductName.Trim(),
-                FinalInspectionId = request.FinalInspectionId,
-                FinalInspectionNumber = request.FinalInspectionNumber.Trim(),
+                ProductId = fin.FinishedProductId > 0 ? fin.FinishedProductId : request.ProductId,
+                ProductCode = !string.IsNullOrWhiteSpace(request.ProductCode) ? request.ProductCode.Trim() : fin.FinishedProductCode,
+                ProductName = !string.IsNullOrWhiteSpace(request.ProductName) ? request.ProductName.Trim() : fin.FinishedProductName,
+                FinalInspectionId = fin.Id,
+                FinalInspectionNumber = fin.InspectionNumber,
                 MachineId = request.MachineId,
                 MachineCode = request.MachineCode.Trim(),
                 MachineName = request.MachineName.Trim(),
                 LoadCapacity = request.LoadCapacity,
                 AppliedLoad = request.AppliedLoad,
                 DurationMinutes = request.DurationMinutes,
-                Result = request.Result,
-                PassFail = request.Result == LoadTestStatus.Passed ? "Pass" : request.Result == LoadTestStatus.Failed ? "Fail" : "Pending",
+                Result = result,
+                PassFail = passFail,
                 Remarks = request.Remarks?.Trim() ?? string.Empty,
                 Notes = request.Notes?.Trim() ?? string.Empty,
                 CreatedAt = now,
@@ -1020,6 +1046,11 @@ namespace ERP.Infrastructure.Procurement
             };
 
             _db.LoadTestReports.Add(entity);
+            if (!fin.LoadTestId.HasValue || fin.LoadTestId.Value == 0)
+            {
+                fin.LoadTestId = entity.Id;
+            }
+
             await _db.SaveChangesAsync(cancellationToken);
 
             return MapToLoadTestDto(entity);

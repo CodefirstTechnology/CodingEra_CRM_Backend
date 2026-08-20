@@ -119,5 +119,26 @@ namespace ERP.Application.Procurement
             }
             return null;
         }
+
+        public static string? ValidateLoadTestLimits(decimal capacity, decimal applied, int durationMinutes)
+        {
+            if (capacity <= 0)
+            {
+                return "Load capacity must be greater than 0.";
+            }
+            if (applied < 0)
+            {
+                return "Applied load cannot be negative.";
+            }
+            if (durationMinutes <= 0)
+            {
+                return "Duration must be greater than 0 minutes.";
+            }
+            if (applied > capacity * 1.5m)
+            {
+                return "Applied load cannot exceed 150% of load capacity.";
+            }
+            return null;
+        }
     }
 }
