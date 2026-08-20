@@ -368,4 +368,50 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.Prefix).IsUnique();
         }
     }
+
+    public class DispatchStatusTrackConfiguration : IEntityTypeConfiguration<DispatchStatusTrack>
+    {
+        public void Configure(EntityTypeBuilder<DispatchStatusTrack> builder)
+        {
+            builder.ToTable("DispatchStatusTracks");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.DispatchNumber).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.Remarks).HasMaxLength(1000);
+            builder.Property(x => x.Notes).HasMaxLength(1000);
+            builder.Property(x => x.CreatedBy).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(128);
+
+            builder.Property(x => x.CurrentStatus).HasConversion<string>().HasMaxLength(32);
+            builder.Property(x => x.WarehouseStatus).HasConversion<string>().HasMaxLength(32);
+            builder.Property(x => x.VehicleStatus).HasConversion<string>().HasMaxLength(32);
+            builder.Property(x => x.TransportStatus).HasConversion<string>().HasMaxLength(32);
+
+            builder.HasIndex(x => x.DispatchId).IsUnique();
+            builder.HasIndex(x => x.CurrentStatus);
+
+            builder.HasMany(x => x.Timeline)
+                .WithOne(x => x.DispatchStatusTrack)
+                .HasForeignKey(x => x.DispatchStatusTrackId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class DispatchStatusTimelineEventConfiguration : IEntityTypeConfiguration<DispatchStatusTimelineEvent>
+    {
+        public void Configure(EntityTypeBuilder<DispatchStatusTimelineEvent> builder)
+        {
+            builder.ToTable("DispatchStatusTimelineEvents");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.EventId).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.User).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.Action).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.FromStatus).HasMaxLength(32);
+            builder.Property(x => x.ToStatus).HasMaxLength(32);
+            builder.Property(x => x.Remarks).HasMaxLength(1000);
+
+            builder.HasIndex(x => x.DispatchStatusTrackId);
+        }
+    }
 }

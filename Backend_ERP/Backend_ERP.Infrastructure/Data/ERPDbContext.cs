@@ -238,6 +238,8 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Sales.EwayAttachment> EwayAttachments => Set<ERP.Domain.Sales.EwayAttachment>();
         public DbSet<ERP.Domain.Sales.EwayTimelineEvent> EwayTimelineEvents => Set<ERP.Domain.Sales.EwayTimelineEvent>();
         public DbSet<ERP.Domain.Sales.EwayDocumentSequence> EwayDocumentSequences => Set<ERP.Domain.Sales.EwayDocumentSequence>();
+        public DbSet<ERP.Domain.Sales.DispatchStatusTrack> DispatchStatusTracks => Set<ERP.Domain.Sales.DispatchStatusTrack>();
+        public DbSet<ERP.Domain.Sales.DispatchStatusTimelineEvent> DispatchStatusTimelineEvents => Set<ERP.Domain.Sales.DispatchStatusTimelineEvent>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
