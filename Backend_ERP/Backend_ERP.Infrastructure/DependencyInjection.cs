@@ -92,11 +92,13 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Sales.TransportNumberingService>();
             services.AddScoped<ERP.Infrastructure.Sales.LrNumberingService>();
             services.AddScoped<ERP.Infrastructure.Sales.EwayNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Sales.PodNumberingService>();
             services.AddScoped<ERP.Application.Sales.IVehicleAssignmentService, ERP.Infrastructure.Sales.VehicleAssignmentService>();
             services.AddScoped<ERP.Application.Sales.ITransportDetailsService, ERP.Infrastructure.Sales.TransportDetailsService>();
             services.AddScoped<ERP.Application.Sales.ILrManagementService, ERP.Infrastructure.Sales.LrManagementService>();
             services.AddScoped<ERP.Application.Sales.IEwayBillService, ERP.Infrastructure.Sales.EwayBillService>();
             services.AddScoped<ERP.Application.Sales.IDispatchStatusService, ERP.Infrastructure.Sales.DispatchStatusService>();
+            services.AddScoped<ERP.Application.Sales.IPodService, ERP.Infrastructure.Sales.PodService>();
 
             return services;
         }

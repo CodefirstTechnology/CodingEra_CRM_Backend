@@ -414,4 +414,88 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.DispatchStatusTrackId);
         }
     }
+
+    public class DeliveryConfirmationConfiguration : IEntityTypeConfiguration<DeliveryConfirmation>
+    {
+        public void Configure(EntityTypeBuilder<DeliveryConfirmation> builder)
+        {
+            builder.ToTable("DeliveryConfirmations");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.PodNumber).IsRequired().HasMaxLength(64);
+            builder.HasIndex(x => x.PodNumber).IsUnique();
+
+            builder.Property(x => x.DispatchNumber).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.CustomerName).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.ReceiverName).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.ReceiverContact).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.DeliveryRemarks).HasMaxLength(1000);
+            builder.Property(x => x.DamageRemarks).HasMaxLength(1000);
+            builder.Property(x => x.Remarks).HasMaxLength(1000);
+            builder.Property(x => x.Notes).HasMaxLength(1000);
+            builder.Property(x => x.CreatedBy).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(128);
+
+            builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
+
+            builder.HasIndex(x => x.Status);
+            builder.HasIndex(x => x.DispatchId);
+            builder.HasIndex(x => x.CustomerId);
+
+            builder.HasMany(x => x.Attachments)
+                .WithOne(x => x.DeliveryConfirmation)
+                .HasForeignKey(x => x.DeliveryConfirmationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.Timeline)
+                .WithOne(x => x.DeliveryConfirmation)
+                .HasForeignKey(x => x.DeliveryConfirmationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class PodAttachmentConfiguration : IEntityTypeConfiguration<PodAttachment>
+    {
+        public void Configure(EntityTypeBuilder<PodAttachment> builder)
+        {
+            builder.ToTable("PodAttachments");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.AttachmentId).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.Name).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.UploadedBy).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.Kind).HasMaxLength(32);
+
+            builder.HasIndex(x => x.DeliveryConfirmationId);
+        }
+    }
+
+    public class PodTimelineEventConfiguration : IEntityTypeConfiguration<PodTimelineEvent>
+    {
+        public void Configure(EntityTypeBuilder<PodTimelineEvent> builder)
+        {
+            builder.ToTable("PodTimelineEvents");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.EventId).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.User).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.Action).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.FromStatus).HasMaxLength(32);
+            builder.Property(x => x.ToStatus).HasMaxLength(32);
+            builder.Property(x => x.Remarks).HasMaxLength(1000);
+
+            builder.HasIndex(x => x.DeliveryConfirmationId);
+        }
+    }
+
+    public class PodDocumentSequenceConfiguration : IEntityTypeConfiguration<PodDocumentSequence>
+    {
+        public void Configure(EntityTypeBuilder<PodDocumentSequence> builder)
+        {
+            builder.ToTable("PodDocumentSequences");
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Prefix).IsRequired().HasMaxLength(32);
+            builder.HasIndex(x => x.Prefix).IsUnique();
+        }
+    }
 }

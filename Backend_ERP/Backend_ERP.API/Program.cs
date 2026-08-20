@@ -33,6 +33,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.EwayStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.DispatchTrackStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.TransportTrackStatusConverter());
+        options.JsonSerializerOptions.Converters.Add(new ERP.Application.Sales.PodStatusConverter());
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 

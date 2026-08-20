@@ -240,6 +240,10 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Sales.EwayDocumentSequence> EwayDocumentSequences => Set<ERP.Domain.Sales.EwayDocumentSequence>();
         public DbSet<ERP.Domain.Sales.DispatchStatusTrack> DispatchStatusTracks => Set<ERP.Domain.Sales.DispatchStatusTrack>();
         public DbSet<ERP.Domain.Sales.DispatchStatusTimelineEvent> DispatchStatusTimelineEvents => Set<ERP.Domain.Sales.DispatchStatusTimelineEvent>();
+        public DbSet<ERP.Domain.Sales.DeliveryConfirmation> DeliveryConfirmations => Set<ERP.Domain.Sales.DeliveryConfirmation>();
+        public DbSet<ERP.Domain.Sales.PodAttachment> PodAttachments => Set<ERP.Domain.Sales.PodAttachment>();
+        public DbSet<ERP.Domain.Sales.PodTimelineEvent> PodTimelineEvents => Set<ERP.Domain.Sales.PodTimelineEvent>();
+        public DbSet<ERP.Domain.Sales.PodDocumentSequence> PodDocumentSequences => Set<ERP.Domain.Sales.PodDocumentSequence>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
