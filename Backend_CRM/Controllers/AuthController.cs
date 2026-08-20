@@ -27,13 +27,14 @@ namespace CRM.Controllers
             _hubContext = hubContext;
         }
 
-        private async Task BroadcastUserStatusAsync(int userId, bool isOnline, DateTime? lastActiveAt, DateTime? firstLoginAt)
+        private async Task BroadcastUserStatusAsync(int userId, string email, bool isOnline, DateTime? lastActiveAt, DateTime? firstLoginAt)
         {
             try
             {
                 await _hubContext.Clients.All.SendAsync("UserStatusChanged", new
                 {
                     userId = userId,
+                    email = email,
                     isOnline = isOnline,
                     lastActiveAt = lastActiveAt,
                     firstLoginAt = firstLoginAt
@@ -127,7 +128,7 @@ namespace CRM.Controllers
             }
             await _context.SaveChangesAsync();
 
-            await BroadcastUserStatusAsync(user.Id, true, user.LastActiveAt, user.FirstLoginAt);
+            await BroadcastUserStatusAsync(user.Id, user.Email, true, user.LastActiveAt, user.FirstLoginAt);
 
             return Ok(await ToSessionAsync(user));
         }
@@ -164,7 +165,7 @@ namespace CRM.Controllers
                 user.LastActiveAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                await BroadcastUserStatusAsync(user.Id, false, user.LastActiveAt, user.FirstLoginAt);
+                await BroadcastUserStatusAsync(user.Id, user.Email, false, user.LastActiveAt, user.FirstLoginAt);
             }
 
             return Ok(new { message = "Logged out successfully." });
@@ -197,7 +198,7 @@ namespace CRM.Controllers
             }
             await _context.SaveChangesAsync();
 
-            await BroadcastUserStatusAsync(user.Id, true, user.LastActiveAt, user.FirstLoginAt);
+            await BroadcastUserStatusAsync(user.Id, user.Email, true, user.LastActiveAt, user.FirstLoginAt);
 
             return Ok(new HeartbeatResponseDto
             {

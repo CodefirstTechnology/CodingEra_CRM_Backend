@@ -7,13 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Controllers.Masters
 {
-    [Route("api/MasterData/lead-statuses")]
+    [Route("api/MasterData/sources")]
+    [Route("api/MasterData/lead-sources")]
     [ApiController]
-    public class LeadStatusesController : ControllerBase
+    public class LeadSourcesController : ControllerBase
     {
         private readonly TaskDbcontext _context;
 
-        public LeadStatusesController(TaskDbcontext context)
+        public LeadSourcesController(TaskDbcontext context)
         {
             _context = context;
         }
@@ -22,20 +23,20 @@ namespace CRM.Controllers.Masters
         public async Task<IActionResult> GetAll([FromQuery] int userId, [FromQuery] bool activeOnly = false)
         {
             _ = userId;
-            IQueryable<LeadStatus> q = _context.LeadStatuses.AsNoTracking();
+            IQueryable<LeadSource> q = _context.LeadSources.AsNoTracking();
             if (activeOnly)
             {
                 q = q.Where(s => s.IsActive);
             }
 
-            return Ok(await q.OrderBy(s => s.Name).ToListAsync());
+            return Ok(await q.OrderBy(s => s.SortOrder).ThenBy(s => s.Name).ToListAsync());
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, [FromQuery] int userId)
         {
             _ = userId;
-            var s = await _context.LeadStatuses.AsNoTracking()
+            var s = await _context.LeadSources.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == id);
             return s == null ? NotFound() : Ok(s);
         }
@@ -62,33 +63,21 @@ namespace CRM.Controllers.Masters
                 return BadRequest("Name is required.");
             }
 
-            if (await _context.LeadStatuses.AnyAsync(x => x.Name == name))
+            if (await _context.LeadSources.AnyAsync(x => x.Name == name))
             {
-                return Conflict("A lead status with this name already exists.");
+                return Conflict("A source with this name already exists.");
             }
 
-            var isConversion =
-                dto.IsConversionStatus == true ||
-                LeadStatusMovedToDealSeed.IsConversionStatusName(name);
-
-            if (isConversion && await _context.LeadStatuses.AnyAsync(x => x.IsConversionStatus))
-            {
-                return Conflict("Only one lead status can be marked as the lead→deal conversion status.");
-            }
-
-            var entity = new LeadStatus
+            var maxSort = await _context.LeadSources.MaxAsync(x => (int?)x.SortOrder) ?? 0;
+            var entity = new LeadSource
             {
                 Id = 0,
                 Name = name,
-                Description = string.IsNullOrWhiteSpace(dto.Description)
-                    ? (isConversion
-                        ? "Lead has been converted into a deal (not Won / not revenue)."
-                        : string.Empty)
-                    : dto.Description.Trim(),
+                Description = dto.Description?.Trim() ?? string.Empty,
+                SortOrder = dto.SortOrder.HasValue && dto.SortOrder > 0 ? dto.SortOrder.Value : maxSort + 1,
                 IsActive = dto.IsActive,
-                IsConversionStatus = isConversion,
             };
-            await _context.LeadStatuses.AddAsync(entity);
+            await _context.LeadSources.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(entity);
         }
@@ -120,38 +109,24 @@ namespace CRM.Controllers.Masters
                 return BadRequest("Name is required.");
             }
 
-            var existing = await _context.LeadStatuses.FindAsync(id);
+            var existing = await _context.LeadSources.FindAsync(id);
             if (existing == null)
             {
                 return NotFound();
             }
 
-            if (await _context.LeadStatuses.AnyAsync(x => x.Name == name && x.Id != id))
+            if (await _context.LeadSources.AnyAsync(x => x.Name == name && x.Id != id))
             {
-                return Conflict("A lead status with this name already exists.");
-            }
-
-            var isConversion = dto.IsConversionStatus ?? existing.IsConversionStatus;
-            if (LeadStatusMovedToDealSeed.IsConversionStatusName(name) && dto.IsConversionStatus != false)
-            {
-                isConversion = true;
-            }
-
-            if (isConversion)
-            {
-                var others = await _context.LeadStatuses
-                    .Where(x => x.IsConversionStatus && x.Id != id)
-                    .ToListAsync();
-                foreach (var o in others)
-                {
-                    o.IsConversionStatus = false;
-                }
+                return Conflict("A source with this name already exists.");
             }
 
             existing.Name = name;
             existing.Description = dto.Description?.Trim() ?? string.Empty;
             existing.IsActive = dto.IsActive;
-            existing.IsConversionStatus = isConversion;
+            if (dto.SortOrder.HasValue && dto.SortOrder > 0)
+            {
+                existing.SortOrder = dto.SortOrder.Value;
+            }
             await _context.SaveChangesAsync();
             return Ok(existing);
         }
@@ -159,24 +134,20 @@ namespace CRM.Controllers.Masters
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var entity = await _context.LeadStatuses.FindAsync(id);
+            var entity = await _context.LeadSources.FindAsync(id);
             if (entity == null)
             {
                 return NotFound();
             }
 
-            if (entity.IsConversionStatus)
-            {
-                return Conflict(new { message = "Cannot delete: This is the designated conversion status for leads becoming deals. Please assign another conversion status first or disable it." });
-            }
-
-            var inLeads = await _context.Leads.AnyAsync(l => l.LeadStatusId == id);
+            var name = entity.Name.ToLower();
+            var inLeads = await _context.Leads.AnyAsync(l => l.LeadSource.ToLower() == name);
             if (inLeads)
             {
-                return Conflict(new { message = "Cannot delete: This lead status is assigned to existing leads. Please disable it instead or reassign records first." });
+                return Conflict(new { message = "Cannot delete: This source is assigned to existing leads. Please disable it instead or reassign records first." });
             }
 
-            _context.LeadStatuses.Remove(entity);
+            _context.LeadSources.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });
         }
