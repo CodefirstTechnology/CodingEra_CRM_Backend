@@ -77,6 +77,18 @@ namespace Backend_ERP.Tests
             Assert.Equal(expected, QualityControlRules.CanTransitionCertificate(current, target));
         }
 
+        [Theory]
+        [InlineData(RejectionAnalysisStatus.Open, RejectionAnalysisStatus.UnderAnalysis, true)]
+        [InlineData(RejectionAnalysisStatus.Open, RejectionAnalysisStatus.Closed, true)]
+        [InlineData(RejectionAnalysisStatus.UnderAnalysis, RejectionAnalysisStatus.Closed, true)]
+        [InlineData(RejectionAnalysisStatus.UnderAnalysis, RejectionAnalysisStatus.Open, false)]
+        [InlineData(RejectionAnalysisStatus.Closed, RejectionAnalysisStatus.Open, false)]
+        [InlineData(RejectionAnalysisStatus.Closed, RejectionAnalysisStatus.UnderAnalysis, false)]
+        public void QualityControlRules_validates_rejection_status_transitions(RejectionAnalysisStatus current, RejectionAnalysisStatus target, bool expected)
+        {
+            Assert.Equal(expected, QualityControlRules.CanTransitionRejection(current, target));
+        }
+
         [Fact]
         public void IncomingDto_exposes_expected_json_contract_properties()
         {
@@ -348,17 +360,66 @@ namespace Backend_ERP.Tests
         }
 
         [Fact]
+        public void RejectionDto_exposes_expected_capa_properties()
+        {
+            var rejDate = new DateTime(2026, 8, 20, 0, 0, 0, DateTimeKind.Utc);
+            var dto = new RejectionDto
+            {
+                Id = 1,
+                RejectionNumber = "REJ-2026-000001",
+                RejectionDate = rejDate,
+                Source = RejectionSource.FinalInspection,
+                SourceRecordId = 10,
+                SourceRecordNumber = "FINSP-2026-000001",
+                ProductId = 5,
+                ProductCode = "FG-001",
+                ProductName = "High Tension Bolt",
+                BatchNumber = "BATCH-2026-01",
+                Quantity = 5m,
+                Reason = "Thread pitch variance out of tolerance",
+                RootCause = "Tool wear on CNC spindle",
+                Department = "Final QC",
+                Operator = "Inspector Raj",
+                CorrectiveAction = "Replaced tool insert",
+                PreventiveAction = "Updated tool life monitoring schedule",
+                Status = RejectionAnalysisStatus.UnderAnalysis,
+                Remarks = "Under review by QC engineering",
+                Notes = "Internal calibration report attached"
+            };
+
+            Assert.Equal("REJ-2026-000001", dto.RejectionNumber);
+            Assert.Equal(RejectionSource.FinalInspection, dto.Source);
+            Assert.Equal("FINSP-2026-000001", dto.SourceRecordNumber);
+            Assert.Equal("FG-001", dto.ProductCode);
+            Assert.Equal(5m, dto.Quantity);
+            Assert.Equal("Thread pitch variance out of tolerance", dto.Reason);
+            Assert.Equal("Tool wear on CNC spindle", dto.RootCause);
+            Assert.Equal("Replaced tool insert", dto.CorrectiveAction);
+            Assert.Equal("Updated tool life monitoring schedule", dto.PreventiveAction);
+            Assert.Equal(RejectionAnalysisStatus.UnderAnalysis, dto.Status);
+        }
+
+        [Fact]
         public async Task QualityControl_GetPermissions_returns_expected_RBAC_list()
         {
             var service = new ERP.Infrastructure.Procurement.QualityControlService(null!, null!);
             var perms = await service.GetPermissionsAsync();
 
+            Assert.Equal(14, perms.Count);
             Assert.Contains("quality-control.view", perms);
             Assert.Contains("quality-control.create", perms);
+            Assert.Contains("quality-control.edit", perms);
+            Assert.Contains("quality-control.delete", perms);
             Assert.Contains("quality-control.approve", perms);
+            Assert.Contains("quality-control.reject", perms);
             Assert.Contains("quality-control.inspect", perms);
             Assert.Contains("quality-control.certificate", perms);
             Assert.Contains("quality-control.load-test", perms);
+            Assert.Contains("quality-control.analysis.view", perms);
+            Assert.Contains("quality-control.dashboard.view", perms);
+            Assert.Contains("quality-control.export", perms);
+            Assert.Contains("quality-control.print", perms);
+            Assert.Contains("quality-control.audit.view", perms);
         }
     }
 }
