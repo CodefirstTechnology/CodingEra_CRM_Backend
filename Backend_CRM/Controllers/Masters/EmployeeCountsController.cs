@@ -133,6 +133,14 @@ namespace CRM.Controllers.Masters
                 return NotFound();
             }
 
+            var name = entity.Name.ToLower();
+            var inOrgs = await _context.Organizations.AnyAsync(o => o.EmployeeCountId == id);
+            var inDeals = await _context.Deals.AnyAsync(d => d.Employees.ToLower() == name);
+            if (inOrgs || inDeals)
+            {
+                return Conflict(new { message = "Cannot delete: This employee count bucket is assigned to existing organizations or deals. Please disable it instead or reassign records first." });
+            }
+
             _context.EmployeeCounts.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });

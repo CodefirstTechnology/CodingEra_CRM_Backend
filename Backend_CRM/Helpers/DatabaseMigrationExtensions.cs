@@ -35,7 +35,9 @@ namespace CRM.Helpers
                 await db.Database.MigrateAsync();
                 logger.LogInformation("Database schema is up to date.");
 
+                await DataProtectionKeysSchemaEnsure.EnsureAsync(db, logger);
                 await LeadDealAmountSchemaEnsure.EnsureAsync(db, logger);
+                await OrganizationAddressSchemaEnsure.EnsureAsync(db, logger);
                 await CompanyProfileFaviconSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTemplateSchemaEnsure.EnsureAsync(db, logger);
@@ -47,6 +49,7 @@ namespace CRM.Helpers
                 await UserSchemaEnsure.EnsureAsync(db, logger);
                 await LeadSyncSeed.EnsureAsync(db, logger);
                 await UserTargetTypeSeed.EnsureAsync(db, logger);
+                await LeadSourceSeed.EnsureAsync(db, logger);
             }
             catch (Exception ex)
             {

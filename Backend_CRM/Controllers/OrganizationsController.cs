@@ -158,6 +158,7 @@ namespace CRM.Controllers
             o.Name = (dto.Name ?? string.Empty).Trim();
             o.Website = (dto.Website ?? string.Empty).Trim();
             o.Gst = (dto.Gst ?? string.Empty).Trim();
+            o.Address = (dto.Address ?? string.Empty).Trim();
             o.AnnualRevenue = dto.AnnualRevenue;
             o.IndustryId = NormalizeFk(dto.IndustryId);
             o.EmployeeCountId = NormalizeFk(dto.EmployeeCountId);
@@ -184,6 +185,11 @@ namespace CRM.Controllers
             if (dto.Gst != null)
             {
                 o.Gst = dto.Gst.Trim();
+            }
+
+            if (dto.Address != null)
+            {
+                o.Address = dto.Address.Trim();
             }
 
             if (dto.AnnualRevenue.HasValue)
