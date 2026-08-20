@@ -90,7 +90,9 @@ namespace ERP.Infrastructure
             // Dispatch & Logistics - Vehicle Assignment Services
             services.AddScoped<ERP.Infrastructure.Sales.VehicleAssignmentNumberingService>();
             services.AddScoped<ERP.Infrastructure.Sales.TransportNumberingService>();
+            services.AddScoped<ERP.Infrastructure.Sales.LrNumberingService>();
             services.AddScoped<ERP.Application.Sales.IVehicleAssignmentService, ERP.Infrastructure.Sales.VehicleAssignmentService>();
+            services.AddScoped<ERP.Application.Sales.ITransportDetailsService, ERP.Infrastructure.Sales.TransportDetailsService>();
 
             return services;
         }
