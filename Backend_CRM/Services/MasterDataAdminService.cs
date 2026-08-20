@@ -34,6 +34,11 @@ namespace CRM.Services
         Task<(IReadOnlyList<MasterDataRowDto>? Rows, string? Error)> ReorderDealStatusesAsync(
             DealStatusReorderDto dto,
             CancellationToken ct = default);
+
+        Task<(bool Deleted, string? Error, bool NotFound)> DeleteAsync(
+            string entity,
+            int id,
+            CancellationToken ct = default);
     }
 
     public sealed class MasterDataAdminService : IMasterDataAdminService
@@ -47,6 +52,8 @@ namespace CRM.Services
             "industries",
             "employee-counts",
             "territories",
+            "sources",
+            "lead-sources",
         };
 
         private readonly TaskDbcontext _context;
@@ -69,6 +76,7 @@ namespace CRM.Services
                 "industries" => ListCore(_context.Industries, activeOnly, ct),
                 "employee-counts" => ListCore(_context.EmployeeCounts, activeOnly, ct),
                 "territories" => ListCore(_context.Territories, activeOnly, ct),
+                "sources" or "lead-sources" => ListSourcesAsync(activeOnly, ct),
                 _ => throw new ArgumentException($"Unsupported master entity '{entity}'."),
             };
 
@@ -82,6 +90,7 @@ namespace CRM.Services
                 "industries" => GetByIdCore(_context.Industries, id, ct),
                 "employee-counts" => GetByIdCore(_context.EmployeeCounts, id, ct),
                 "territories" => GetByIdCore(_context.Territories, id, ct),
+                "sources" or "lead-sources" => GetByIdCore(_context.LeadSources, id, ct),
                 _ => throw new ArgumentException($"Unsupported master entity '{entity}'."),
             };
 
@@ -98,6 +107,7 @@ namespace CRM.Services
                 "industries" => CreateCore(_context.Industries, () => new Industry(), dto, ct),
                 "employee-counts" => CreateCore(_context.EmployeeCounts, () => new EmployeeCount(), dto, ct),
                 "territories" => CreateCore(_context.Territories, () => new Territory(), dto, ct),
+                "sources" or "lead-sources" => CreateSourceAsync(dto, ct),
                 _ => throw new ArgumentException($"Unsupported master entity '{entity}'."),
             };
 
@@ -115,6 +125,7 @@ namespace CRM.Services
                 "industries" => UpdateCore(_context.Industries, id, dto, ct),
                 "employee-counts" => UpdateCore(_context.EmployeeCounts, id, dto, ct),
                 "territories" => UpdateCore(_context.Territories, id, dto, ct),
+                "sources" or "lead-sources" => UpdateCore(_context.LeadSources, id, dto, ct),
                 _ => throw new ArgumentException($"Unsupported master entity '{entity}'."),
             };
 
@@ -132,6 +143,24 @@ namespace CRM.Services
                 "industries" => PatchActiveCore(_context.Industries, id, isActive, ct),
                 "employee-counts" => PatchActiveCore(_context.EmployeeCounts, id, isActive, ct),
                 "territories" => PatchActiveCore(_context.Territories, id, isActive, ct),
+                "sources" or "lead-sources" => PatchActiveCore(_context.LeadSources, id, isActive, ct),
+                _ => throw new ArgumentException($"Unsupported master entity '{entity}'."),
+            };
+
+        public Task<(bool Deleted, string? Error, bool NotFound)> DeleteAsync(
+            string entity,
+            int id,
+            CancellationToken ct = default) =>
+            entity.Trim().ToLowerInvariant() switch
+            {
+                "salutations" => DeleteSalutationAsync(id, ct),
+                "lead-statuses" => DeleteLeadStatusAsync(id, ct),
+                "deal-statuses" => DeleteDealStatusAsync(id, ct),
+                "request-types" => DeleteRequestTypeAsync(id, ct),
+                "industries" => DeleteIndustryAsync(id, ct),
+                "employee-counts" => DeleteEmployeeCountAsync(id, ct),
+                "territories" => DeleteTerritoryAsync(id, ct),
+                "sources" or "lead-sources" => DeleteSourceAsync(id, ct),
                 _ => throw new ArgumentException($"Unsupported master entity '{entity}'."),
             };
 
@@ -142,6 +171,7 @@ namespace CRM.Services
             Description = row.Description,
             IsActive = row.IsActive,
             CreatedAt = row.CreatedAt == default ? null : row.CreatedAt,
+            SortOrder = row is LeadSource ls ? ls.SortOrder : (row is DealStatus ds ? ds.SortOrder : null),
         };
 
         private static async Task<IReadOnlyList<MasterDataRowDto>> ListCore<T>(
@@ -556,6 +586,209 @@ namespace CRM.Services
             }
 
             return await q.AnyAsync(ct);
+        }
+
+        private async Task<IReadOnlyList<MasterDataRowDto>> ListSourcesAsync(bool activeOnly, CancellationToken ct)
+        {
+            var q = _context.LeadSources.AsNoTracking();
+            if (activeOnly)
+            {
+                q = q.Where(x => x.IsActive);
+            }
+
+            return await q
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Name)
+                .Select(x => new MasterDataRowDto
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Description = x.Description,
+                    IsActive = x.IsActive,
+                    CreatedAt = x.CreatedAt == default ? null : x.CreatedAt,
+                    SortOrder = x.SortOrder,
+                })
+                .ToListAsync(ct);
+        }
+
+        private async Task<(MasterDataRowDto? Row, string? Error)> CreateSourceAsync(
+            MasterDataUpsertDto dto,
+            CancellationToken ct)
+        {
+            var name = (dto.Name ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(name))
+            {
+                return (null, "Name is required.");
+            }
+
+            if (await NameExistsAsync(_context.LeadSources, name, excludeId: null, ct))
+            {
+                return (null, "A record with this name already exists.");
+            }
+
+            var maxSort = await _context.LeadSources.MaxAsync(x => (int?)x.SortOrder, ct) ?? 0;
+            var entity = new LeadSource
+            {
+                Id = 0,
+                Name = name,
+                Description = dto.Description?.Trim() ?? string.Empty,
+                SortOrder = dto.SortOrder.HasValue && dto.SortOrder > 0 ? dto.SortOrder.Value : maxSort + 1,
+                IsActive = dto.IsActive,
+            };
+            await _context.LeadSources.AddAsync(entity, ct);
+            await _context.SaveChangesAsync(ct);
+            return (ToDto(entity), null);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteSalutationAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.Salutations.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            var name = existing.Name.ToLower();
+            var inLeads = await _context.Leads.AnyAsync(l => l.SalutationId == id, ct);
+            var inContacts = await _context.Contacts.AnyAsync(c => c.Salutation.ToLower() == name, ct);
+            var inDeals = await _context.Deals.AnyAsync(d => d.Salutation.ToLower() == name, ct);
+
+            if (inLeads || inContacts || inDeals)
+            {
+                return (false, "Cannot delete: This salutation is assigned to existing leads, contacts, or deals. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.Salutations.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteLeadStatusAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.LeadStatuses.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            if (existing.IsConversionStatus)
+            {
+                return (false, "Cannot delete: This is the designated conversion status for leads becoming deals. Please assign another conversion status first or disable it.", false);
+            }
+
+            var inLeads = await _context.Leads.AnyAsync(l => l.LeadStatusId == id, ct);
+            if (inLeads)
+            {
+                return (false, "Cannot delete: This lead status is assigned to existing leads. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.LeadStatuses.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteDealStatusAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.DealStatuses.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            var name = existing.Name.ToLower();
+            var inDeals = await _context.Deals.AnyAsync(d => d.DealStatusId == id || d.Status.ToLower() == name, ct);
+            var inHistories = await _context.DealStageHistories.AnyAsync(h => h.PreviousStage.ToLower() == name || h.NewStage.ToLower() == name, ct);
+
+            if (inDeals || inHistories)
+            {
+                return (false, "Cannot delete: This deal status is assigned to existing deals. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.DealStatuses.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteRequestTypeAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.RequestTypes.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            var inLeads = await _context.Leads.AnyAsync(l => l.RequestTypeId == id, ct);
+            if (inLeads)
+            {
+                return (false, "Cannot delete: This request type is assigned to existing leads. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.RequestTypes.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteIndustryAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.Industries.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            var name = existing.Name.ToLower();
+            var inOrgs = await _context.Organizations.AnyAsync(o => o.IndustryId == id, ct);
+            var inDeals = await _context.Deals.AnyAsync(d => d.Industry.ToLower() == name, ct);
+
+            if (inOrgs || inDeals)
+            {
+                return (false, "Cannot delete: This industry is assigned to existing organizations or deals. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.Industries.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteEmployeeCountAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.EmployeeCounts.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            var name = existing.Name.ToLower();
+            var inOrgs = await _context.Organizations.AnyAsync(o => o.EmployeeCountId == id, ct);
+            var inDeals = await _context.Deals.AnyAsync(d => d.Employees.ToLower() == name, ct);
+
+            if (inOrgs || inDeals)
+            {
+                return (false, "Cannot delete: This employee count bucket is assigned to existing organizations or deals. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.EmployeeCounts.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteTerritoryAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.Territories.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            var name = existing.Name.ToLower();
+            var inOrgs = await _context.Organizations.AnyAsync(o => o.TerritoryId == id, ct);
+            var inDeals = await _context.Deals.AnyAsync(d => d.Territory.ToLower() == name, ct);
+
+            if (inOrgs || inDeals)
+            {
+                return (false, "Cannot delete: This territory is assigned to existing organizations or deals. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.Territories.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
+        }
+
+        private async Task<(bool Deleted, string? Error, bool NotFound)> DeleteSourceAsync(int id, CancellationToken ct)
+        {
+            var existing = await _context.LeadSources.FindAsync([id], ct);
+            if (existing == null) return (false, null, true);
+
+            var name = existing.Name.ToLower();
+            var inLeads = await _context.Leads.AnyAsync(l => l.LeadSource.ToLower() == name, ct);
+
+            if (inLeads)
+            {
+                return (false, "Cannot delete: This source is assigned to existing leads. Please disable it instead or reassign records first.", false);
+            }
+
+            _context.LeadSources.Remove(existing);
+            await _context.SaveChangesAsync(ct);
+            return (true, null, false);
         }
     }
 }

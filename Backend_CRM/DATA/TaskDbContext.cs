@@ -51,6 +51,8 @@ namespace CRM.DATA
 
         public DbSet<RequestType> RequestTypes { get; set; }
 
+        public DbSet<LeadSource> LeadSources { get; set; }
+
         public DbSet<Role> Roles { get; set; }
 
         public DbSet<Permission> Permissions { get; set; }
@@ -186,6 +188,10 @@ namespace CRM.DATA
 
             modelBuilder.Entity<RequestType>()
                 .HasIndex(r => r.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSource>()
+                .HasIndex(s => s.Name)
                 .IsUnique();
 
             modelBuilder.Entity<Role>()
@@ -601,6 +607,17 @@ namespace CRM.DATA
                 .HasForeignKey(r => r.UpdatedBy)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<LeadSource>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<LeadSource>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<Role>()
                 .HasOne<User>()
                 .WithMany()
@@ -636,6 +653,7 @@ namespace CRM.DATA
             modelBuilder.Entity<LeadStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<DealStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<RequestType>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSource>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Role>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Permission>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();

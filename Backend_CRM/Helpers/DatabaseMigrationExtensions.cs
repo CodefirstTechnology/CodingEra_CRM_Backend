@@ -49,6 +49,7 @@ namespace CRM.Helpers
                 await UserSchemaEnsure.EnsureAsync(db, logger);
                 await LeadSyncSeed.EnsureAsync(db, logger);
                 await UserTargetTypeSeed.EnsureAsync(db, logger);
+                await LeadSourceSeed.EnsureAsync(db, logger);
             }
             catch (Exception ex)
             {
