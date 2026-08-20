@@ -221,6 +221,14 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Sales.DispatchPlanTimelineEvent> DispatchPlanTimelineEvents => Set<ERP.Domain.Sales.DispatchPlanTimelineEvent>();
         public DbSet<ERP.Domain.Sales.DispatchDocumentSequence> DispatchDocumentSequences => Set<ERP.Domain.Sales.DispatchDocumentSequence>();
 
+        // Dispatch & Logistics - Vehicle Assignment & Transport DbSets
+        public DbSet<ERP.Domain.Sales.VehicleAssignment> VehicleAssignments => Set<ERP.Domain.Sales.VehicleAssignment>();
+        public DbSet<ERP.Domain.Sales.VehicleAssignmentAttachment> VehicleAssignmentAttachments => Set<ERP.Domain.Sales.VehicleAssignmentAttachment>();
+        public DbSet<ERP.Domain.Sales.VehicleAssignmentTimelineEvent> VehicleAssignmentTimelineEvents => Set<ERP.Domain.Sales.VehicleAssignmentTimelineEvent>();
+        public DbSet<ERP.Domain.Sales.VehicleAssignmentDocumentSequence> VehicleAssignmentDocumentSequences => Set<ERP.Domain.Sales.VehicleAssignmentDocumentSequence>();
+        public DbSet<ERP.Domain.Sales.TransportDetail> TransportDetails => Set<ERP.Domain.Sales.TransportDetail>();
+        public DbSet<ERP.Domain.Sales.TransportDocumentSequence> TransportDocumentSequences => Set<ERP.Domain.Sales.TransportDocumentSequence>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
