@@ -188,5 +188,53 @@ namespace ERP.Domain.Sales
         public string UpdatedBy { get; set; } = string.Empty;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        public ICollection<EwayAttachment> Attachments { get; set; } = new List<EwayAttachment>();
+
+        public ICollection<EwayTimelineEvent> Timeline { get; set; } = new List<EwayTimelineEvent>();
+    }
+
+    public class EwayAttachment
+    {
+        public int Id { get; set; }
+
+        public int EwayBillId { get; set; }
+
+        public EwayBill EwayBill { get; set; } = null!;
+
+        public string AttachmentId { get; set; } = Guid.NewGuid().ToString();
+
+        public string Name { get; set; } = string.Empty;
+
+        public int SizeKb { get; set; }
+
+        public string UploadedBy { get; set; } = string.Empty;
+
+        public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+
+        public string? Kind { get; set; } = "document";
+    }
+
+    public class EwayTimelineEvent
+    {
+        public int Id { get; set; }
+
+        public int EwayBillId { get; set; }
+
+        public EwayBill EwayBill { get; set; } = null!;
+
+        public string EventId { get; set; } = Guid.NewGuid().ToString();
+
+        public DateTime Date { get; set; } = DateTime.UtcNow;
+
+        public string User { get; set; } = string.Empty;
+
+        public string Action { get; set; } = string.Empty;
+
+        public string? FromStatus { get; set; }
+
+        public string? ToStatus { get; set; }
+
+        public string? Remarks { get; set; }
     }
 }

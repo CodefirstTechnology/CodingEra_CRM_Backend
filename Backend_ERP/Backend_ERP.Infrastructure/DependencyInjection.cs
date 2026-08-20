@@ -95,6 +95,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Sales.IVehicleAssignmentService, ERP.Infrastructure.Sales.VehicleAssignmentService>();
             services.AddScoped<ERP.Application.Sales.ITransportDetailsService, ERP.Infrastructure.Sales.TransportDetailsService>();
             services.AddScoped<ERP.Application.Sales.ILrManagementService, ERP.Infrastructure.Sales.LrManagementService>();
+            services.AddScoped<ERP.Application.Sales.IEwayBillService, ERP.Infrastructure.Sales.EwayBillService>();
 
             return services;
         }

@@ -235,6 +235,8 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Sales.LrTimelineEvent> LrTimelineEvents => Set<ERP.Domain.Sales.LrTimelineEvent>();
         public DbSet<ERP.Domain.Sales.LrDocumentSequence> LrDocumentSequences => Set<ERP.Domain.Sales.LrDocumentSequence>();
         public DbSet<ERP.Domain.Sales.EwayBill> EwayBills => Set<ERP.Domain.Sales.EwayBill>();
+        public DbSet<ERP.Domain.Sales.EwayAttachment> EwayAttachments => Set<ERP.Domain.Sales.EwayAttachment>();
+        public DbSet<ERP.Domain.Sales.EwayTimelineEvent> EwayTimelineEvents => Set<ERP.Domain.Sales.EwayTimelineEvent>();
         public DbSet<ERP.Domain.Sales.EwayDocumentSequence> EwayDocumentSequences => Set<ERP.Domain.Sales.EwayDocumentSequence>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

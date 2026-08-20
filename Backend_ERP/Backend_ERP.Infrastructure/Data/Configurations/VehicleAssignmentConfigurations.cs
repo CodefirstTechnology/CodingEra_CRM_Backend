@@ -311,6 +311,50 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.DispatchId);
             builder.HasIndex(x => x.TransportId);
             builder.HasIndex(x => x.CustomerId);
+
+            builder.HasMany(x => x.Attachments)
+                .WithOne(x => x.EwayBill)
+                .HasForeignKey(x => x.EwayBillId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.Timeline)
+                .WithOne(x => x.EwayBill)
+                .HasForeignKey(x => x.EwayBillId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class EwayAttachmentConfiguration : IEntityTypeConfiguration<EwayAttachment>
+    {
+        public void Configure(EntityTypeBuilder<EwayAttachment> builder)
+        {
+            builder.ToTable("EwayAttachments");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.AttachmentId).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.Name).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.UploadedBy).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.Kind).HasMaxLength(32);
+
+            builder.HasIndex(x => x.EwayBillId);
+        }
+    }
+
+    public class EwayTimelineEventConfiguration : IEntityTypeConfiguration<EwayTimelineEvent>
+    {
+        public void Configure(EntityTypeBuilder<EwayTimelineEvent> builder)
+        {
+            builder.ToTable("EwayTimelineEvents");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.EventId).IsRequired().HasMaxLength(64);
+            builder.Property(x => x.User).IsRequired().HasMaxLength(128);
+            builder.Property(x => x.Action).IsRequired().HasMaxLength(256);
+            builder.Property(x => x.FromStatus).HasMaxLength(32);
+            builder.Property(x => x.ToStatus).HasMaxLength(32);
+            builder.Property(x => x.Remarks).HasMaxLength(1000);
+
+            builder.HasIndex(x => x.EwayBillId);
         }
     }
 

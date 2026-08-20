@@ -151,4 +151,52 @@ namespace ERP.Application.Sales.Dtos
         public string UpdatedBy { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
     }
+
+    public class EwayListItemDto
+    {
+        public int Id { get; set; }
+        public string EwayBillNumber { get; set; } = string.Empty;
+        public string DispatchNumber { get; set; } = string.Empty;
+        public string InvoiceNumber { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string GstNumber { get; set; } = string.Empty;
+        public string VehicleNumber { get; set; } = string.Empty;
+        public string ValidityTo { get; set; } = string.Empty;
+        public EwayStatus Status { get; set; } = EwayStatus.Draft;
+    }
+
+    public class EwayCreateRequestDto
+    {
+        public int DispatchId { get; set; }
+        public string DispatchNumber { get; set; } = string.Empty;
+        public string InvoiceNumber { get; set; } = string.Empty;
+        public int CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string GstNumber { get; set; } = string.Empty;
+        public string VehicleNumber { get; set; } = string.Empty;
+        public int TransportId { get; set; }
+        public string TransportNumber { get; set; } = string.Empty;
+        public string ValidityFrom { get; set; } = string.Empty;
+        public string ValidityTo { get; set; } = string.Empty;
+        public decimal DistanceKm { get; set; }
+        public string? Remarks { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class EwayUpdateRequestDto : EwayCreateRequestDto
+    {
+    }
+
+    public class EwayExtendRequestDto
+    {
+        public string? ValidityTo { get; set; }
+        public string? Remarks { get; set; }
+    }
+
+    public class EwayDashboardDto
+    {
+        public int ActiveBills { get; set; }
+        public int ExpiringSoon { get; set; }
+        public int Expired { get; set; }
+    }
 }
