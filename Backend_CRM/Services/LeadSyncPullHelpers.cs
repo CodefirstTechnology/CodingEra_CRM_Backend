@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace CRM.Services
 {
-    internal static class LeadSyncPullHelpers
+    public static class LeadSyncPullHelpers
     {
         public static List<JsonElement> ExtractLeadArray(JsonElement body)
         {
