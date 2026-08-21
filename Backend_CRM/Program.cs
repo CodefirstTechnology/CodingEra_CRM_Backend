@@ -60,6 +60,8 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<LeadSyncIndiaMartOptions>(
     builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
+builder.Services.Configure<IndiaMartWebhookOptions>(
+    builder.Configuration.GetSection(IndiaMartWebhookOptions.SectionName));
 builder.Services.Configure<JustdialWebhookOptions>(
     builder.Configuration.GetSection(JustdialWebhookOptions.SectionName));
 builder.Services.AddDataProtection()
@@ -87,6 +89,9 @@ builder.Services.AddScoped<IContactImportService, ContactImportService>();
 builder.Services.AddScoped<IContactImportFileParser, ContactImportFileParser>();
 builder.Services.AddScoped<ILeadExportService, LeadExportService>();
 builder.Services.AddScoped<IDealExportService, DealExportService>();
+builder.Services.AddSingleton<IIndiaMartWebhookMetrics, IndiaMartWebhookMetrics>();
+builder.Services.AddScoped<IIndiaMartWebhookSecurityService, IndiaMartWebhookSecurityService>();
+builder.Services.AddScoped<IIndiaMartWebhookService, IndiaMartWebhookService>();
 builder.Services.AddSingleton<IJustdialWebhookMetrics, JustdialWebhookMetrics>();
 builder.Services.AddScoped<IJustdialWebhookSecurityService, JustdialWebhookSecurityService>();
 builder.Services.AddScoped<IJustdialWebhookService, JustdialWebhookService>();
