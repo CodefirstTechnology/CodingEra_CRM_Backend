@@ -40,11 +40,14 @@ namespace ERP.API.Middleware
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled server exception occurred");
+                _logger.LogError(ex, "Unhandled server exception occurred: {Message}", ex.Message);
+                var message = context.Request.Path.StartsWithSegments("/swagger") || string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase)
+                    ? $"{ex.Message} -> {ex.InnerException?.Message}"
+                    : "An unexpected error occurred. Please contact support.";
                 await WriteResponseAsync(
                     context,
                     HttpStatusCode.InternalServerError,
-                    "An unexpected error occurred. Please contact support.");
+                    message);
             }
         }
 
