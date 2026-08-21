@@ -232,5 +232,45 @@ namespace CRM.Controllers
                 return NotFound(ex.Message);
             }
         }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(
+            string entity,
+            int id,
+            [FromQuery] int userId)
+        {
+            var adminErr = await AdminUserValidation.ValidateAdminUserAsync(_context, userId, _rbac);
+            if (adminErr != null)
+            {
+                return adminErr;
+            }
+
+            if (!_masterData.IsSupportedEntity(entity))
+            {
+                return NotFound($"Unsupported master entity '{entity}'.");
+            }
+
+            AuditUserValidation.SetAuditUser(_context, userId);
+
+            try
+            {
+                var (deleted, error, notFound) = await _masterData.DeleteAsync(entity, id);
+                if (notFound)
+                {
+                    return NotFound();
+                }
+
+                if (error != null)
+                {
+                    return Conflict(error);
+                }
+
+                return Ok(new { deleted = true });
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
     }
 }

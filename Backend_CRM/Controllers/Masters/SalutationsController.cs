@@ -140,6 +140,15 @@ namespace CRM.Controllers.Masters
                 return NotFound();
             }
 
+            var name = entity.Name.ToLower();
+            var inLeads = await _context.Leads.AnyAsync(l => l.SalutationId == id);
+            var inContacts = await _context.Contacts.AnyAsync(c => c.Salutation.ToLower() == name);
+            var inDeals = await _context.Deals.AnyAsync(d => d.Salutation.ToLower() == name);
+            if (inLeads || inContacts || inDeals)
+            {
+                return Conflict(new { message = "Cannot delete: This salutation is assigned to existing leads, contacts, or deals. Please disable it instead or reassign records first." });
+            }
+
             _context.Salutations.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });

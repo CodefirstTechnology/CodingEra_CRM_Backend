@@ -45,6 +45,15 @@ namespace CRM.models
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 
+        [Column("is_online")]
+        public bool IsOnline { get; set; } = false;
+
+        [Column("last_active_at")]
+        public DateTime? LastActiveAt { get; set; }
+
+        [Column("first_login_at")]
+        public DateTime? FirstLoginAt { get; set; }
+
         [Column("created_by")]
         public int? CreatedBy { get; set; }
 

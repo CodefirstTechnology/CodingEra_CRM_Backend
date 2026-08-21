@@ -133,6 +133,14 @@ namespace CRM.Controllers.Masters
                 return NotFound();
             }
 
+            var name = entity.Name.ToLower();
+            var inOrgs = await _context.Organizations.AnyAsync(o => o.IndustryId == id);
+            var inDeals = await _context.Deals.AnyAsync(d => d.Industry.ToLower() == name);
+            if (inOrgs || inDeals)
+            {
+                return Conflict(new { message = "Cannot delete: This industry is assigned to existing organizations or deals. Please disable it instead or reassign records first." });
+            }
+
             _context.Industries.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });

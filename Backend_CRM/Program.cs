@@ -2,7 +2,9 @@ using System.Text.Json.Serialization;
 using CRM.Configuration;
 using CRM.DATA;
 using CRM.Helpers;
+using CRM.Hubs;
 using CRM.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,15 +25,30 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular",
         policy =>
         {
-            policy.WithOrigins("http://localhost:4200")
+            policy.SetIsOriginAllowed(origin =>
+                {
+                    if (string.IsNullOrWhiteSpace(origin)) return false;
+                    try
+                    {
+                        var uri = new Uri(origin);
+                        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                               uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                })
                 .AllowAnyHeader()
-                .AllowAnyMethod();
+                .AllowAnyMethod()
+                .AllowCredentials();
         });
 });
 
@@ -45,7 +62,9 @@ builder.Services.Configure<LeadSyncIndiaMartOptions>(
     builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
 builder.Services.Configure<JustdialWebhookOptions>(
     builder.Configuration.GetSection(JustdialWebhookOptions.SectionName));
-builder.Services.AddDataProtection();
+builder.Services.AddDataProtection()
+    .SetApplicationName("CodingEra_CRM")
+    .PersistKeysToDbContext<TaskDbcontext>();
 builder.Services.AddHttpClient("LeadSyncIndiaMart");
 builder.Services.AddHttpClient("LeadSyncMarketplace");
 builder.Services.AddScoped<ILeadSyncCredentialService, LeadSyncCredentialService>();
@@ -92,5 +111,7 @@ app.UseCors("AllowAngular");
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<UserStatusHub>("/hubs/user-status");
+app.MapHub<UserStatusHub>("/api/hubs/user-status");
 
 app.Run();
