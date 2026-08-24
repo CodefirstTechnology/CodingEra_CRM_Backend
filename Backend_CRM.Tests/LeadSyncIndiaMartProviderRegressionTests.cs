@@ -21,13 +21,13 @@ namespace Backend_CRM.Tests
             var credentials = new LeadSyncResolvedCredentials
             {
                 PullApiUrl = "https://mapi.indiamart.com/wservce/crm/crmListing/v2",
-                ApiKey = "sample_glusr_crm_key_123"
+                ApiKey = "TEST_MOCK_PLACEHOLDER_KEY"
             };
 
             var url = LeadSyncPullHelpers.BuildIndiaMartPullUrl(credentials);
 
             Assert.Contains("https://mapi.indiamart.com/wservce/crm/crmListing/v2", url);
-            Assert.Contains("glusr_crm_key=sample_glusr_crm_key_123", url);
+            Assert.Contains("glusr_crm_key=TEST_MOCK_PLACEHOLDER_KEY", url);
             Assert.Contains("start_time=", url);
             Assert.Contains("end_time=", url);
         }

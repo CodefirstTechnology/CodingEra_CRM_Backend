@@ -95,6 +95,17 @@ namespace CRM.Controllers
                 return err;
             }
 
+            if (!string.IsNullOrWhiteSpace(entity.Gst))
+            {
+                var normalizedGst = entity.Gst.Trim().ToUpperInvariant();
+                var duplicate = await _context.Organizations.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Gst != null && o.Gst.ToUpper() == normalizedGst);
+                if (duplicate != null)
+                {
+                    return Conflict(new { message = "An organization with this GSTIN already exists.", existingId = duplicate.Id, existingName = duplicate.Name });
+                }
+            }
+
             await _context.Organizations.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(await QueryWithMasters(_context.Organizations.AsNoTracking()).FirstAsync(o => o.Id == entity.Id));
@@ -140,6 +151,17 @@ namespace CRM.Controllers
             if (err != null)
             {
                 return err;
+            }
+
+            if (!string.IsNullOrWhiteSpace(existing.Gst))
+            {
+                var normalizedGst = existing.Gst.Trim().ToUpperInvariant();
+                var duplicate = await _context.Organizations.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id != id && o.Gst != null && o.Gst.ToUpper() == normalizedGst);
+                if (duplicate != null)
+                {
+                    return Conflict(new { message = "An organization with this GSTIN already exists.", existingId = duplicate.Id, existingName = duplicate.Name });
+                }
             }
 
             await _context.SaveChangesAsync();

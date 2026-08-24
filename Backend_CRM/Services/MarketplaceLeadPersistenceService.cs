@@ -234,8 +234,12 @@ namespace CRM.Services
                 OrganizationId = organizationId,
                 LeadSource = leadSource,
                 LeadStatusId = defaultStatusId > 0 ? defaultStatusId : null,
-                LeadDate = DateTime.UtcNow.Date,
-                CreatedAt = item.CreatedAt ?? DateTime.UtcNow,
+                LeadDate = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc),
+                CreatedAt = item.CreatedAt.HasValue
+                    ? (item.CreatedAt.Value.Kind == DateTimeKind.Unspecified
+                        ? DateTime.SpecifyKind(item.CreatedAt.Value, DateTimeKind.Utc)
+                        : item.CreatedAt.Value.ToUniversalTime())
+                    : DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
             };
 

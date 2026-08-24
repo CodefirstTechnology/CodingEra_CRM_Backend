@@ -62,23 +62,30 @@ namespace CRM.Controllers
 
         /// <summary>
         /// Primary webhook lead receiver (JSON payload).
-        /// Accepts standard IndiaMART lead notifications.
+        /// Accepts standard IndiaMART lead notifications (both wrapped envelope and direct flat payloads).
         /// </summary>
         /// <remarks>
-        /// Sample request body:
+        /// Official IndiaMART Push Webhook envelope sample:
         ///
         ///     {
-        ///       "UNIQUE_QUERY_ID": "IM-PUSH-99001",
-        ///       "SENDER_NAME": "Rajesh Sharma",
-        ///       "SENDER_MOBILE": "9876543210",
-        ///       "SENDER_EMAIL": "rajesh.sharma@example.com",
-        ///       "SUBJECT": "Industrial Valve Inquiry",
-        ///       "QUERY_PRODUCT_NAME": "Industrial Control Valve",
-        ///       "QUERY_MESSAGE": "Looking for 50 units of stainless steel control valves.",
-        ///       "GLUSR_USR_COMPANYNAME": "Sharma Engineering Works",
-        ///       "SENDER_CITY": "Ahmedabad",
-        ///       "SENDER_STATE": "Gujarat",
-        ///       "QUERY_TIME": "2026-08-21 12:00:00"
+        ///       "CODE": 200,
+        ///       "STATUS": "SUCCESS",
+        ///       "RESPONSE": {
+        ///         "UNIQUE_QUERY_ID": "111111111",
+        ///         "SENDER_NAME": "Indiamart",
+        ///         "SENDER_MOBILE": "+91-9999999999",
+        ///         "SENDER_EMAIL": "abcdeprabhat@indiamart.com",
+        ///         "SENDER_PHONE": "0120-2222222",
+        ///         "SENDER_COMPANY": "Indiamart Intermesh pvt Ltd.",
+        ///         "SENDER_ADDRESS": "Sec 135, Noida, Uttar Pradesh",
+        ///         "SENDER_CITY": "Noida",
+        ///         "SENDER_STATE": "Uttar Pradesh",
+        ///         "SENDER_PINCODE": "201304",
+        ///         "QUERY_PRODUCT_NAME": "Mineral Water Bottle",
+        ///         "QUERY_MESSAGE": "I want to purchase an Empty Mineral Water Bottle. Kindly send me price and other details.",
+        ///         "QUERY_TIME": "2024-04-10 11:17:14",
+        ///         "QUERY_TYPE": "B"
+        ///       }
         ///     }
         ///
         /// </remarks>
