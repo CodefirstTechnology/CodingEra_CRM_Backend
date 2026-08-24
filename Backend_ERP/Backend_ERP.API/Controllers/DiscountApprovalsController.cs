@@ -16,15 +16,18 @@ namespace ERP.API.Controllers
         private readonly IDiscountApprovalService _service;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
+        private readonly IErpWorkflowAuthorizationService _workflowAuthService;
 
         public DiscountApprovalsController(
             IDiscountApprovalService service,
             ICurrentUser currentUser,
-            IErpAuthorizationService authService)
+            IErpAuthorizationService authService,
+            IErpWorkflowAuthorizationService workflowAuthService)
         {
             _service = service;
             _currentUser = currentUser;
             _authService = authService;
+            _workflowAuthService = workflowAuthService;
         }
 
         [HttpGet]
@@ -223,6 +226,11 @@ namespace ERP.API.Controllers
                     request.SalesPersonUserId = _currentUser.UserId.Value;
                 }
 
+                if (!_workflowAuthService.CanCreateDiscountApproval(request.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot create a discount approval for another user's quotation." });
+                }
+
                 var created = await _service.CreateAsync(
                     request, ResolveActingUser(userId), cancellationToken);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -246,9 +254,9 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                if (!_workflowAuthService.CanEditDiscountApproval(existing.Status, existing.SalesPersonUserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's discount request." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify this discount request in its current workflow state." });
                 }
 
                 var updated = await _service.UpdateAsync(
@@ -273,9 +281,9 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                if (!_workflowAuthService.CanCancelDiscountApproval(existing.Status, existing.SalesPersonUserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot delete another user's discount request." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot delete this discount request in its current workflow state." });
                 }
 
                 var ok = await _service.DeleteAsync(id, ResolveActingUser(userId), cancellationToken);
@@ -295,6 +303,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanApproveDiscountApproval(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot approve this discount request in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.ApproveAsync, cancellationToken);
         }
 
@@ -306,6 +322,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanRejectDiscountApproval(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot reject this discount request in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.RejectAsync, cancellationToken);
         }
 
@@ -317,6 +341,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanReturnDiscountApproval(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot return this discount request in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.ReturnAsync, cancellationToken);
         }
 
@@ -328,6 +360,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanCancelDiscountApproval(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot cancel this discount request in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.CancelAsync, cancellationToken);
         }
 
@@ -342,9 +382,9 @@ namespace ERP.API.Controllers
             var existing = await _service.GetByIdAsync(id, cancellationToken);
             if (existing is null) return NotFound();
 
-            if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+            if (!_workflowAuthService.CanResubmitDiscountApproval(existing.Status, existing.SalesPersonUserId))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot resubmit another user's discount request." });
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot resubmit this discount request in its current workflow state." });
             }
 
             return await Decision(id, request, userId, _service.ResubmitAsync, cancellationToken);

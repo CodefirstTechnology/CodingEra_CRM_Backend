@@ -16,15 +16,18 @@ namespace ERP.API.Controllers
         private readonly IQuotationApprovalService _service;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
+        private readonly IErpWorkflowAuthorizationService _workflowAuthService;
 
         public QuotationApprovalsController(
             IQuotationApprovalService service,
             ICurrentUser currentUser,
-            IErpAuthorizationService authService)
+            IErpAuthorizationService authService,
+            IErpWorkflowAuthorizationService workflowAuthService)
         {
             _service = service;
             _currentUser = currentUser;
             _authService = authService;
+            _workflowAuthService = workflowAuthService;
         }
 
         // ─── Queries ──────────────────────────────────────────────────────────
@@ -200,9 +203,9 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                if (!_workflowAuthService.CanEditQuotation(existing.Status, existing.SalesPersonUserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's quotation." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify this quotation in its current workflow state." });
                 }
 
                 var updated = await _service.UpdateAsync(id, request, ResolveActingUser(userId), cancellationToken);
@@ -226,9 +229,9 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                if (!_workflowAuthService.CanDeleteQuotation(existing.Status, existing.SalesPersonUserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot delete another user's quotation." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot delete this quotation in its current workflow state." });
                 }
 
                 var ok = await _service.DeleteAsync(id, ResolveActingUser(userId), cancellationToken);
@@ -280,9 +283,9 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                if (!_workflowAuthService.CanSubmitQuotation(existing.Status, existing.SalesPersonUserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot submit another user's quotation." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot submit this quotation in its current workflow state." });
                 }
 
                 var result = await _service.SubmitAsync(id, ResolveActingUser(userId), cancellationToken);
@@ -302,6 +305,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanApproveQuotation(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot review this quotation in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.ReviewAsync, cancellationToken);
         }
 
@@ -313,6 +324,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanApproveQuotation(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot approve this quotation in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.ApproveAsync, cancellationToken);
         }
 
@@ -324,6 +343,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanRejectQuotation(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot reject this quotation in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.RejectAsync, cancellationToken);
         }
 
@@ -335,6 +362,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanReturnQuotation(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot return this quotation in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.ReturnAsync, cancellationToken);
         }
 
@@ -368,6 +403,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanReopenQuotation(existing.Status, existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot reopen this quotation in its current workflow state." });
+            }
+
             return await Decision(id, request, userId, _service.ReopenAsync, cancellationToken);
         }
 
@@ -383,9 +426,9 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                if (!_workflowAuthService.CanConvertQuotation(existing.Status, existing.SalesPersonUserId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot convert another user's quotation." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot convert this quotation to a sales order in its current workflow state." });
                 }
 
                 var created = await _service.ConvertToSalesOrderAsync(id, ResolveActingUser(userId), cancellationToken);

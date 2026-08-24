@@ -16,15 +16,18 @@ namespace ERP.API.Controllers
         private readonly IAdvancePaymentService _service;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
+        private readonly IErpWorkflowAuthorizationService _workflowAuthService;
 
         public AdvancePaymentsController(
             IAdvancePaymentService service,
             ICurrentUser currentUser,
-            IErpAuthorizationService authService)
+            IErpAuthorizationService authService,
+            IErpWorkflowAuthorizationService workflowAuthService)
         {
             _service = service;
             _currentUser = currentUser;
             _authService = authService;
+            _workflowAuthService = workflowAuthService;
         }
 
         [HttpGet]
@@ -161,6 +164,11 @@ namespace ERP.API.Controllers
             var row = await _service.GetByIdAsync(id, cancellationToken);
             if (row is null) return NotFound();
 
+            if (!_authService.CanAccessRecord(row.CreatedBy))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this advance payment." });
+            }
+
             return Ok(row);
         }
 
@@ -192,6 +200,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanEditAdvancePayment(existing.Status, existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify this advance payment in its current workflow state." });
+                }
+
                 var updated = await _service.UpdateAsync(id, request, ResolveActingUser(userId), cancellationToken);
                 return updated is null ? NotFound() : Ok(updated);
             }
@@ -227,6 +243,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanSubmitAdvancePayment(existing.Status, existing.CreatedBy))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot submit this advance payment in its current workflow state." });
+            }
+
             return await Workflow(id, request, userId, _service.SubmitAsync, cancellationToken);
         }
 
@@ -238,6 +262,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanVerifyAdvancePayment(existing.Status))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot verify this advance payment in its current workflow state." });
+            }
+
             return await Workflow(id, request, userId, _service.VerifyAsync, cancellationToken);
         }
 
@@ -249,6 +281,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_workflowAuthService.CanReceiveAdvancePayment(existing.Status))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot receive this advance payment in its current workflow state." });
+            }
+
             return await Workflow(id, request, userId, _service.ReceiveAsync, cancellationToken);
         }
 
@@ -284,6 +324,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanApplyAdvancePayment(existing.Status, existing.RemainingAmount, existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot apply this advance payment in its current workflow state." });
+                }
+
                 var updated = await _service.ApplyAsync(id, request, ResolveActingUser(userId), cancellationToken);
                 return updated is null ? NotFound() : Ok(updated);
             }

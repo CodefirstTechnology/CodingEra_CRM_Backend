@@ -20,6 +20,7 @@ namespace ERP.Infrastructure
             services.AddHttpContextAccessor();
             services.AddScoped<ERP.Application.Common.Security.ICurrentUser, ERP.Infrastructure.Security.CurrentUser>();
             services.AddScoped<ERP.Application.Common.Security.IErpAuthorizationService, ERP.Infrastructure.Security.ErpAuthorizationService>();
+            services.AddScoped<ERP.Application.Common.Security.IErpWorkflowAuthorizationService, ERP.Infrastructure.Security.ErpWorkflowAuthorizationService>();
 
             services.AddScoped<ISalesOrderService, SalesOrderService>();
             services.AddScoped<IProformaInvoiceRepository, ProformaInvoiceRepository>();

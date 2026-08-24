@@ -16,15 +16,18 @@ namespace ERP.API.Controllers
         private readonly IProformaInvoiceService _service;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
+        private readonly IErpWorkflowAuthorizationService _workflowAuthService;
 
         public ProformaInvoicesController(
             IProformaInvoiceService service,
             ICurrentUser currentUser,
-            IErpAuthorizationService authService)
+            IErpAuthorizationService authService,
+            IErpWorkflowAuthorizationService workflowAuthService)
         {
             _service = service;
             _currentUser = currentUser;
             _authService = authService;
+            _workflowAuthService = workflowAuthService;
         }
 
         [HttpGet]
@@ -118,9 +121,9 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!CanAccessPi(existing))
+                if (!CanAccessPi(existing) || !_workflowAuthService.CanEditProformaInvoice(existing.Status, existing.SalesPersonId))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's proforma invoice." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify this proforma invoice in its current workflow state." });
                 }
 
                 var updated = await _service.UpdateAsync(id, request, ResolveActingUser(userId), cancellationToken);
@@ -222,6 +225,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanApproveProformaInvoice(existing.Status, existing.SalesPersonId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot approve this proforma invoice in its current workflow state." });
+                }
+
                 var updated = await _service.ApplyApprovalAsync(id, request, ResolveActingUser(userId), cancellationToken);
                 return updated is null ? NotFound() : Ok(updated);
             }
@@ -241,6 +252,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanConvertProformaInvoice(existing.Status, existing.Conversion != null))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot convert this proforma invoice in its current workflow state." });
+                }
+
                 var updated = await _service.ConvertAsync(
                     id,
                     request ?? new ProformaInvoiceConvertRequestDto(),

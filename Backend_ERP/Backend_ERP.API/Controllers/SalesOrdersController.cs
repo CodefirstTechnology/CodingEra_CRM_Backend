@@ -18,19 +18,22 @@ namespace ERP.API.Controllers
         private readonly IAdvancePaymentService _advancePayments;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
+        private readonly IErpWorkflowAuthorizationService _workflowAuthService;
 
         public SalesOrdersController(
             ISalesOrderService salesOrders,
             IProformaInvoiceService proformaInvoices,
             IAdvancePaymentService advancePayments,
             ICurrentUser currentUser,
-            IErpAuthorizationService authService)
+            IErpAuthorizationService authService,
+            IErpWorkflowAuthorizationService workflowAuthService)
         {
             _salesOrders = salesOrders;
             _proformaInvoices = proformaInvoices;
             _advancePayments = advancePayments;
             _currentUser = currentUser;
             _authService = authService;
+            _workflowAuthService = workflowAuthService;
         }
 
         [HttpGet]
@@ -98,6 +101,11 @@ namespace ERP.API.Controllers
         {
             try
             {
+                if (_currentUser.Scope == AccessScope.Own)
+                {
+                    if (_currentUser.FullName != null) request.SalesPerson = _currentUser.FullName;
+                }
+
                 var created = await _salesOrders.CreateAsync(
                     request,
                     ResolveActingUser(userId),
@@ -123,9 +131,9 @@ namespace ERP.API.Controllers
                 var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                if (!_workflowAuthService.CanEditSalesOrder(existing.Status, existing.CreatedBy))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's sales order." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify this sales order in its current workflow state." });
                 }
 
                 var updated = await _salesOrders.UpdateAsync(
@@ -156,6 +164,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanConfirmSalesOrder(existing.Status, existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot change the status of this sales order in its current workflow state." });
+                }
+
                 var updated = await _salesOrders.UpdateStatusAsync(
                     id,
                     request,
@@ -187,9 +203,9 @@ namespace ERP.API.Controllers
                 var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                if (!_workflowAuthService.CanCancelSalesOrder(existing.Status, existing.CreatedBy))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot cancel another user's sales order." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot cancel this sales order in its current workflow state." });
                 }
 
                 var updated = await _salesOrders.CancelAsync(
@@ -243,9 +259,9 @@ namespace ERP.API.Controllers
                 var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                if (!_workflowAuthService.CanCreateProformaFromSalesOrder(existing.Status, existing.CreatedBy))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot generate PI for another user's sales order." });
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot generate a proforma invoice for another user's sales order." });
                 }
 
                 var created = await _proformaInvoices.GenerateFromSalesOrderAsync(
