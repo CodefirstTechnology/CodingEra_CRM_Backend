@@ -24,5 +24,10 @@ namespace ERP.Application.Common.Security
         /// For Admin, this always returns true (ALL scope).
         /// </summary>
         bool CanAccessRecord(int? recordOwnerUserId, AccessScope requiredScope = AccessScope.Own);
+
+        /// <summary>
+        /// Checks if the current user has access to a specific record based on string identifier (e.g. CreatedBy) and current scope.
+        /// </summary>
+        bool CanAccessRecord(string? recordOwnerString, AccessScope requiredScope = AccessScope.Own);
     }
 }

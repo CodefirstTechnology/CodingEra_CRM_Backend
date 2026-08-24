@@ -204,5 +204,68 @@ namespace ERP.Shared.Security
             Accounting.View,
             Accounting.Outstanding
         };
+
+        /// <summary>
+        /// Exact permissions allowed for the Sales Executive role in Phase 2.
+        /// </summary>
+        public static readonly IReadOnlyList<string> SalesExecutiveAllowed = new[]
+        {
+            // Price Lists
+            PriceLists.View,
+            PriceLists.Compare,
+
+            // Quotations (Own scope)
+            Quotations.View,
+            Quotations.Create,
+            Quotations.Edit,
+            Quotations.Duplicate,
+            Quotations.Submit,
+            Quotations.GeneratePdf,
+            Quotations.SendEmail,
+            Quotations.Convert,
+
+            // Discount Approvals (Own scope)
+            DiscountApprovals.View,
+            DiscountApprovals.Create,
+            DiscountApprovals.Resubmit,
+
+            // Sales Orders (Own scope)
+            SalesOrders.View,
+            SalesOrders.Create,
+            SalesOrders.Edit,
+            SalesOrders.Submit,
+            SalesOrders.GeneratePdf,
+            SalesOrders.SendEmail,
+            SalesOrders.AuditView,
+
+            // Proforma Invoices (Own scope)
+            ProformaInvoices.View,
+            ProformaInvoices.Create,
+            ProformaInvoices.Edit,
+            ProformaInvoices.Submit,
+            ProformaInvoices.Email,
+            ProformaInvoices.Whatsapp,
+            ProformaInvoices.GeneratePdf,
+
+            // Advance Payments (Own scope)
+            AdvancePayments.View,
+            AdvancePayments.Create,
+            AdvancePayments.Apply,
+
+            // Sales Targets (Own scope)
+            SalesTargets.View,
+            SalesTargets.DashboardView,
+
+            // Performance (Own scope)
+            Performance.View,
+
+            // Dispatch Logistics (Read-only tracking)
+            DispatchLogistics.View,
+            DispatchLogistics.Pod,
+
+            // Accounting (Read-only own scope)
+            Accounting.View,
+            Accounting.Outstanding
+        };
     }
 }

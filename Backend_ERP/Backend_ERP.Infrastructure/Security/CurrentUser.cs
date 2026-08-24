@@ -30,7 +30,7 @@ namespace ERP.Infrastructure.Security
             get
             {
                 var principal = Principal;
-                if (principal == null || !principal.Identity?.IsAuthenticated == true)
+                if (principal?.Identity == null || !principal.Identity.IsAuthenticated)
                 {
                     return null;
                 }
@@ -65,7 +65,7 @@ namespace ERP.Infrastructure.Security
             get
             {
                 var principal = Principal;
-                if (principal == null) return null;
+                if (principal?.Identity == null || !principal.Identity.IsAuthenticated) return null;
 
                 return principal.FindFirst("email")?.Value
                     ?? principal.FindFirst("Email")?.Value
@@ -79,12 +79,11 @@ namespace ERP.Infrastructure.Security
             get
             {
                 var principal = Principal;
-                if (principal == null) return null;
+                if (principal?.Identity == null || !principal.Identity.IsAuthenticated) return null;
 
-                return principal.FindFirst("name")?.Value
+                return principal.FindFirst("fullName")?.Value
                     ?? principal.FindFirst("FullName")?.Value
-                    ?? principal.FindFirst("fullName")?.Value
-                    ?? principal.FindFirst("unique_name")?.Value
+                    ?? principal.FindFirst("name")?.Value
                     ?? principal.FindFirst(ClaimTypes.Name)?.Value;
             }
         }
@@ -94,7 +93,7 @@ namespace ERP.Infrastructure.Security
             get
             {
                 var principal = Principal;
-                if (principal == null) return null;
+                if (principal?.Identity == null || !principal.Identity.IsAuthenticated) return null;
 
                 var roleClaim = principal.FindFirst("role")?.Value
                     ?? principal.FindFirst("Role")?.Value
@@ -142,25 +141,28 @@ namespace ERP.Infrastructure.Security
         {
             get
             {
+                if (!IsAuthenticated)
+                {
+                    return Array.Empty<string>();
+                }
+
                 if (IsAdmin)
                 {
                     return ErpPermissions.All;
                 }
 
                 var principal = Principal;
-                if (principal == null)
-                {
-                    return Array.Empty<string>();
-                }
+                var claimsPerms = principal != null
+                    ? principal.FindAll("permission")
+                        .Concat(principal.FindAll("permissions"))
+                        .Select(c => c.Value.Trim())
+                        .Where(p => !string.IsNullOrWhiteSpace(p))
+                    : Enumerable.Empty<string>();
 
-                var userPerms = principal.FindAll("permission")
-                    .Concat(principal.FindAll("permissions"))
-                    .Select(c => c.Value.Trim())
-                    .Where(p => !string.IsNullOrWhiteSpace(p))
+                return ErpPermissions.SalesExecutiveAllowed
+                    .Concat(claimsPerms)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-
-                return userPerms;
             }
         }
 
