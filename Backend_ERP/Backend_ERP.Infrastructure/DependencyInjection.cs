@@ -17,6 +17,10 @@ namespace ERP.Infrastructure
                 options.UseNpgsql(
                     configuration.GetConnectionString("DefaultConnection")));
 
+            services.AddHttpContextAccessor();
+            services.AddScoped<ERP.Application.Common.Security.ICurrentUser, ERP.Infrastructure.Security.CurrentUser>();
+            services.AddScoped<ERP.Application.Common.Security.IErpAuthorizationService, ERP.Infrastructure.Security.ErpAuthorizationService>();
+
             services.AddScoped<ISalesOrderService, SalesOrderService>();
             services.AddScoped<IProformaInvoiceRepository, ProformaInvoiceRepository>();
             services.AddScoped<IProformaInvoiceService, ProformaInvoiceService>();
