@@ -20,12 +20,12 @@ namespace CRM.Helpers
             ArgumentNullException.ThrowIfNull(dto);
 
             var extKey = dto.GetEffectiveExternalKey();
-            var fullName = (dto.SenderName ?? string.Empty).Trim();
+            var fullName = (dto.GetEffectiveSenderName() ?? string.Empty).Trim();
             var (firstName, lastName) = SplitName(fullName);
 
-            var product = dto.QueryProductName?.Trim() ?? dto.Subject?.Trim();
-            var requirement = dto.QueryMessage?.Trim() ?? product;
-            var company = dto.GlusrUsrCompanyName?.Trim();
+            var product = dto.GetEffectiveProductName()?.Trim();
+            var requirement = dto.GetEffectiveMessage()?.Trim() ?? product;
+            var company = dto.GetEffectiveCompanyName()?.Trim();
             var city = dto.SenderCity?.Trim();
 
             var notesLines = new List<string>();
