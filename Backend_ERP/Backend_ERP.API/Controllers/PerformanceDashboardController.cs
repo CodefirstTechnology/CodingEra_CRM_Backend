@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/performance-dashboard")]
     [ApiController]
+    [RequirePermission(ErpPermissions.Performance.View)]
     public class PerformanceDashboardController : ControllerBase
     {
         private readonly IPerformanceService _service;
@@ -22,6 +25,7 @@ namespace ERP.API.Controllers
             Execute(() => _service.GetDashboardAsync(filter, cancellationToken));
 
         [HttpGet("leaderboards")]
+        [RequirePermission(ErpPermissions.Performance.LeaderboardView)]
         public Task<ActionResult<IReadOnlyList<PerformanceLeaderboardDto>>> Leaderboards(
             [FromQuery] PerformanceFilterDto filter,
             CancellationToken cancellationToken) =>
@@ -89,6 +93,7 @@ namespace ERP.API.Controllers
             Execute(() => _service.GetReportsAsync(filter, cancellationToken));
 
         [HttpPost("reports/export")]
+        [RequirePermission(ErpPermissions.Performance.Export)]
         public Task<ActionResult<PerformanceExportDto>> Export(
             [FromBody] PerformanceExportRequestDto request,
             [FromQuery] int? userId,

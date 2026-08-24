@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/discount-approvals")]
     [ApiController]
+    [RequirePermission(ErpPermissions.DiscountApprovals.View)]
     public class DiscountApprovalsController : ControllerBase
     {
         private readonly IDiscountApprovalService _service;
@@ -140,6 +143,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Create)]
         public async Task<ActionResult<DiscountApprovalDto>> Create(
             [FromBody] DiscountApprovalCreateRequestDto request,
             [FromQuery] int? userId,
@@ -158,6 +162,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Create)]
         public async Task<ActionResult<DiscountApprovalDto>> Update(
             int id,
             [FromBody] DiscountApprovalUpdateRequestDto request,
@@ -177,6 +182,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Cancel)]
         public async Task<IActionResult> Delete(
             int id,
             [FromQuery] int? userId,
@@ -194,6 +200,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/approve")]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Approve)]
         public async Task<ActionResult<DiscountApprovalDto>> Approve(
             int id,
             [FromBody] DiscountApprovalDecisionRequestDto? request,
@@ -204,6 +211,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/reject")]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Reject)]
         public async Task<ActionResult<DiscountApprovalDto>> Reject(
             int id,
             [FromBody] DiscountApprovalDecisionRequestDto? request,
@@ -214,6 +222,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/return")]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Return)]
         public async Task<ActionResult<DiscountApprovalDto>> Return(
             int id,
             [FromBody] DiscountApprovalDecisionRequestDto? request,
@@ -224,6 +233,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/cancel")]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Cancel)]
         public async Task<ActionResult<DiscountApprovalDto>> Cancel(
             int id,
             [FromBody] DiscountApprovalDecisionRequestDto? request,
@@ -234,6 +244,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/resubmit")]
+        [RequirePermission(ErpPermissions.DiscountApprovals.Resubmit)]
         public async Task<ActionResult<DiscountApprovalDto>> Resubmit(
             int id,
             [FromBody] DiscountApprovalDecisionRequestDto? request,

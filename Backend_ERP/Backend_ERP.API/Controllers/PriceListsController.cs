@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/price-lists")]
     [ApiController]
+    [RequirePermission(ErpPermissions.PriceLists.View)]
     public class PriceListsController : ControllerBase
     {
         private readonly IPriceListService _service;
@@ -75,6 +78,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("reports/export")]
+        [RequirePermission(ErpPermissions.PriceLists.Export)]
         public async Task<ActionResult<PriceListExportMetadataDto>> ExportReports(
             [FromBody] PriceListExportRequestDto request,
             [FromQuery] int? userId,
@@ -85,6 +89,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpGet("compare")]
+        [RequirePermission(ErpPermissions.PriceLists.Compare)]
         public async Task<ActionResult<IReadOnlyList<PriceListCompareDto>>> Compare(
             [FromQuery] string? itemCode,
             [FromQuery] string? customerCategory,
@@ -169,6 +174,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission(ErpPermissions.PriceLists.Create)]
         public async Task<ActionResult<PriceListDto>> Create(
             [FromBody] PriceListCreateRequestDto request,
             [FromQuery] int? userId,
@@ -186,6 +192,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission(ErpPermissions.PriceLists.Edit)]
         public async Task<ActionResult<PriceListDto>> Update(
             int id,
             [FromBody] PriceListUpdateRequestDto request,
@@ -204,6 +211,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission(ErpPermissions.PriceLists.Delete)]
         public async Task<IActionResult> Delete(
             int id,
             [FromQuery] int? userId,
@@ -221,6 +229,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/activate")]
+        [RequirePermission(ErpPermissions.PriceLists.Activate)]
         public async Task<ActionResult<PriceListDto>> Activate(
             int id,
             [FromBody] PriceListRemarksRequestDto? request,
@@ -239,6 +248,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/clone")]
+        [RequirePermission(ErpPermissions.PriceLists.Create)]
         public async Task<ActionResult<PriceListDto>> Clone(
             int id,
             [FromBody] PriceListRemarksRequestDto? request,

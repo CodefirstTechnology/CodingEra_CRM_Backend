@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [ApiController]
     [Route("api/quotation-approvals")]
+    [RequirePermission(ErpPermissions.Quotations.View)]
     public class QuotationApprovalsController : ControllerBase
     {
         private readonly IQuotationApprovalService _service;
@@ -103,6 +106,7 @@ namespace ERP.API.Controllers
         // ─── Write ────────────────────────────────────────────────────────────
 
         [HttpPost]
+        [RequirePermission(ErpPermissions.Quotations.Create)]
         public async Task<ActionResult<QuotationApprovalDto>> Create(
             [FromBody] QuotationApprovalCreateRequestDto request,
             [FromQuery] int? userId,
@@ -120,6 +124,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission(ErpPermissions.Quotations.Edit)]
         public async Task<ActionResult<QuotationApprovalDto>> Update(
             int id,
             [FromBody] QuotationApprovalUpdateRequestDto request,
@@ -138,6 +143,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission(ErpPermissions.Quotations.Delete)]
         public async Task<IActionResult> Delete(
             int id,
             [FromQuery] int? userId,
@@ -175,6 +181,7 @@ namespace ERP.API.Controllers
         // ─── Workflow transitions ─────────────────────────────────────────────
 
         [HttpPost("{id:int}/submit")]
+        [RequirePermission(ErpPermissions.Quotations.Submit)]
         public async Task<ActionResult<QuotationApprovalDto>> Submit(
             int id,
             [FromQuery] int? userId,
@@ -192,6 +199,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/review")]
+        [RequirePermission(ErpPermissions.Quotations.Approve)]
         public async Task<ActionResult<QuotationApprovalDto>> Review(
             int id,
             [FromBody] QuotationApprovalDecisionRequestDto? request,
@@ -202,6 +210,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/approve")]
+        [RequirePermission(ErpPermissions.Quotations.Approve)]
         public async Task<ActionResult<QuotationApprovalDto>> Approve(
             int id,
             [FromBody] QuotationApprovalDecisionRequestDto? request,
@@ -212,6 +221,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/reject")]
+        [RequirePermission(ErpPermissions.Quotations.Reject)]
         public async Task<ActionResult<QuotationApprovalDto>> Reject(
             int id,
             [FromBody] QuotationApprovalDecisionRequestDto? request,
@@ -222,6 +232,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/return")]
+        [RequirePermission(ErpPermissions.Quotations.Return)]
         public async Task<ActionResult<QuotationApprovalDto>> Return(
             int id,
             [FromBody] QuotationApprovalDecisionRequestDto? request,
@@ -232,6 +243,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/cancel")]
+        [RequirePermission(ErpPermissions.Quotations.Delete)]
         public async Task<ActionResult<QuotationApprovalDto>> Cancel(
             int id,
             [FromBody] QuotationApprovalDecisionRequestDto? request,
@@ -242,6 +254,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/request-revision")]
+        [RequirePermission(ErpPermissions.Quotations.Return)]
         public async Task<ActionResult<QuotationApprovalDto>> RequestRevision(
             int id,
             [FromBody] QuotationApprovalDecisionRequestDto? request,
@@ -252,6 +265,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/reopen")]
+        [RequirePermission(ErpPermissions.Quotations.Reopen)]
         public async Task<ActionResult<QuotationApprovalDto>> Reopen(
             int id,
             [FromBody] QuotationApprovalDecisionRequestDto? request,
@@ -262,6 +276,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/convert")]
+        [RequirePermission(ErpPermissions.Quotations.Convert)]
         public async Task<ActionResult<SalesOrderDto>> ConvertToSalesOrder(
             int id,
             [FromQuery] int? userId,

@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/proforma-invoices")]
     [ApiController]
+    [RequirePermission(ErpPermissions.ProformaInvoices.View)]
     public class ProformaInvoicesController : ControllerBase
     {
         private readonly IProformaInvoiceService _service;
@@ -51,6 +54,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
         public async Task<ActionResult<ProformaInvoiceDto>> Create(
             [FromBody] ProformaInvoiceCreateRequestDto request,
             [FromQuery] int? userId,
@@ -68,6 +72,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Edit)]
         public async Task<ActionResult<ProformaInvoiceDto>> Update(
             int id,
             [FromBody] ProformaInvoiceUpdateRequestDto request,
@@ -86,6 +91,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Edit)]
         public async Task<IActionResult> Delete(
             int id,
             [FromQuery] int? userId,
@@ -103,8 +109,10 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/duplicate")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
         public async Task<ActionResult<ProformaInvoiceDto>> Duplicate(
             int id,
+            [FromBody] ProformaInvoiceCreateRequestDto? request,
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
@@ -120,6 +128,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/status")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Edit)]
         public async Task<ActionResult<ProformaInvoiceDto>> UpdateStatus(
             int id,
             [FromBody] ProformaInvoiceStatusUpdateRequestDto request,
@@ -138,6 +147,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/approval")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Approve)]
         public async Task<ActionResult<ProformaInvoiceDto>> Approval(
             int id,
             [FromBody] ProformaInvoiceApprovalRequestDto request,
@@ -156,6 +166,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/convert")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Convert)]
         public async Task<ActionResult<ProformaInvoiceDto>> Convert(
             int id,
             [FromBody] ProformaInvoiceConvertRequestDto? request,
@@ -178,6 +189,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("from-sales-order/{salesOrderId:int}")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
         public async Task<ActionResult<ProformaInvoiceDto>> GenerateFromSalesOrder(
             int salesOrderId,
             [FromQuery] int? userId,
@@ -196,7 +208,6 @@ namespace ERP.API.Controllers
                 return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
-
 
         [HttpGet("{id:int}/status-history")]
         public async Task<ActionResult<IReadOnlyList<ProformaInvoiceStatusHistoryDto>>> StatusHistory(
@@ -259,6 +270,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/pdf")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.GeneratePdf)]
         public async Task<ActionResult<ProformaPdfResultDto>> Pdf(
             int id,
             [FromQuery] int? userId,
@@ -270,6 +282,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/email")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Email)]
         public async Task<ActionResult<ProformaEmailResultDto>> Email(
             int id,
             [FromQuery] int? userId,

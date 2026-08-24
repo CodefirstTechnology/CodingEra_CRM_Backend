@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/sales-orders")]
     [ApiController]
+    [RequirePermission(ErpPermissions.SalesOrders.View)]
     public class SalesOrdersController : ControllerBase
     {
         private readonly ISalesOrderService _salesOrders;
@@ -68,6 +71,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission(ErpPermissions.SalesOrders.Create)]
         public async Task<ActionResult<SalesOrderDto>> Create(
             [FromBody] SalesOrderCreateRequestDto request,
             [FromQuery] int? userId,
@@ -88,6 +92,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission(ErpPermissions.SalesOrders.Edit)]
         public async Task<ActionResult<SalesOrderDto>> Update(
             int id,
             [FromBody] SalesOrderUpdateRequestDto request,
@@ -115,6 +120,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/status")]
+        [RequirePermission(ErpPermissions.SalesOrders.Confirm)]
         public async Task<ActionResult<SalesOrderDto>> UpdateStatus(
             int id,
             [FromBody] SalesOrderStatusUpdateRequestDto request,
@@ -142,6 +148,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/cancel")]
+        [RequirePermission(ErpPermissions.SalesOrders.Cancel)]
         public async Task<ActionResult<SalesOrderDto>> Cancel(
             int id,
             [FromBody] SalesOrderCancelRequestDto? request,
@@ -169,6 +176,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("convert-quotation/{quotationApprovalId:int}")]
+        [RequirePermission(ErpPermissions.SalesOrders.Create)]
         public async Task<ActionResult<SalesOrderDto>> ConvertQuotation(
             int quotationApprovalId,
             [FromQuery] int? userId,
@@ -189,6 +197,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/proforma-invoice")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
         public async Task<ActionResult<ProformaInvoiceDto>> GenerateProformaInvoice(
             int id,
             [FromQuery] int? userId,
@@ -209,6 +218,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/advance-payments/apply")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Apply)]
         public async Task<ActionResult<AdvancePaymentDto>> ApplyAdvancePayment(
             int id,
             [FromBody] AdvancePaymentApplyRequestDto request,
@@ -232,6 +242,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/pdf")]
+        [RequirePermission(ErpPermissions.SalesOrders.GeneratePdf)]
         public async Task<ActionResult<SalesOrderPdfResultDto>> GeneratePdf(
             int id,
             [FromQuery] int? userId,
@@ -243,6 +254,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/email")]
+        [RequirePermission(ErpPermissions.SalesOrders.SendEmail)]
         public async Task<ActionResult<SalesOrderEmailResultDto>> SendEmail(
             int id,
             [FromBody] SalesOrderEmailRequestDto request,
@@ -265,6 +277,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpGet("{id:int}/status-history")]
+        [RequirePermission(ErpPermissions.SalesOrders.AuditView)]
         public async Task<ActionResult<IReadOnlyList<SalesOrderStatusHistoryDto>>> GetStatusHistory(
             int id,
             [FromQuery] int? userId,

@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/sales-targets")]
     [ApiController]
+    [RequirePermission(ErpPermissions.SalesTargets.View)]
     public class SalesTargetsController : ControllerBase
     {
         private readonly ISalesTargetService _service;
@@ -43,6 +46,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpGet("dashboard")]
+        [RequirePermission(ErpPermissions.SalesTargets.DashboardView)]
         public async Task<ActionResult<SalesTargetDashboardDto>> Dashboard(
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
@@ -81,6 +85,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("copy-previous")]
+        [RequirePermission(ErpPermissions.SalesTargets.Create)]
         public async Task<ActionResult<SalesTargetDto>> CopyPrevious(
             [FromBody] SalesTargetCopyPreviousRequestDto request,
             [FromQuery] int? userId,
@@ -152,6 +157,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission(ErpPermissions.SalesTargets.Create)]
         public async Task<ActionResult<SalesTargetDto>> Create(
             [FromBody] SalesTargetCreateRequestDto request,
             [FromQuery] int? userId,
@@ -169,6 +175,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission(ErpPermissions.SalesTargets.Edit)]
         public async Task<ActionResult<SalesTargetDto>> Update(
             int id,
             [FromBody] SalesTargetUpdateRequestDto request,
@@ -187,6 +194,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission(ErpPermissions.SalesTargets.Delete)]
         public async Task<IActionResult> Delete(
             int id,
             [FromQuery] int? userId,
@@ -204,6 +212,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/duplicate")]
+        [RequirePermission(ErpPermissions.SalesTargets.Duplicate)]
         public async Task<ActionResult<SalesTargetDto>> Duplicate(
             int id,
             [FromBody] SalesTargetDuplicateRequestDto? request,
@@ -223,6 +232,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/activate")]
+        [RequirePermission(ErpPermissions.SalesTargets.Edit)]
         public async Task<ActionResult<SalesTargetDto>> Activate(
             int id,
             [FromBody] SalesTargetRemarksRequestDto? request,
@@ -233,6 +243,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/deactivate")]
+        [RequirePermission(ErpPermissions.SalesTargets.Edit)]
         public async Task<ActionResult<SalesTargetDto>> Deactivate(
             int id,
             [FromBody] SalesTargetRemarksRequestDto? request,
@@ -243,6 +254,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/status")]
+        [RequirePermission(ErpPermissions.SalesTargets.Edit)]
         public async Task<ActionResult<SalesTargetDto>> UpdateStatus(
             int id,
             [FromBody] SalesTargetStatusUpdateRequestDto request,

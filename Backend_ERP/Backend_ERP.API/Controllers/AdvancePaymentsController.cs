@@ -1,11 +1,14 @@
+using ERP.API.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/advance-payments")]
     [ApiController]
+    [RequirePermission(ErpPermissions.AdvancePayments.View)]
     public class AdvancePaymentsController : ControllerBase
     {
         private readonly IAdvancePaymentService _service;
@@ -144,6 +147,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost]
+        [RequirePermission(ErpPermissions.AdvancePayments.Create)]
         public async Task<ActionResult<AdvancePaymentDto>> Create(
             [FromBody] AdvancePaymentCreateRequestDto request,
             [FromQuery] int? userId,
@@ -161,6 +165,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPut("{id:int}")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Edit)]
         public async Task<ActionResult<AdvancePaymentDto>> Update(
             int id,
             [FromBody] AdvancePaymentUpdateRequestDto request,
@@ -179,6 +184,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Edit)]
         public async Task<IActionResult> Delete(
             int id,
             [FromQuery] int? userId,
@@ -196,6 +202,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/submit")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Create)]
         public async Task<ActionResult<AdvancePaymentDto>> Submit(
             int id,
             [FromBody] AdvancePaymentRemarksRequestDto? request,
@@ -206,6 +213,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/verify")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
         public async Task<ActionResult<AdvancePaymentDto>> Verify(
             int id,
             [FromBody] AdvancePaymentRemarksRequestDto? request,
@@ -216,6 +224,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/receive")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Receive)]
         public async Task<ActionResult<AdvancePaymentDto>> Receive(
             int id,
             [FromBody] AdvancePaymentRemarksRequestDto? request,
@@ -226,6 +235,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/reject")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
         public async Task<ActionResult<AdvancePaymentDto>> Reject(
             int id,
             [FromBody] AdvancePaymentRemarksRequestDto? request,
@@ -236,6 +246,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/cancel")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Edit)]
         public async Task<ActionResult<AdvancePaymentDto>> Cancel(
             int id,
             [FromBody] AdvancePaymentRemarksRequestDto? request,
@@ -246,6 +257,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/apply")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Apply)]
         public async Task<ActionResult<AdvancePaymentDto>> Apply(
             int id,
             [FromBody] AdvancePaymentApplyRequestDto request,

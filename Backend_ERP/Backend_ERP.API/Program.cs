@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using ERP.API.Middleware;
+using ERP.API.Security;
 using ERP.Infrastructure;
 using ERP.Shared.Configuration;
 using ERP.Application.Procurement;
@@ -56,6 +57,8 @@ builder.Services.AddCors(options =>
 
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddErpJwtAuthentication(builder.Configuration);
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -74,6 +77,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowAngular");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
