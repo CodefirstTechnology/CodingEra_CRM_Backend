@@ -27,6 +27,12 @@ namespace CRM.Helpers
             var requirement = dto.GetEffectiveMessage()?.Trim() ?? product;
             var company = dto.GetEffectiveCompanyName()?.Trim();
             var city = dto.SenderCity?.Trim();
+            var state = dto.SenderState?.Trim();
+            var pincode = dto.SenderPincode?.Trim();
+            var phone = dto.SenderPhone?.Trim();
+            var address = dto.SenderAddress?.Trim();
+            var mcat = dto.QueryMcatName?.Trim();
+            var queryType = dto.QueryType?.Trim();
 
             var notesLines = new List<string>();
             if (!string.IsNullOrWhiteSpace(requirement))
@@ -37,22 +43,56 @@ namespace CRM.Helpers
             {
                 notesLines.Add($"Product: {product}");
             }
+            if (!string.IsNullOrWhiteSpace(mcat) && !string.Equals(mcat, product, StringComparison.OrdinalIgnoreCase))
+            {
+                notesLines.Add($"Category: {mcat}");
+            }
             if (!string.IsNullOrWhiteSpace(company))
             {
                 notesLines.Add($"Company: {company}");
             }
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                notesLines.Add($"Phone: {phone}");
+            }
+            if (!string.IsNullOrWhiteSpace(address))
+            {
+                notesLines.Add($"Address: {address}");
+            }
             if (!string.IsNullOrWhiteSpace(city))
             {
                 notesLines.Add($"City: {city}");
+            }
+            if (!string.IsNullOrWhiteSpace(state))
+            {
+                notesLines.Add($"State: {state}");
+            }
+            if (!string.IsNullOrWhiteSpace(pincode))
+            {
+                notesLines.Add($"Pincode: {pincode}");
+            }
+            if (!string.IsNullOrWhiteSpace(queryType))
+            {
+                notesLines.Add($"Query Type: {queryType}");
             }
 
             notesLines.Add(LeadSyncNotesHelper.FormatExtMarker(IndiaMartMarkerName, extKey));
 
             DateTime? createdAt = null;
             if (!string.IsNullOrWhiteSpace(dto.QueryTime)
-                && DateTime.TryParse(dto.QueryTime, out var parsedTime))
+                && DateTime.TryParse(dto.QueryTime, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedTime))
             {
-                createdAt = parsedTime;
+                if (parsedTime.Kind == DateTimeKind.Unspecified)
+                {
+                    // IndiaMART timestamps are Indian Standard Time (IST = UTC+05:30)
+                    var istOffset = TimeSpan.FromHours(5.5);
+                    var dtoUtc = new DateTimeOffset(parsedTime, istOffset).UtcDateTime;
+                    createdAt = DateTime.SpecifyKind(dtoUtc, DateTimeKind.Utc);
+                }
+                else
+                {
+                    createdAt = parsedTime.ToUniversalTime();
+                }
             }
 
             return new LeadSyncIncomingLead
@@ -61,7 +101,7 @@ namespace CRM.Helpers
                 FirstName = firstName,
                 LastName = lastName,
                 Email = dto.SenderEmail?.Trim() ?? string.Empty,
-                Mobile = dto.SenderMobile?.Trim() ?? string.Empty,
+                Mobile = dto.GetEffectiveSenderMobile() ?? string.Empty,
                 Requirement = requirement,
                 OrganizationName = string.IsNullOrWhiteSpace(company) ? null : company,
                 Notes = string.Join('\n', notesLines),

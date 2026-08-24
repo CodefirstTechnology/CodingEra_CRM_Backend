@@ -838,6 +838,219 @@ namespace Backend_CRM.Tests
             Assert.Single(leads);
         }
 
+        [Fact]
+        public async Task Exact_official_IndiaMART_push_payload_persists_successfully_with_all_fields()
+        {
+            var db = CreateInMemoryDbContext();
+            var metrics = new IndiaMartWebhookMetrics();
+            var options = new IndiaMartWebhookOptions { Enabled = true, RequireApiKey = false };
+            var persistence = new MarketplaceLeadPersistenceService(
+                db,
+                new NoOpRoundRobinService(),
+                NullLogger<MarketplaceLeadPersistenceService>.Instance);
+            var service = new IndiaMartWebhookService(
+                persistence,
+                metrics,
+                Options.Create(options),
+                NullLogger<IndiaMartWebhookService>.Instance);
+            var controller = CreateController(service, metrics, options, db);
+
+            var officialJson = """
+            {
+                "CODE": 200,
+                "STATUS": "SUCCESS",
+                "RESPONSE": {
+                    "SUBJECT": "Requirement for Testing by indiamart ",
+                    "QUERY_TIME": "2024-04-10 11:17:14",
+                    "QUERY_TYPE": "B",
+                    "SENDER_CITY": "Noida",
+                    "SENDER_NAME": "Indiamart",
+                    "SENDER_EMAIL": "abcdeprabhat@indiamart.com",
+                    "SENDER_PHONE": "0120-2222222",
+                    "SENDER_STATE": "Uttar Pradesh",
+                    "CALL_DURATION": "",
+                    "QUERY_MESSAGE": "I want to purchase an Empty Mineral Water Bottle. Kindly send me price and other details.",
+                    "SENDER_MOBILE": "+91-9999999999",
+                    "SENDER_ADDRESS": "Sec 135, Noida, Uttar Pradesh",
+                    "SENDER_COMPANY": "Indiamart Intermesh pvt Ltd.",
+                    "SENDER_PINCODE": "201304",
+                    "QUERY_MCAT_NAME": "Mineral Water Bottle",
+                    "RECEIVER_MOBILE": "",
+                    "UNIQUE_QUERY_ID": "111111111",
+                    "SENDER_EMAIL_ALT": "xxxxxxxxxxx@indiamart.com",
+                    "SENDER_PHONE_ALT": "0120-11111111",
+                    "SENDER_MOBILE_ALT": "+91-1111111111",
+                    "QUERY_PRODUCT_NAME": "Mineral Water Bottle",
+                    "SENDER_COUNTRY_ISO": "IN"
+                }
+            }
+            """;
+
+            var dto = JsonSerializer.Deserialize<IndiaMartWebhookLeadDto>(officialJson);
+            Assert.NotNull(dto);
+            Assert.Equal(200, dto.Code);
+            Assert.Equal("SUCCESS", dto.Status);
+            Assert.Equal("111111111", dto.GetEffectiveExternalKey());
+            Assert.Equal("Indiamart", dto.GetEffectiveSenderName());
+            Assert.Equal("+91-9999999999", dto.GetEffectiveSenderMobile());
+            Assert.Equal("abcdeprabhat@indiamart.com", dto.SenderEmail);
+            Assert.Equal("Mineral Water Bottle", dto.GetEffectiveProductName());
+            Assert.Equal("I want to purchase an Empty Mineral Water Bottle. Kindly send me price and other details.", dto.GetEffectiveMessage());
+            Assert.Equal("Indiamart Intermesh pvt Ltd.", dto.GetEffectiveCompanyName());
+
+            var result = await controller.PostJson(dto, CancellationToken.None);
+            var ok = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(200, ok.StatusCode);
+
+            // Verify persistence in Database
+            var lead = await db.Leads.FirstOrDefaultAsync(l => l.Notes.Contains("[crm-ext:IndiaMART:111111111]"));
+            Assert.NotNull(lead);
+            Assert.Equal("Indiamart", lead.FirstName);
+            Assert.Equal("+91-9999999999", lead.Mobile);
+            Assert.Equal("abcdeprabhat@indiamart.com", lead.Email);
+            Assert.Contains("Mineral Water Bottle", lead.Notes);
+            Assert.Contains("Indiamart Intermesh pvt Ltd.", lead.Notes);
+            Assert.Contains("City: Noida", lead.Notes);
+            Assert.Contains("State: Uttar Pradesh", lead.Notes);
+            Assert.Contains("Pincode: 201304", lead.Notes);
+            Assert.Contains("[crm-ext:IndiaMART:111111111]", lead.Notes);
+
+            // Verify Contact and Organization creation
+            var contact = await db.Contacts.FirstOrDefaultAsync(c => c.Email == "abcdeprabhat@indiamart.com");
+            Assert.NotNull(contact);
+            Assert.Equal("Indiamart", contact.FirstName);
+
+            var org = await db.Organizations.FirstOrDefaultAsync(o => o.Name == "Indiamart Intermesh pvt Ltd.");
+            Assert.NotNull(org);
+
+            // Verify Duplicate Push request
+            var dupResult = await controller.PostJson(dto, CancellationToken.None);
+            var dupOk = Assert.IsType<OkObjectResult>(dupResult);
+            Assert.Equal(200, dupOk.StatusCode);
+
+            var leadCount = await db.Leads.CountAsync(l => l.Notes.Contains("[crm-ext:IndiaMART:111111111]"));
+            Assert.Equal(1, leadCount);
+        }
+
+        [Fact]
+        public async Task Payload_with_numeric_pincode_and_query_id_deserializes_and_persists()
+        {
+            var db = CreateInMemoryDbContext();
+            var metrics = new IndiaMartWebhookMetrics();
+            var options = new IndiaMartWebhookOptions { Enabled = true, RequireApiKey = false };
+            var persistence = new MarketplaceLeadPersistenceService(
+                db,
+                new NoOpRoundRobinService(),
+                NullLogger<MarketplaceLeadPersistenceService>.Instance);
+            var service = new IndiaMartWebhookService(
+                persistence,
+                metrics,
+                Options.Create(options),
+                NullLogger<IndiaMartWebhookService>.Instance);
+            var controller = CreateController(service, metrics, options, db);
+
+            var numericJson = """
+            {
+                "CODE": 200,
+                "STATUS": "SUCCESS",
+                "RESPONSE": {
+                    "UNIQUE_QUERY_ID": 99887766,
+                    "SENDER_NAME": "Mahesh Kumar",
+                    "SENDER_MOBILE": 9898989898,
+                    "SENDER_PINCODE": 411001,
+                    "QUERY_PRODUCT_NAME": "Steel Pipes"
+                }
+            }
+            """;
+
+            var dto = JsonSerializer.Deserialize<IndiaMartWebhookLeadDto>(numericJson);
+            Assert.NotNull(dto);
+            Assert.Equal("99887766", dto.GetEffectiveExternalKey());
+            Assert.Equal("411001", dto.SenderPincode);
+
+            var result = await controller.PostJson(dto, CancellationToken.None);
+            var ok = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(200, ok.StatusCode);
+
+            var lead = await db.Leads.FirstOrDefaultAsync(l => l.Notes.Contains("[crm-ext:IndiaMART:99887766]"));
+            Assert.NotNull(lead);
+            Assert.Equal("Mahesh", lead.FirstName);
+        }
+
+        [Fact]
+        public async Task Special_characters_unicode_and_xss_in_message_persist_safely()
+        {
+            var db = CreateInMemoryDbContext();
+            var metrics = new IndiaMartWebhookMetrics();
+            var options = new IndiaMartWebhookOptions { Enabled = true, RequireApiKey = false };
+            var persistence = new MarketplaceLeadPersistenceService(
+                db,
+                new NoOpRoundRobinService(),
+                NullLogger<MarketplaceLeadPersistenceService>.Instance);
+            var service = new IndiaMartWebhookService(
+                persistence,
+                metrics,
+                Options.Create(options),
+                NullLogger<IndiaMartWebhookService>.Instance);
+            var controller = CreateController(service, metrics, options, db);
+
+            var payload = new IndiaMartWebhookLeadDto
+            {
+                UniqueQueryId = "UNICODE-SEC-001",
+                SenderName = "Ramesh Enterprises – पुणे",
+                SenderMobile = "+91-9876543210",
+                SenderEmail = "ramesh@pune-enterprises.in",
+                QueryProductName = "CNC Machine & Spares (5'x10\")",
+                QueryMessage = "<script>alert('xss')</script> -- DROP TABLE leads; SELECT * FROM users;"
+            };
+
+            var result = await controller.PostJson(payload, CancellationToken.None);
+            var ok = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(200, ok.StatusCode);
+
+            var lead = await db.Leads.FirstOrDefaultAsync(l => l.Notes.Contains("[crm-ext:IndiaMART:UNICODE-SEC-001]"));
+            Assert.NotNull(lead);
+            Assert.Contains("Ramesh", lead.FirstName);
+            Assert.Contains("<script>alert('xss')</script>", lead.Notes);
+        }
+
+        [Fact]
+        public async Task Minimal_valid_payload_without_optional_fields_succeeds()
+        {
+            var db = CreateInMemoryDbContext();
+            var metrics = new IndiaMartWebhookMetrics();
+            var options = new IndiaMartWebhookOptions { Enabled = true, RequireApiKey = false };
+            var persistence = new MarketplaceLeadPersistenceService(
+                db,
+                new NoOpRoundRobinService(),
+                NullLogger<MarketplaceLeadPersistenceService>.Instance);
+            var service = new IndiaMartWebhookService(
+                persistence,
+                metrics,
+                Options.Create(options),
+                NullLogger<IndiaMartWebhookService>.Instance);
+            var controller = CreateController(service, metrics, options, db);
+
+            var minimalJson = """
+            {
+                "RESPONSE": {
+                    "UNIQUE_QUERY_ID": "MINIMAL-001",
+                    "SENDER_MOBILE": "9876500000"
+                }
+            }
+            """;
+
+            var dto = JsonSerializer.Deserialize<IndiaMartWebhookLeadDto>(minimalJson);
+            Assert.NotNull(dto);
+
+            var result = await controller.PostJson(dto, CancellationToken.None);
+            var ok = Assert.IsType<OkObjectResult>(result);
+            Assert.Equal(200, ok.StatusCode);
+
+            var lead = await db.Leads.FirstOrDefaultAsync(l => l.Notes.Contains("[crm-ext:IndiaMART:MINIMAL-001]"));
+            Assert.NotNull(lead);
+        }
+
         private sealed class MockRoundRobinService : ILeadSyncRoundRobinService
         {
             private readonly int _ownerId;
