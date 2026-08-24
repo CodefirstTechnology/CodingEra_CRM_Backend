@@ -1,6 +1,8 @@
 using ERP.API.Security;
+using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Domain.Enums;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,15 +16,21 @@ namespace ERP.API.Controllers
         private readonly ISalesOrderService _salesOrders;
         private readonly IProformaInvoiceService _proformaInvoices;
         private readonly IAdvancePaymentService _advancePayments;
+        private readonly ICurrentUser _currentUser;
+        private readonly IErpAuthorizationService _authService;
 
         public SalesOrdersController(
             ISalesOrderService salesOrders,
             IProformaInvoiceService proformaInvoices,
-            IAdvancePaymentService advancePayments)
+            IAdvancePaymentService advancePayments,
+            ICurrentUser currentUser,
+            IErpAuthorizationService authService)
         {
             _salesOrders = salesOrders;
             _proformaInvoices = proformaInvoices;
             _advancePayments = advancePayments;
+            _currentUser = currentUser;
+            _authService = authService;
         }
 
         [HttpGet]
@@ -44,6 +52,12 @@ namespace ERP.API.Controllers
                     DateTo = dateTo
                 },
                 cancellationToken);
+
+            if (_currentUser.Scope == AccessScope.Own)
+            {
+                rows = rows.Where(x => _authService.CanAccessRecord(x.CreatedBy)).ToList();
+            }
+
             return Ok(rows);
         }
 
@@ -51,7 +65,7 @@ namespace ERP.API.Controllers
         public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
         {
             _ = userId;
-            return Ok(await _salesOrders.GetPermissionsAsync());
+            return Ok(_currentUser.Permissions.ToList());
         }
 
         [HttpGet("{id:int}")]
@@ -65,6 +79,11 @@ namespace ERP.API.Controllers
             if (row is null)
             {
                 return NotFound();
+            }
+
+            if (!_authService.CanAccessRecord(row.CreatedBy) && !(_currentUser.FullName != null && string.Equals(row.SalesPerson, _currentUser.FullName, StringComparison.OrdinalIgnoreCase)))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this sales order." });
             }
 
             return Ok(row);
@@ -101,6 +120,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's sales order." });
+                }
+
                 var updated = await _salesOrders.UpdateAsync(
                     id,
                     request,
@@ -157,6 +184,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot cancel another user's sales order." });
+                }
+
                 var updated = await _salesOrders.CancelAsync(
                     id,
                     request ?? new SalesOrderCancelRequestDto(),
@@ -205,6 +240,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot generate PI for another user's sales order." });
+                }
+
                 var created = await _proformaInvoices.GenerateFromSalesOrderAsync(
                     id,
                     ResolveActingUser(userId),
@@ -227,6 +270,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot apply advance payment to another user's sales order." });
+                }
+
                 request.SalesOrderId = id;
                 var updated = await _advancePayments.ApplyAsync(
                     request.AdvancePaymentId > 0 ? request.AdvancePaymentId : id,
@@ -249,6 +300,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(existing.CreatedBy))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot generate PDF for another user's sales order." });
+            }
+
             var result = await _salesOrders.GeneratePdfAsync(id, cancellationToken);
             return result is null ? NotFound() : Ok(result);
         }
@@ -263,6 +322,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.CreatedBy))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot send email for another user's sales order." });
+                }
+
                 var result = await _salesOrders.SendEmailAsync(
                     id,
                     request,
@@ -284,6 +351,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(existing.CreatedBy))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot view history for another user's sales order." });
+            }
+
             var history = await _salesOrders.GetStatusHistoryAsync(id, cancellationToken);
             if (history is null)
             {
@@ -293,7 +368,13 @@ namespace ERP.API.Controllers
             return Ok(history);
         }
 
-        private static string ResolveActingUser(int? userId) =>
-            userId is > 0 ? userId.Value.ToString() : "system";
+        private string ResolveActingUser(int? userId)
+        {
+            if (_currentUser.IsAuthenticated && _currentUser.UserId.HasValue)
+            {
+                return _currentUser.UserId.Value.ToString();
+            }
+            return userId is int id and > 0 ? id.ToString() : "system";
+        }
     }
 }

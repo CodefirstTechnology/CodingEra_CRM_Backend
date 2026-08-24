@@ -1,6 +1,8 @@
 using ERP.API.Security;
+using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Domain.Enums;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +14,17 @@ namespace ERP.API.Controllers
     public class ProformaInvoicesController : ControllerBase
     {
         private readonly IProformaInvoiceService _service;
+        private readonly ICurrentUser _currentUser;
+        private readonly IErpAuthorizationService _authService;
 
-        public ProformaInvoicesController(IProformaInvoiceService service)
+        public ProformaInvoicesController(
+            IProformaInvoiceService service,
+            ICurrentUser currentUser,
+            IErpAuthorizationService authService)
         {
             _service = service;
+            _currentUser = currentUser;
+            _authService = authService;
         }
 
         [HttpGet]
@@ -39,6 +48,15 @@ namespace ERP.API.Controllers
                 DateFrom = dateFrom,
                 DateTo = dateTo
             }, cancellationToken);
+
+            if (_currentUser.Scope == AccessScope.Own)
+            {
+                rows = rows.Where(x => _authService.CanAccessRecord(x.SalesPerson)
+                    || (_currentUser.UserId.HasValue && string.Equals(x.SalesPerson, _currentUser.UserId.Value.ToString(), StringComparison.OrdinalIgnoreCase))
+                    || (_currentUser.FullName != null && string.Equals(x.SalesPerson, _currentUser.FullName, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+            }
+
             return Ok(rows);
         }
 
@@ -50,7 +68,14 @@ namespace ERP.API.Controllers
         {
             _ = userId;
             var row = await _service.GetByIdAsync(id, cancellationToken);
-            return row is null ? NotFound() : Ok(row);
+            if (row is null) return NotFound();
+
+            if (!CanAccessPi(row))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this proforma invoice." });
+            }
+
+            return Ok(row);
         }
 
         [HttpPost]
@@ -62,6 +87,15 @@ namespace ERP.API.Controllers
         {
             try
             {
+                if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+                {
+                    request.SalesPersonId = _currentUser.UserId.Value.ToString();
+                    if (_currentUser.FullName != null)
+                    {
+                        request.SalesPerson = _currentUser.FullName;
+                    }
+                }
+
                 var created = await _service.CreateAsync(request, ResolveActingUser(userId), cancellationToken);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id, userId }, created);
             }
@@ -81,6 +115,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!CanAccessPi(existing))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's proforma invoice." });
+                }
+
                 var updated = await _service.UpdateAsync(id, request, ResolveActingUser(userId), cancellationToken);
                 return updated is null ? NotFound() : Ok(updated);
             }
@@ -99,6 +141,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!CanAccessPi(existing))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot delete another user's proforma invoice." });
+                }
+
                 var ok = await _service.DeleteAsync(id, ResolveActingUser(userId), cancellationToken);
                 return ok ? NoContent() : NotFound();
             }
@@ -118,6 +168,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!CanAccessPi(existing))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot duplicate another user's proforma invoice." });
+                }
+
                 var created = await _service.DuplicateAsync(id, ResolveActingUser(userId), cancellationToken);
                 return created is null ? NotFound() : Ok(created);
             }
@@ -137,6 +195,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!CanAccessPi(existing))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's proforma invoice." });
+                }
+
                 var updated = await _service.UpdateStatusAsync(id, request, ResolveActingUser(userId), cancellationToken);
                 return updated is null ? NotFound() : Ok(updated);
             }
@@ -216,6 +282,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!CanAccessPi(existing))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot view history for another user's proforma invoice." });
+            }
+
             var rows = await _service.GetStatusHistoryAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
         }
@@ -227,6 +301,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!CanAccessPi(existing))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot view history for another user's proforma invoice." });
+            }
+
             var rows = await _service.GetApprovalHistoryAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
         }
@@ -260,6 +342,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("reports/export")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Approve)]
         public async Task<ActionResult<ProformaExportMetadataDto>> ExportReports(
             [FromBody] ProformaExportRequestDto request,
             [FromQuery] int? userId,
@@ -277,6 +360,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!CanAccessPi(existing))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot generate PDF for another user's proforma invoice." });
+            }
+
             var result = await _service.GeneratePdfAsync(id, cancellationToken);
             return result is null ? NotFound() : Ok(result);
         }
@@ -289,6 +380,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!CanAccessPi(existing))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot send email for another user's proforma invoice." });
+            }
+
             var result = await _service.SendEmailAsync(id, cancellationToken);
             return result is null ? NotFound() : Ok(result);
         }
@@ -297,7 +396,7 @@ namespace ERP.API.Controllers
         public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
         {
             _ = userId;
-            return Ok(await _service.GetPermissionsAsync());
+            return Ok(_currentUser.Permissions.ToList());
         }
 
         [HttpGet("lookups/customers")]
@@ -327,7 +426,21 @@ namespace ERP.API.Controllers
             return Ok(await _service.LookupQuotationsAsync(cancellationToken));
         }
 
-        private static string ResolveActingUser(int? userId) =>
-            userId is > 0 ? userId.Value.ToString() : "1";
+        private bool CanAccessPi(ProformaInvoiceDto row)
+        {
+            if (int.TryParse(row.SalesPersonId, out var id) && _authService.CanAccessRecord(id)) return true;
+            if (_authService.CanAccessRecord(row.CreatedBy)) return true;
+            if (_authService.CanAccessRecord(row.SalesPerson)) return true;
+            return false;
+        }
+
+        private string ResolveActingUser(int? userId)
+        {
+            if (_currentUser.IsAuthenticated && _currentUser.UserId.HasValue)
+            {
+                return _currentUser.UserId.Value.ToString();
+            }
+            return userId is int id and > 0 ? id.ToString() : "system";
+        }
     }
 }

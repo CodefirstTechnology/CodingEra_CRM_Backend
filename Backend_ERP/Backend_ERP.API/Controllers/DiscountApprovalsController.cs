@@ -1,6 +1,8 @@
 using ERP.API.Security;
+using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Domain.Enums;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +14,17 @@ namespace ERP.API.Controllers
     public class DiscountApprovalsController : ControllerBase
     {
         private readonly IDiscountApprovalService _service;
+        private readonly ICurrentUser _currentUser;
+        private readonly IErpAuthorizationService _authService;
 
-        public DiscountApprovalsController(IDiscountApprovalService service)
+        public DiscountApprovalsController(
+            IDiscountApprovalService service,
+            ICurrentUser currentUser,
+            IErpAuthorizationService authService)
         {
             _service = service;
+            _currentUser = currentUser;
+            _authService = authService;
         }
 
         [HttpGet]
@@ -33,6 +42,10 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var effectiveSalesPersonUserId = (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+                ? _currentUser.UserId.Value
+                : salesPersonUserId;
+
             return Ok(await _service.GetAllAsync(new DiscountApprovalListQueryDto
             {
                 Search = search,
@@ -41,7 +54,7 @@ namespace ERP.API.Controllers
                 ApprovalLevel = approvalLevel,
                 SourceType = sourceType,
                 CustomerCategory = customerCategory,
-                SalesPersonUserId = salesPersonUserId,
+                SalesPersonUserId = effectiveSalesPersonUserId,
                 DateFrom = dateFrom,
                 DateTo = dateTo
             }, cancellationToken));
@@ -53,14 +66,37 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
-            return Ok(await _service.GetStatisticsAsync(cancellationToken));
+            var stats = await _service.GetStatisticsAsync(cancellationToken);
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+            {
+                var ownRows = await _service.GetAllAsync(new DiscountApprovalListQueryDto
+                {
+                    SalesPersonUserId = _currentUser.UserId.Value
+                }, cancellationToken);
+
+                return Ok(new DiscountApprovalStatisticsDto
+                {
+                    TotalCount = ownRows.Count,
+                    PendingCount = ownRows.Count(x => x.Status == "Pending"),
+                    UnderReviewCount = ownRows.Count(x => x.Status == "UnderReview"),
+                    ApprovedCount = ownRows.Count(x => x.Status == "Approved"),
+                    RejectedCount = ownRows.Count(x => x.Status == "Rejected"),
+                    ReturnedCount = ownRows.Count(x => x.Status == "Returned"),
+                    CancelledCount = ownRows.Count(x => x.Status == "Cancelled"),
+                    TotalRequestedAmount = ownRows.Sum(x => x.RequestedAmount),
+                    TotalApprovedAmount = 0m,
+                    Recent = ownRows.Take(10).ToList()
+                });
+            }
+
+            return Ok(stats);
         }
 
         [HttpGet("permissions")]
         public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
         {
             _ = userId;
-            return Ok(await _service.GetPermissionsAsync());
+            return Ok(_currentUser.Permissions.ToList());
         }
 
         [HttpGet("lookups/price-lists")]
@@ -98,7 +134,14 @@ namespace ERP.API.Controllers
         {
             _ = userId;
             var row = await _service.GetByIdAsync(id, cancellationToken);
-            return row is null ? NotFound() : Ok(row);
+            if (row is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(row.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this discount approval request." });
+            }
+
+            return Ok(row);
         }
 
         [HttpGet("{id:int}/history")]
@@ -108,6 +151,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var row = await _service.GetByIdAsync(id, cancellationToken);
+            if (row is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(row.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this discount approval request." });
+            }
+
             var rows = await _service.GetHistoryAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
         }
@@ -119,6 +170,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var row = await _service.GetByIdAsync(id, cancellationToken);
+            if (row is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(row.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this discount approval request." });
+            }
+
             var rows = await _service.GetCommentsAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
         }
@@ -132,6 +191,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot comment on another user's discount request." });
+                }
+
                 var row = await _service.AddCommentAsync(
                     id, request, ResolveActingUser(userId), cancellationToken);
                 return row is null ? NotFound() : Ok(row);
@@ -151,6 +218,11 @@ namespace ERP.API.Controllers
         {
             try
             {
+                if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+                {
+                    request.SalesPersonUserId = _currentUser.UserId.Value;
+                }
+
                 var created = await _service.CreateAsync(
                     request, ResolveActingUser(userId), cancellationToken);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -171,6 +243,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's discount request." });
+                }
+
                 var updated = await _service.UpdateAsync(
                     id, request, ResolveActingUser(userId), cancellationToken);
                 return updated is null ? NotFound() : Ok(updated);
@@ -190,6 +270,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot delete another user's discount request." });
+                }
+
                 var ok = await _service.DeleteAsync(id, ResolveActingUser(userId), cancellationToken);
                 return ok ? NoContent() : NotFound();
             }
@@ -251,6 +339,14 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot resubmit another user's discount request." });
+            }
+
             return await Decision(id, request, userId, _service.ResubmitAsync, cancellationToken);
         }
 
@@ -264,7 +360,8 @@ namespace ERP.API.Controllers
         {
             try
             {
-                var updated = await action(id, request, ResolveActingUser(userId), cancellationToken);
+                var updated = await action(
+                    id, request, ResolveActingUser(userId), cancellationToken);
                 return updated is null ? NotFound() : Ok(updated);
             }
             catch (InvalidOperationException ex)
@@ -273,7 +370,13 @@ namespace ERP.API.Controllers
             }
         }
 
-        private static string ResolveActingUser(int? userId) =>
-            userId is int id and > 0 ? id.ToString() : "system";
+        private string ResolveActingUser(int? userId)
+        {
+            if (_currentUser.IsAuthenticated && _currentUser.UserId.HasValue)
+            {
+                return _currentUser.UserId.Value.ToString();
+            }
+            return userId is int id and > 0 ? id.ToString() : "system";
+        }
     }
 }

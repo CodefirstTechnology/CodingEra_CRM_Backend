@@ -1,6 +1,8 @@
 using ERP.API.Security;
+using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Domain.Enums;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +14,17 @@ namespace ERP.API.Controllers
     public class QuotationApprovalsController : ControllerBase
     {
         private readonly IQuotationApprovalService _service;
+        private readonly ICurrentUser _currentUser;
+        private readonly IErpAuthorizationService _authService;
 
-        public QuotationApprovalsController(IQuotationApprovalService service)
+        public QuotationApprovalsController(
+            IQuotationApprovalService service,
+            ICurrentUser currentUser,
+            IErpAuthorizationService authService)
         {
             _service = service;
+            _currentUser = currentUser;
+            _authService = authService;
         }
 
         // ─── Queries ──────────────────────────────────────────────────────────
@@ -32,14 +41,18 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
-            _ = userId; // reserved for CRM user integration
+            _ = userId;
+            var effectiveSalesPersonUserId = (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+                ? _currentUser.UserId.Value
+                : salesPersonUserId;
+
             return Ok(await _service.GetAllAsync(new QuotationApprovalListQueryDto
             {
                 Search = search,
                 Status = status,
                 Priority = priority,
                 ApprovalLevel = approvalLevel,
-                SalesPersonUserId = salesPersonUserId,
+                SalesPersonUserId = effectiveSalesPersonUserId,
                 DateFrom = dateFrom,
                 DateTo = dateTo
             }, cancellationToken));
@@ -51,14 +64,36 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
-            return Ok(await _service.GetStatisticsAsync(cancellationToken));
+            var stats = await _service.GetStatisticsAsync(cancellationToken);
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+            {
+                var ownRows = await _service.GetAllAsync(new QuotationApprovalListQueryDto
+                {
+                    SalesPersonUserId = _currentUser.UserId.Value
+                }, cancellationToken);
+
+                return Ok(new QuotationApprovalStatisticsDto
+                {
+                    TotalCount = ownRows.Count,
+                    PendingCount = ownRows.Count(x => x.Status == "Submitted" || x.Status == "Draft"),
+                    UnderReviewCount = ownRows.Count(x => x.Status == "UnderReview"),
+                    ApprovedCount = ownRows.Count(x => x.Status == "Approved"),
+                    RejectedCount = ownRows.Count(x => x.Status == "Rejected"),
+                    ReturnedCount = ownRows.Count(x => x.Status == "Returned"),
+                    CancelledCount = ownRows.Count(x => x.Status == "Cancelled"),
+                    TotalAmount = ownRows.Sum(x => x.TotalAmount),
+                    Recent = ownRows.Take(10).ToList()
+                });
+            }
+
+            return Ok(stats);
         }
 
         [HttpGet("permissions")]
         public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
         {
             _ = userId;
-            return Ok(await _service.GetPermissionsAsync());
+            return Ok(_currentUser.Permissions.ToList());
         }
 
         [HttpGet("lookups/sales-orders")]
@@ -78,7 +113,14 @@ namespace ERP.API.Controllers
         {
             _ = userId;
             var row = await _service.GetByIdAsync(id, cancellationToken);
-            return row is null ? NotFound() : Ok(row);
+            if (row is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(row.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this quotation." });
+            }
+
+            return Ok(row);
         }
 
         [HttpGet("{id:int}/history")]
@@ -88,6 +130,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var row = await _service.GetByIdAsync(id, cancellationToken);
+            if (row is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(row.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this quotation." });
+            }
+
             var rows = await _service.GetHistoryAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
         }
@@ -99,6 +149,14 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var row = await _service.GetByIdAsync(id, cancellationToken);
+            if (row is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(row.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this quotation." });
+            }
+
             var rows = await _service.GetCommentsAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
         }
@@ -114,7 +172,13 @@ namespace ERP.API.Controllers
         {
             try
             {
-                var created = await _service.CreateAsync(request, ResolveActingUser(userId), cancellationToken);
+                if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+                {
+                    request.SalesPersonUserId = _currentUser.UserId.Value;
+                }
+
+                var actingUser = ResolveActingUser(userId);
+                var created = await _service.CreateAsync(request, actingUser, cancellationToken);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
             }
             catch (InvalidOperationException ex)
@@ -133,6 +197,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify another user's quotation." });
+                }
+
                 var updated = await _service.UpdateAsync(id, request, ResolveActingUser(userId), cancellationToken);
                 return Ok(updated);
             }
@@ -151,6 +223,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot delete another user's quotation." });
+                }
+
                 var ok = await _service.DeleteAsync(id, ResolveActingUser(userId), cancellationToken);
                 return ok ? NoContent() : NotFound();
             }
@@ -169,6 +249,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot comment on another user's quotation." });
+                }
+
                 var row = await _service.AddCommentAsync(id, request, ResolveActingUser(userId), cancellationToken);
                 return Ok(row);
             }
@@ -189,6 +277,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot submit another user's quotation." });
+                }
+
                 var result = await _service.SubmitAsync(id, ResolveActingUser(userId), cancellationToken);
                 return Ok(result);
             }
@@ -284,6 +380,14 @@ namespace ERP.API.Controllers
         {
             try
             {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_authService.CanAccessRecord(existing.SalesPersonUserId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot convert another user's quotation." });
+                }
+
                 var created = await _service.ConvertToSalesOrderAsync(id, ResolveActingUser(userId), cancellationToken);
                 return Ok(created);
             }
@@ -314,7 +418,13 @@ namespace ERP.API.Controllers
             }
         }
 
-        private static string ResolveActingUser(int? userId) =>
-            userId is int id and > 0 ? id.ToString() : "system";
+        private string ResolveActingUser(int? userId)
+        {
+            if (_currentUser.IsAuthenticated && _currentUser.UserId.HasValue)
+            {
+                return _currentUser.UserId.Value.ToString();
+            }
+            return userId is int id and > 0 ? id.ToString() : "system";
+        }
     }
 }

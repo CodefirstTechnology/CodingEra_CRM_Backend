@@ -1,6 +1,8 @@
 using ERP.API.Security;
+using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Domain.Enums;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +14,17 @@ namespace ERP.API.Controllers
     public class SalesTargetsController : ControllerBase
     {
         private readonly ISalesTargetService _service;
+        private readonly ICurrentUser _currentUser;
+        private readonly IErpAuthorizationService _authService;
 
-        public SalesTargetsController(ISalesTargetService service)
+        public SalesTargetsController(
+            ISalesTargetService service,
+            ICurrentUser currentUser,
+            IErpAuthorizationService authService)
         {
             _service = service;
+            _currentUser = currentUser;
+            _authService = authService;
         }
 
         [HttpGet]
@@ -32,13 +41,17 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             _ = userId;
+            var effectiveSalesPersonUserId = (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+                ? _currentUser.UserId.Value
+                : salesPersonUserId;
+
             return Ok(await _service.GetAllAsync(new SalesTargetListQueryDto
             {
                 Search = search,
                 Status = status,
                 TargetType = targetType,
                 TargetCategory = targetCategory,
-                SalesPersonUserId = salesPersonUserId,
+                SalesPersonUserId = effectiveSalesPersonUserId,
                 FinancialYear = financialYear,
                 DateFrom = dateFrom,
                 DateTo = dateTo
@@ -75,6 +88,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("reports/export")]
+        [RequirePermission(ErpPermissions.SalesTargets.Create)]
         public async Task<ActionResult<SalesTargetExportMetadataDto>> ExportReports(
             [FromBody] SalesTargetExportRequestDto request,
             [FromQuery] int? userId,
@@ -106,7 +120,7 @@ namespace ERP.API.Controllers
         public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
         {
             _ = userId;
-            return Ok(await _service.GetPermissionsAsync());
+            return Ok(_currentUser.Permissions.ToList());
         }
 
         [HttpGet("lookups/salespersons")]
@@ -153,7 +167,14 @@ namespace ERP.API.Controllers
         {
             _ = userId;
             var row = await _service.GetByIdAsync(id, cancellationToken);
-            return row is null ? NotFound() : Ok(row);
+            if (row is null) return NotFound();
+
+            if (!_authService.CanAccessRecord(row.SalesPersonUserId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this sales target." });
+            }
+
+            return Ok(row);
         }
 
         [HttpPost]
@@ -332,7 +353,13 @@ namespace ERP.API.Controllers
             }
         }
 
-        private static string ResolveActingUser(int? userId) =>
-            userId is > 0 ? userId.Value.ToString() : "1";
+        private string ResolveActingUser(int? userId)
+        {
+            if (_currentUser.IsAuthenticated && _currentUser.UserId.HasValue)
+            {
+                return _currentUser.UserId.Value.ToString();
+            }
+            return userId is int id and > 0 ? id.ToString() : "system";
+        }
     }
 }

@@ -207,7 +207,7 @@ namespace Backend_ERP.Tests
 
             // Record owned by user 999
             Assert.True(authService.CanAccessRecord(999, AccessScope.Own));
-            Assert.True(authService.CanAccessRecord(null, AccessScope.Own));
+            Assert.True(authService.CanAccessRecord((int?)null, AccessScope.Own));
             Assert.True(authService.Authorize(ErpPermissions.Quotations.Approve));
         }
 

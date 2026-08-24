@@ -1,6 +1,8 @@
 using ERP.API.Security;
+using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Domain.Enums;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,17 +14,27 @@ namespace ERP.API.Controllers
     public class PerformanceDashboardController : ControllerBase
     {
         private readonly IPerformanceService _service;
+        private readonly ICurrentUser _currentUser;
+        private readonly IErpAuthorizationService _authService;
 
-        public PerformanceDashboardController(IPerformanceService service)
+        public PerformanceDashboardController(
+            IPerformanceService service,
+            ICurrentUser currentUser,
+            IErpAuthorizationService authService)
         {
             _service = service;
+            _currentUser = currentUser;
+            _authService = authService;
         }
 
         [HttpGet("dashboard")]
         public Task<ActionResult<PerformanceDashboardDto>> Dashboard(
             [FromQuery] PerformanceFilterDto filter,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetDashboardAsync(filter, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            ApplyOwnScopeFilter(filter);
+            return Execute(() => _service.GetDashboardAsync(filter, cancellationToken));
+        }
 
         [HttpGet("leaderboards")]
         [RequirePermission(ErpPermissions.Performance.LeaderboardView)]
@@ -34,8 +46,11 @@ namespace ERP.API.Controllers
         [HttpGet("salespersons")]
         public Task<ActionResult<IReadOnlyList<PerformanceSalesPersonDto>>> Salespersons(
             [FromQuery] PerformanceFilterDto filter,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetSalespersonsAsync(filter, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            ApplyOwnScopeFilter(filter);
+            return Execute(() => _service.GetSalespersonsAsync(filter, cancellationToken));
+        }
 
         [HttpGet("salespersons/{id:int}")]
         public async Task<ActionResult<PerformanceSalesPersonDto>> Salesperson(
@@ -45,6 +60,12 @@ namespace ERP.API.Controllers
         {
             try
             {
+                if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue && id != _currentUser.UserId.Value)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to another salesperson's performance." });
+                }
+
+                ApplyOwnScopeFilter(filter);
                 var row = await _service.GetSalespersonAsync(id, filter, cancellationToken);
                 return row is null ? NotFound() : Ok(row);
             }
@@ -58,39 +79,79 @@ namespace ERP.API.Controllers
         public Task<ActionResult<IReadOnlyList<PerformanceTimelineDto>>> Timeline(
             int id,
             [FromQuery] PerformanceFilterDto filter,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetTimelineAsync(id, filter, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue && id != _currentUser.UserId.Value)
+            {
+                return Task.FromResult<ActionResult<IReadOnlyList<PerformanceTimelineDto>>>(
+                    StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to another salesperson's performance." }));
+            }
+
+            ApplyOwnScopeFilter(filter);
+            return Execute(() => _service.GetTimelineAsync(id, filter, cancellationToken));
+        }
 
         [HttpGet("salespersons/{id:int}/monthly")]
         public Task<ActionResult<IReadOnlyList<PerformanceTrendDto>>> Monthly(
             int id,
             [FromQuery] PerformanceFilterDto filter,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetMonthlyAsync(id, filter, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue && id != _currentUser.UserId.Value)
+            {
+                return Task.FromResult<ActionResult<IReadOnlyList<PerformanceTrendDto>>>(
+                    StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to another salesperson's performance." }));
+            }
+
+            ApplyOwnScopeFilter(filter);
+            return Execute(() => _service.GetMonthlyAsync(id, filter, cancellationToken));
+        }
 
         [HttpGet("salespersons/{id:int}/performance-history")]
         public Task<ActionResult<IReadOnlyList<PerformanceHistoryDto>>> PerformanceHistory(
             int id,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetPerformanceHistoryAsync(id, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue && id != _currentUser.UserId.Value)
+            {
+                return Task.FromResult<ActionResult<IReadOnlyList<PerformanceHistoryDto>>>(
+                    StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to another salesperson's performance." }));
+            }
+
+            return Execute(() => _service.GetPerformanceHistoryAsync(id, cancellationToken));
+        }
 
         [HttpGet("salespersons/{id:int}/target-history")]
         public Task<ActionResult<IReadOnlyList<PerformanceHistoryDto>>> TargetHistory(
             int id,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetTargetHistoryAsync(id, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue && id != _currentUser.UserId.Value)
+            {
+                return Task.FromResult<ActionResult<IReadOnlyList<PerformanceHistoryDto>>>(
+                    StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to another salesperson's performance." }));
+            }
+
+            return Execute(() => _service.GetTargetHistoryAsync(id, cancellationToken));
+        }
 
         [HttpGet("analytics")]
         public Task<ActionResult<PerformanceAnalyticsDto>> Analytics(
             [FromQuery] PerformanceFilterDto filter,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetAnalyticsAsync(filter, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            ApplyOwnScopeFilter(filter);
+            return Execute(() => _service.GetAnalyticsAsync(filter, cancellationToken));
+        }
 
         [HttpGet("reports")]
         public Task<ActionResult<PerformanceReportDto>> Reports(
             [FromQuery] PerformanceFilterDto filter,
-            CancellationToken cancellationToken) =>
-            Execute(() => _service.GetReportsAsync(filter, cancellationToken));
+            CancellationToken cancellationToken)
+        {
+            ApplyOwnScopeFilter(filter);
+            return Execute(() => _service.GetReportsAsync(filter, cancellationToken));
+        }
 
         [HttpPost("reports/export")]
         [RequirePermission(ErpPermissions.Performance.Export)]
@@ -100,10 +161,11 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken) =>
             Execute(() => _service.ExportAsync(
                 request,
-                userId is > 0 ? userId.Value.ToString() : "1",
+                _currentUser.UserId?.ToString() ?? (userId is > 0 ? userId.Value.ToString() : "system"),
                 cancellationToken));
 
         [HttpGet("exports/history")]
+        [RequirePermission(ErpPermissions.Performance.Export)]
         public async Task<ActionResult<IReadOnlyList<PerformanceExportDto>>> ExportHistory(
             CancellationToken cancellationToken) =>
             Ok(await _service.GetExportHistoryAsync(cancellationToken));
@@ -129,8 +191,16 @@ namespace ERP.API.Controllers
             Ok(await _service.LookupRegionalManagersAsync(cancellationToken));
 
         [HttpGet("permissions")]
-        public async Task<ActionResult<IReadOnlyList<string>>> Permissions() =>
-            Ok(await _service.GetPermissionsAsync());
+        public ActionResult<IReadOnlyList<string>> Permissions() =>
+            Ok(_currentUser.Permissions.ToList());
+
+        private void ApplyOwnScopeFilter(PerformanceFilterDto filter)
+        {
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue)
+            {
+                filter.SalesPersonUserId = _currentUser.UserId.Value;
+            }
+        }
 
         private async Task<ActionResult<T>> Execute<T>(Func<Task<T>> action)
         {
