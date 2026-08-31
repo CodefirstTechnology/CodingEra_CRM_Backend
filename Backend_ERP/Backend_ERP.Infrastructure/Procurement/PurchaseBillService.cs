@@ -117,8 +117,8 @@ namespace ERP.Infrastructure.Procurement
                 PurchaseOrderNumber = request.PurchaseOrderNumber,
                 GRNId = request.GRNId,
                 GRNNumber = request.GRNNumber,
-                InvoiceDate = request.InvoiceDate,
-                DueDate = request.DueDate,
+                InvoiceDate = request.InvoiceDate.ToUniversalTime(),
+                DueDate = request.DueDate.ToUniversalTime(),
                 Currency = request.Currency ?? "INR",
                 PaymentTerms = request.PaymentTerms ?? "Net 30 Days",
                 PaymentStatus = PurchaseBillPaymentStatus.Unpaid,
@@ -194,8 +194,8 @@ namespace ERP.Infrastructure.Procurement
             entity.InvoiceNumber = request.InvoiceNumber;
             entity.VendorId = request.VendorId;
             entity.VendorName = request.VendorName;
-            entity.InvoiceDate = request.InvoiceDate;
-            entity.DueDate = request.DueDate;
+            entity.InvoiceDate = request.InvoiceDate.ToUniversalTime();
+            entity.DueDate = request.DueDate.ToUniversalTime();
             if (!string.IsNullOrWhiteSpace(request.PaymentTerms)) entity.PaymentTerms = request.PaymentTerms;
             if (!string.IsNullOrWhiteSpace(request.Remarks)) entity.Remarks = request.Remarks;
             entity.UpdatedBy = currentUser;

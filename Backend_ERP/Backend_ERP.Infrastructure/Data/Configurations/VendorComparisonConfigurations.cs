@@ -50,6 +50,7 @@ namespace ERP.Infrastructure.Data.Configurations
         {
             builder.ToTable("vendor_comparison_entries");
             builder.HasKey(x => x.Id);
+            builder.Ignore(x => x.Lines);
 
             builder.Property(x => x.VendorName).HasMaxLength(256).IsRequired();
             builder.Property(x => x.QuotationRef).HasMaxLength(128);

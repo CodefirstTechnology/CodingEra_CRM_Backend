@@ -72,7 +72,6 @@ namespace ERP.Infrastructure.Procurement
         {
             var vc = await _db.VendorComparisons
                 .Include(c => c.Entries)
-                .ThenInclude(e => e.Lines)
                 .Include(c => c.History.OrderByDescending(h => h.Date))
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
