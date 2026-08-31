@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using CRM.DTO;
 using CRM.Services;
 
@@ -117,18 +119,137 @@ namespace CRM.Helpers
             var fullName = (dto.Name ?? string.Empty).Trim();
             var (firstName, lastName) = SplitName(fullName);
 
+            var rawMobile = dto.Mobile?.Trim();
+            var rawPhone = dto.Phone?.Trim();
+            var primaryMobile = !string.IsNullOrWhiteSpace(rawMobile)
+                ? rawMobile!
+                : (!string.IsNullOrWhiteSpace(rawPhone) ? rawPhone! : string.Empty);
+
+            var hasDistinctPhone = !string.IsNullOrWhiteSpace(rawMobile)
+                && !string.IsNullOrWhiteSpace(rawPhone)
+                && !string.Equals(rawMobile, rawPhone, StringComparison.OrdinalIgnoreCase);
+
+            var company = dto.Company?.Trim();
+
+            var notesLines = new List<string>();
+            var category = dto.Category?.Trim();
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                notesLines.Add($"Category: {category}");
+            }
+            notesLines.Add(LeadSyncNotesHelper.FormatExtMarker(JustdialMarkerName, leadId));
+            var notes = string.Join('\n', notesLines);
+
+            var effectiveArea = !string.IsNullOrWhiteSpace(dto.Area)
+                ? dto.Area.Trim()
+                : (!string.IsNullOrWhiteSpace(dto.Brancharea) ? dto.Brancharea.Trim() : null);
+
+            var effectiveCity = !string.IsNullOrWhiteSpace(dto.City) ? dto.City.Trim() : null;
+            var effectiveState = !string.IsNullOrWhiteSpace(dto.State) ? dto.State.Trim() : null;
+
+            var effectivePin = !string.IsNullOrWhiteSpace(dto.Pincode) && dto.Pincode.Trim() != "0"
+                ? dto.Pincode.Trim()
+                : (!string.IsNullOrWhiteSpace(dto.Branchpin) && dto.Branchpin.Trim() != "0" ? dto.Branchpin.Trim() : null);
+
+            var addressParts = new[] { effectiveArea, effectiveCity, effectiveState }
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            string? location = null;
+            if (addressParts.Count > 0 && !string.IsNullOrWhiteSpace(effectivePin))
+            {
+                location = $"{string.Join(", ", addressParts)} - {effectivePin}";
+            }
+            else if (addressParts.Count > 0)
+            {
+                location = string.Join(", ", addressParts);
+            }
+            else if (!string.IsNullOrWhiteSpace(effectivePin))
+            {
+                location = effectivePin;
+            }
+
+            var rawDict = new Dictionary<string, object>();
+            if (!string.IsNullOrWhiteSpace(dto.Leadtype))
+            {
+                rawDict["leadtype"] = dto.Leadtype.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.Prefix))
+            {
+                rawDict["prefix"] = dto.Prefix.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.Parentid))
+            {
+                rawDict["parentid"] = dto.Parentid.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.Dncmobile))
+            {
+                rawDict["dncmobile"] = dto.Dncmobile.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.Dncphone))
+            {
+                rawDict["dncphone"] = dto.Dncphone.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.Date))
+            {
+                rawDict["raw_date"] = dto.Date.Trim();
+            }
+            if (!string.IsNullOrWhiteSpace(dto.Time))
+            {
+                rawDict["raw_time"] = dto.Time.Trim();
+            }
+            if (hasDistinctPhone)
+            {
+                rawDict["phone"] = rawPhone!;
+            }
+
+            string? rawPayload = rawDict.Count > 0 ? JsonSerializer.Serialize(rawDict) : null;
+
+            var createdAt = ParseJustdialDateTime(dto.Date, dto.Time);
+
             return new LeadSyncIncomingLead
             {
                 ExternalKey = leadId,
                 FirstName = firstName,
                 LastName = lastName,
                 Email = dto.Email?.Trim() ?? string.Empty,
-                Mobile = dto.Mobile?.Trim() ?? string.Empty,
+                Mobile = primaryMobile,
                 Requirement = null,
-                // Notes hold only the marketplace marker (dedupe + round-robin).
-                Notes = LeadSyncNotesHelper.FormatExtMarker(JustdialMarkerName, leadId),
-                CreatedAt = null
+                OrganizationName = string.IsNullOrWhiteSpace(company) ? null : company,
+                Location = location,
+                RawPayload = rawPayload,
+                Notes = notes,
+                CreatedAt = createdAt
             };
+        }
+
+        private static DateTime? ParseJustdialDateTime(string? dateStr, string? timeStr)
+        {
+            var date = dateStr?.Trim();
+            var time = timeStr?.Trim();
+
+            if (string.IsNullOrWhiteSpace(date))
+            {
+                return null;
+            }
+
+            var combined = !string.IsNullOrWhiteSpace(time) ? $"{date} {time}" : date;
+
+            if (DateTime.TryParse(combined, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+                || DateTime.TryParse(date, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+            {
+                if (parsed.Kind == DateTimeKind.Unspecified)
+                {
+                    // Justdial timestamps are Indian Standard Time (IST = UTC+05:30)
+                    var istOffset = TimeSpan.FromHours(5.5);
+                    var utc = new DateTimeOffset(parsed, istOffset).UtcDateTime;
+                    return DateTime.SpecifyKind(utc, DateTimeKind.Utc);
+                }
+
+                return parsed.ToUniversalTime();
+            }
+
+            return null;
         }
 
         private static (string FirstName, string LastName) SplitName(string fullName)
