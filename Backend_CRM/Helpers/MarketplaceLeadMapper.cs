@@ -135,7 +135,7 @@ namespace CRM.Helpers
             var category = dto.Category?.Trim();
             if (!string.IsNullOrWhiteSpace(category))
             {
-                notesLines.Add($"Category: {category}");
+                notesLines.Add(category);
             }
             notesLines.Add(LeadSyncNotesHelper.FormatExtMarker(JustdialMarkerName, leadId));
             var notes = string.Join('\n', notesLines);
@@ -214,7 +214,7 @@ namespace CRM.Helpers
                 LastName = lastName,
                 Email = dto.Email?.Trim() ?? string.Empty,
                 Mobile = primaryMobile,
-                Requirement = null,
+                Requirement = string.IsNullOrWhiteSpace(category) ? null : category,
                 OrganizationName = string.IsNullOrWhiteSpace(company) ? null : company,
                 Location = location,
                 RawPayload = rawPayload,

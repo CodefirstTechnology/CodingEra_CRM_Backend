@@ -104,8 +104,9 @@ public class MarketplaceLeadMapperJustdialTests
 
         var lead = MarketplaceLeadMapper.FromJustdial(dto);
 
-        var expectedNotes = "Category: Generator Dealers\n[crm-ext:Justdial:JD-TEST-5]";
+        var expectedNotes = "Generator Dealers\n[crm-ext:Justdial:JD-TEST-5]";
         Assert.Equal(expectedNotes, lead.Notes);
+        Assert.Equal("Generator Dealers", lead.Requirement);
     }
 
     [Fact]
@@ -271,7 +272,7 @@ public class MarketplaceLeadMapperJustdialTests
         Assert.NotNull(org);
         Assert.Equal("Reliance Power", org!.Name);
 
-        Assert.Equal("Category: Generators\n[crm-ext:Justdial:JD-PERSIST-1]", lead.Notes);
+        Assert.Equal("Generators\n[crm-ext:Justdial:JD-PERSIST-1]", lead.Notes);
         Assert.NotNull(lead.LeadDate);
         Assert.Equal(DateTimeKind.Utc, lead.LeadDate!.Value.Kind);
     }
