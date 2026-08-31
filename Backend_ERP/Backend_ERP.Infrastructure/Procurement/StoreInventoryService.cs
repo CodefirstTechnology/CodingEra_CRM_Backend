@@ -946,13 +946,14 @@ namespace ERP.Infrastructure.Procurement
                 {
                     foreach (var item in entity.Items)
                     {
-                        var destMat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.MaterialCode == item.MaterialCode && x.WarehouseId == entity.ToWarehouseId && !x.IsDeleted, cancellationToken);
+                        var destCode = $"{item.MaterialCode}-W{entity.ToWarehouseId}";
+                        var destMat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => (x.MaterialCode == item.MaterialCode || x.MaterialCode == destCode) && x.WarehouseId == entity.ToWarehouseId && !x.IsDeleted, cancellationToken);
                         if (destMat is null)
                         {
                             var srcMat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == item.MaterialId && !x.IsDeleted, cancellationToken);
                             destMat = new RawMaterial
                             {
-                                MaterialCode = item.MaterialCode,
+                                MaterialCode = destCode,
                                 MaterialName = item.MaterialName,
                                 Category = srcMat?.Category ?? "General",
                                 WarehouseId = entity.ToWarehouseId,

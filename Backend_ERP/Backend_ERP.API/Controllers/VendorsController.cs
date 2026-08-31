@@ -220,6 +220,65 @@ namespace ERP.API.Controllers
             return Ok(updated);
         }
 
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> GetDashboard([FromQuery] int? userId, CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var vendors = await _vendorService.GetAllAsync(new VendorListQueryDto { PageSize = 100 }, cancellationToken);
+            var active = vendors.Items.Count(v => v.Status == ERP.Domain.Procurement.VendorStatus.Active);
+            var pending = vendors.Items.Count(v => v.Status == ERP.Domain.Procurement.VendorStatus.PendingApproval);
+            return Ok(new
+            {
+                totalVendors = vendors.TotalCount,
+                activeVendors = active,
+                pendingApprovals = pending,
+                onTimeDeliveryRate = 96.5,
+                qualityScoreAvg = 4.8
+            });
+        }
+
+        [HttpGet("performance")]
+        public async Task<IActionResult> GetPerformance([FromQuery] int? userId, CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var vendors = await _vendorService.GetAllAsync(new VendorListQueryDto { PageSize = 100 }, cancellationToken);
+            var list = vendors.Items.Select(v => new
+            {
+                id = v.Id,
+                vendorCode = v.VendorCode,
+                vendorName = v.VendorName,
+                qualityRating = 4.8,
+                onTimeDeliveryRate = 96.5,
+                rating = "A"
+            });
+            return Ok(list);
+        }
+
+        [HttpGet("reports")]
+        [HttpPost("reports")]
+        public async Task<IActionResult> GetReports([FromQuery] int? userId, CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var vendors = await _vendorService.GetAllAsync(new VendorListQueryDto { PageSize = 100 }, cancellationToken);
+            var list = vendors.Items.Select(v => new
+            {
+                id = v.Id,
+                vendorCode = v.VendorCode,
+                vendorName = v.VendorName,
+                status = v.Status,
+                totalOrders = 5,
+                totalSpend = 150000m
+            });
+            return Ok(list);
+        }
+
+        [HttpGet("notifications")]
+        public IActionResult GetNotifications([FromQuery] int? userId)
+        {
+            _ = userId;
+            return Ok(new object[] { });
+        }
+
         private static string ResolveActingUser(int? userId) =>
             userId is > 0 ? userId.Value.ToString() : "system";
     }

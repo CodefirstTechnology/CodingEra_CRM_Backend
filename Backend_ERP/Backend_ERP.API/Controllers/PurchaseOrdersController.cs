@@ -327,6 +327,28 @@ namespace ERP.API.Controllers
             return Ok(history);
         }
 
+        [HttpGet("approvals")]
+        public async Task<ActionResult<List<PurchaseOrderApprovalQueueItemDto>>> GetApprovals(
+            [FromQuery] string? search,
+            [FromQuery] string? status,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var queue = await _poService.GetApprovalQueueAsync(new PurchaseOrderListQueryDto { Search = search, Status = status }, cancellationToken);
+            return Ok(queue);
+        }
+
+        [HttpGet("approvals/metrics")]
+        public async Task<ActionResult<PurchaseOrderApprovalMetricsDto>> GetApprovalMetrics(
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var metrics = await _poService.GetApprovalMetricsAsync(new PurchaseOrderListQueryDto(), cancellationToken);
+            return Ok(metrics);
+        }
+
         private static string ResolveActingUser(int? userId) =>
             userId is > 0 ? userId.Value.ToString() : "system";
     }
