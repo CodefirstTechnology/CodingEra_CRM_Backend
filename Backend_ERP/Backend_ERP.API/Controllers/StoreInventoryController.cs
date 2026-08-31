@@ -122,6 +122,20 @@ namespace ERP.API.Controllers
             return item is null ? NotFound() : Ok(item);
         }
 
+        [HttpPost("raw-materials")]
+        public async Task<ActionResult<RawMaterialDto>> CreateRawMaterial([FromBody] RawMaterialCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var created = await _inventoryService.CreateRawMaterialAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetRawMaterialById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
+        }
+
         [HttpPost("raw-materials/adjust")]
         public async Task<ActionResult<RawMaterialDto>> AdjustStock([FromBody] StockAdjustRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
@@ -171,6 +185,20 @@ namespace ERP.API.Controllers
             _ = userId;
             var item = await _inventoryService.GetFinishedGoodByIdAsync(id, cancellationToken);
             return item is null ? NotFound() : Ok(item);
+        }
+
+        [HttpPost("finished-goods")]
+        public async Task<ActionResult<FinishedGoodDto>> CreateFinishedGood([FromBody] FinishedGoodCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var created = await _inventoryService.CreateFinishedGoodAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetFinishedGoodById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         [HttpPost("finished-goods/adjust")]
@@ -280,6 +308,20 @@ namespace ERP.API.Controllers
             _ = userId;
             var item = await _inventoryService.GetBatchByIdAsync(id, cancellationToken);
             return item is null ? NotFound() : Ok(item);
+        }
+
+        [HttpPost("batches")]
+        public async Task<ActionResult<InventoryBatchDto>> CreateBatch([FromBody] InventoryBatchCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var created = await _inventoryService.CreateBatchAsync(request, ResolveUser(userId), cancellationToken);
+                return CreatedAtAction(nameof(GetBatchById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: Microsoft.AspNetCore.Http.StatusCodes.Status400BadRequest);
+            }
         }
 
         // ── Stock Transfers ──

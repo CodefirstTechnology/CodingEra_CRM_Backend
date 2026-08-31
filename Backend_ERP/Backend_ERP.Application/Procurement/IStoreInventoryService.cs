@@ -18,6 +18,7 @@ namespace ERP.Application.Procurement
         // Raw Materials
         Task<List<RawMaterialListItemDto>> GetRawMaterialsAsync(StoreListQueryDto query, CancellationToken cancellationToken = default);
         Task<RawMaterialDto?> GetRawMaterialByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<RawMaterialDto> CreateRawMaterialAsync(RawMaterialCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default);
         Task<RawMaterialDto?> AdjustStockAsync(StockAdjustRequestDto request, string currentUser, CancellationToken cancellationToken = default);
         Task<List<StockTransactionListItemDto>> GetRawMaterialHistoryAsync(int id, CancellationToken cancellationToken = default);
         Task<RawMaterialDashboardDto> GetRawMaterialDashboardAsync(CancellationToken cancellationToken = default);
@@ -25,6 +26,7 @@ namespace ERP.Application.Procurement
         // Finished Goods
         Task<List<FinishedGoodListItemDto>> GetFinishedGoodsAsync(StoreListQueryDto query, CancellationToken cancellationToken = default);
         Task<FinishedGoodDto?> GetFinishedGoodByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<FinishedGoodDto> CreateFinishedGoodAsync(FinishedGoodCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default);
         Task<FinishedGoodDto?> AdjustFinishedGoodAsync(FinishedGoodAdjustRequestDto request, string currentUser, CancellationToken cancellationToken = default);
         Task<List<StockTransactionListItemDto>> GetFinishedGoodHistoryAsync(int id, CancellationToken cancellationToken = default);
         Task<FinishedGoodDashboardDto> GetFinishedGoodDashboardAsync(CancellationToken cancellationToken = default);
@@ -39,6 +41,7 @@ namespace ERP.Application.Procurement
         // Batches
         Task<List<InventoryBatchListItemDto>> GetBatchesAsync(StoreListQueryDto query, CancellationToken cancellationToken = default);
         Task<InventoryBatchDto?> GetBatchByIdAsync(int id, CancellationToken cancellationToken = default);
+        Task<InventoryBatchDto> CreateBatchAsync(InventoryBatchCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default);
         Task<BatchDashboardDto> GetBatchDashboardAsync(CancellationToken cancellationToken = default);
 
         // Transfers

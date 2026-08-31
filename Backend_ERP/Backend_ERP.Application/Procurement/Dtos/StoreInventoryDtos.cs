@@ -1406,4 +1406,139 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("varianceAmount")]
         public decimal VarianceAmount { get; set; }
     }
+
+    public class RawMaterialCreateRequestDto
+    {
+        [JsonPropertyName("materialCode")]
+        public string? MaterialCode { get; set; }
+
+        [JsonPropertyName("materialName")]
+        public string MaterialName { get; set; } = string.Empty;
+
+        [JsonPropertyName("category")]
+        public string Category { get; set; } = "General";
+
+        [JsonPropertyName("warehouseId")]
+        public int WarehouseId { get; set; }
+
+        [JsonPropertyName("rack")]
+        public string? Rack { get; set; }
+
+        [JsonPropertyName("unit")]
+        public string Unit { get; set; } = "Nos";
+
+        [JsonPropertyName("openingStock")]
+        public decimal OpeningStock { get; set; }
+
+        [JsonPropertyName("availableStock")]
+        public decimal AvailableStock { get; set; }
+
+        [JsonPropertyName("minimumStock")]
+        public decimal MinimumStock { get; set; }
+
+        [JsonPropertyName("maximumStock")]
+        public decimal MaximumStock { get; set; }
+
+        [JsonPropertyName("reorderLevel")]
+        public decimal ReorderLevel { get; set; }
+
+        [JsonPropertyName("unitCost")]
+        public decimal UnitCost { get; set; }
+
+        [JsonPropertyName("supplier")]
+        public string? Supplier { get; set; }
+
+        [JsonPropertyName("linkedGrnId")]
+        public int? LinkedGRNId { get; set; }
+
+        [JsonPropertyName("linkedGrnNumber")]
+        public string? LinkedGRNNumber { get; set; }
+
+        [JsonPropertyName("linkedPoId")]
+        public int? LinkedPOId { get; set; }
+
+        [JsonPropertyName("linkedPoNumber")]
+        public string? LinkedPONumber { get; set; }
+
+        [JsonPropertyName("notes")]
+        public string? Notes { get; set; }
+    }
+
+    public class FinishedGoodCreateRequestDto
+    {
+        [JsonPropertyName("productCode")]
+        public string? ProductCode { get; set; }
+
+        [JsonPropertyName("productName")]
+        public string ProductName { get; set; } = string.Empty;
+
+        [JsonPropertyName("warehouseId")]
+        public int WarehouseId { get; set; }
+
+        [JsonPropertyName("finishedQuantity")]
+        public decimal FinishedQuantity { get; set; }
+
+        [JsonPropertyName("reservedQuantity")]
+        public decimal ReservedQuantity { get; set; }
+
+        [JsonPropertyName("availableQuantity")]
+        public decimal AvailableQuantity { get; set; }
+
+        [JsonPropertyName("batchNumber")]
+        public string? BatchNumber { get; set; }
+
+        [JsonPropertyName("productionReference")]
+        public string? ProductionReference { get; set; }
+
+        [JsonPropertyName("unitPrice")]
+        public decimal UnitPrice { get; set; }
+
+        [JsonPropertyName("manufacturingDate")]
+        public DateTime? ManufacturingDate { get; set; }
+
+        [JsonPropertyName("expiryDate")]
+        public DateTime? ExpiryDate { get; set; }
+
+        [JsonPropertyName("notes")]
+        public string? Notes { get; set; }
+    }
+
+    public class InventoryBatchCreateRequestDto
+    {
+        [JsonPropertyName("batchNumber")]
+        public string? BatchNumber { get; set; }
+
+        [JsonPropertyName("materialId")]
+        public int MaterialId { get; set; }
+
+        [JsonPropertyName("warehouseId")]
+        public int WarehouseId { get; set; }
+
+        [JsonPropertyName("supplier")]
+        public string? Supplier { get; set; }
+
+        [JsonPropertyName("grnId")]
+        public int? GRNId { get; set; }
+
+        [JsonPropertyName("grnNumber")]
+        public string? GRNNumber { get; set; }
+
+        [JsonPropertyName("manufacturingDate")]
+        public DateTime? ManufacturingDate { get; set; }
+
+        [JsonPropertyName("expiryDate")]
+        public DateTime? ExpiryDate { get; set; }
+
+        [JsonPropertyName("availableQuantity")]
+        public decimal AvailableQuantity { get; set; }
+
+        [JsonPropertyName("unitCost")]
+        public decimal UnitCost { get; set; }
+
+        [JsonPropertyName("unit")]
+        public string Unit { get; set; } = "Nos";
+
+        [JsonPropertyName("notes")]
+        public string? Notes { get; set; }
+    }
 }

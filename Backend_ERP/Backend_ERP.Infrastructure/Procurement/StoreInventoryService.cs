@@ -171,6 +171,59 @@ namespace ERP.Infrastructure.Procurement
             return item is null ? null : MapRawMaterial(item);
         }
 
+        public async Task<RawMaterialDto> CreateRawMaterialAsync(RawMaterialCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default)
+        {
+            var wh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.WarehouseId && !x.IsDeleted, cancellationToken);
+            if (wh is null)
+            {
+                throw new InvalidOperationException("Selected warehouse does not exist.");
+            }
+
+            var code = string.IsNullOrWhiteSpace(request.MaterialCode)
+                ? await _numberingService.GenerateNumberAsync("MAT", cancellationToken)
+                : request.MaterialCode;
+
+            var avail = request.AvailableStock > 0 ? request.AvailableStock : request.OpeningStock;
+            var entity = new RawMaterial
+            {
+                MaterialCode = code,
+                MaterialName = request.MaterialName,
+                Category = string.IsNullOrWhiteSpace(request.Category) ? "General" : request.Category,
+                WarehouseId = request.WarehouseId,
+                WarehouseName = wh.Name,
+                Rack = request.Rack ?? string.Empty,
+                Unit = string.IsNullOrWhiteSpace(request.Unit) ? "Nos" : request.Unit,
+                OpeningStock = request.OpeningStock,
+                AvailableStock = avail,
+                ReservedStock = 0m,
+                MinimumStock = request.MinimumStock,
+                MaximumStock = request.MaximumStock,
+                ReorderLevel = request.ReorderLevel,
+                UnitCost = request.UnitCost,
+                CurrentValue = avail * request.UnitCost,
+                BatchCount = 0,
+                StockAgeDays = 0,
+                StockAgeBand = StockAgeBand.Band0To30,
+                Supplier = request.Supplier ?? string.Empty,
+                LastReceiptDate = DateTime.UtcNow,
+                LinkedGRNId = request.LinkedGRNId,
+                LinkedGRNNumber = request.LinkedGRNNumber,
+                LinkedPOId = request.LinkedPOId,
+                LinkedPONumber = request.LinkedPONumber,
+                Notes = request.Notes ?? string.Empty,
+                CreatedBy = currentUser,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = currentUser,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.RawMaterials.Add(entity);
+            wh.AssignedInventoryCount++;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await RecalculateStockAlertsAsync(cancellationToken);
+            return MapRawMaterial(entity);
+        }
+
         public async Task<RawMaterialDto?> AdjustStockAsync(StockAdjustRequestDto request, string currentUser, CancellationToken cancellationToken = default)
         {
             var item = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == request.MaterialId && !x.IsDeleted, cancellationToken);
@@ -277,6 +330,48 @@ namespace ERP.Infrastructure.Procurement
         {
             var item = await _dbContext.FinishedGoods.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             return item is null ? null : MapFinishedGood(item);
+        }
+
+        public async Task<FinishedGoodDto> CreateFinishedGoodAsync(FinishedGoodCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default)
+        {
+            var wh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.WarehouseId && !x.IsDeleted, cancellationToken);
+            if (wh is null)
+            {
+                throw new InvalidOperationException("Selected warehouse does not exist.");
+            }
+
+            var code = string.IsNullOrWhiteSpace(request.ProductCode)
+                ? await _numberingService.GenerateNumberAsync("FG", cancellationToken)
+                : request.ProductCode;
+
+            var avail = request.AvailableQuantity > 0 ? request.AvailableQuantity : request.FinishedQuantity;
+            var cost = request.UnitPrice > 0 ? request.UnitPrice : 0m;
+            var entity = new FinishedGood
+            {
+                ProductCode = code,
+                ProductName = request.ProductName,
+                WarehouseId = request.WarehouseId,
+                WarehouseName = wh.Name,
+                FinishedQuantity = request.FinishedQuantity,
+                ReservedQuantity = request.ReservedQuantity,
+                AvailableQuantity = avail,
+                BatchNumber = request.BatchNumber ?? string.Empty,
+                ProductionReference = request.ProductionReference ?? string.Empty,
+                UnitCost = cost,
+                CurrentValue = avail * cost,
+                DispatchStatus = FgDispatchStatus.ReadyToDispatch,
+                ManufacturingDate = request.ManufacturingDate ?? DateTime.UtcNow,
+                ExpiryDate = request.ExpiryDate,
+                Notes = request.Notes ?? string.Empty,
+                CreatedBy = currentUser,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = currentUser,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.FinishedGoods.Add(entity);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return MapFinishedGood(entity);
         }
 
         public async Task<FinishedGoodDto?> AdjustFinishedGoodAsync(FinishedGoodAdjustRequestDto request, string currentUser, CancellationToken cancellationToken = default)
@@ -574,6 +669,53 @@ namespace ERP.Infrastructure.Procurement
 
             var item = await _dbContext.InventoryBatches.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
             return item is null ? null : MapBatch(item);
+        }
+
+        public async Task<InventoryBatchDto> CreateBatchAsync(InventoryBatchCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default)
+        {
+            var mat = await _dbContext.RawMaterials.FirstOrDefaultAsync(x => x.Id == request.MaterialId && !x.IsDeleted, cancellationToken);
+            var wh = await _dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == request.WarehouseId && !x.IsDeleted, cancellationToken);
+
+            var batchNum = string.IsNullOrWhiteSpace(request.BatchNumber)
+                ? await _numberingService.GenerateNumberAsync("BATCH", cancellationToken)
+                : request.BatchNumber;
+
+            var entity = new InventoryBatch
+            {
+                BatchNumber = batchNum,
+                MaterialId = request.MaterialId,
+                MaterialCode = mat?.MaterialCode ?? "MAT-UNKNOWN",
+                MaterialName = mat?.MaterialName ?? "Material",
+                WarehouseId = request.WarehouseId,
+                WarehouseName = wh?.Name ?? "Warehouse",
+                Supplier = request.Supplier ?? mat?.Supplier ?? string.Empty,
+                GRNId = request.GRNId ?? mat?.LinkedGRNId,
+                GRNNumber = request.GRNNumber ?? mat?.LinkedGRNNumber,
+                ManufacturingDate = request.ManufacturingDate ?? DateTime.UtcNow,
+                ExpiryDate = request.ExpiryDate,
+                AvailableQuantity = request.AvailableQuantity,
+                ConsumedQuantity = 0m,
+                RemainingQuantity = request.AvailableQuantity,
+                Unit = string.IsNullOrWhiteSpace(request.Unit) ? (mat?.Unit ?? "Nos") : request.Unit,
+                UnitCost = request.UnitCost > 0 ? request.UnitCost : (mat?.UnitCost ?? 0m),
+                Status = BatchStatus.Active,
+                Notes = request.Notes ?? string.Empty,
+                CreatedBy = currentUser,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedBy = currentUser,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            entity.Status = ResolveBatchStatus(entity);
+            _dbContext.InventoryBatches.Add(entity);
+
+            if (mat is not null)
+            {
+                mat.BatchCount++;
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return MapBatch(entity);
         }
 
         public async Task<BatchDashboardDto> GetBatchDashboardAsync(CancellationToken cancellationToken = default)
