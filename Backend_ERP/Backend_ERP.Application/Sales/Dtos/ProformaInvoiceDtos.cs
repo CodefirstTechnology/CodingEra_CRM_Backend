@@ -244,4 +244,38 @@ namespace ERP.Application.Sales.Dtos
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
     }
+
+    public class ProformaApprovalMetricsDto
+    {
+        public int PendingApprovals { get; set; }
+        public int ApprovedToday { get; set; }
+        public int RejectedTotal { get; set; }
+        public decimal TotalPendingValue { get; set; }
+        public double AverageTurnaroundHours { get; set; }
+    }
+
+    public class ProformaApprovalQueueRowDto
+    {
+        public int Id { get; set; }
+        public string PiNumber { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string OrganizationName { get; set; } = string.Empty;
+        public decimal TotalAmount { get; set; }
+        public string CurrentLevel { get; set; } = string.Empty;
+        public string CurrentLevelName { get; set; } = string.Empty;
+        public string NextLevel { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string SubmittedBy { get; set; } = string.Empty;
+        public string SubmittedAt { get; set; } = string.Empty;
+        public string Priority { get; set; } = string.Empty;
+        public int DaysPending { get; set; }
+        public string? QuotationNumber { get; set; }
+        public string? SalesOrderNumber { get; set; }
+    }
+
+    public class ProformaApprovalDashboardDto
+    {
+        public ProformaApprovalMetricsDto Metrics { get; set; } = new();
+        public List<ProformaApprovalQueueRowDto> Rows { get; set; } = new();
+    }
 }

@@ -69,22 +69,25 @@ namespace ERP.API.Controllers
         }
 
         [HttpGet("reports")]
+        [HttpPost("reports")]
         public async Task<ActionResult<SalesTargetReportDto>> Reports(
             [FromQuery] string? search,
             [FromQuery] string? status,
             [FromQuery] string? targetCategory,
             [FromQuery] int? financialYear,
             [FromQuery] int? userId,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] SalesTargetListQueryDto? bodyFilter,
             CancellationToken cancellationToken)
         {
             _ = userId;
-            return Ok(await _service.GetReportsAsync(new SalesTargetListQueryDto
+            var filter = bodyFilter ?? new SalesTargetListQueryDto
             {
                 Search = search,
                 Status = status,
                 TargetCategory = targetCategory,
                 FinancialYear = financialYear
-            }, cancellationToken));
+            };
+            return Ok(await _service.GetReportsAsync(filter, cancellationToken));
         }
 
         [HttpPost("reports/export")]

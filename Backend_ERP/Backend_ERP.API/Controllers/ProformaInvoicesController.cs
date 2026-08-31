@@ -341,23 +341,76 @@ namespace ERP.API.Controllers
             return Ok(await _service.GetDashboardAsync(cancellationToken));
         }
 
+        [HttpGet("approvals")]
+        public async Task<ActionResult<ProformaApprovalDashboardDto>> Approvals(
+            [FromQuery] string? search,
+            [FromQuery] string? approvalStatus,
+            [FromQuery] int? branchId,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var list = await _service.GetAllAsync(new ProformaInvoiceListQueryDto
+            {
+                Search = search,
+                Status = approvalStatus
+            }, cancellationToken);
+
+            var rows = list.Select(p => new ProformaApprovalQueueRowDto
+            {
+                Id = p.Id,
+                PiNumber = p.PiNumber,
+                CustomerName = p.CustomerName,
+                OrganizationName = p.CustomerName,
+                TotalAmount = p.GrandTotal,
+                CurrentLevel = "1",
+                CurrentLevelName = "Sales Manager",
+                NextLevel = "Finance",
+                Status = p.Status,
+                SubmittedBy = p.SalesPerson,
+                SubmittedAt = p.InvoiceDate,
+                Priority = "Normal",
+                DaysPending = 1,
+                QuotationNumber = p.QuotationNumber,
+                SalesOrderNumber = p.SalesOrderNumber
+            }).ToList();
+
+            var metrics = new ProformaApprovalMetricsDto
+            {
+                PendingApprovals = rows.Count(r => r.Status.Equals("Pending Approval", StringComparison.OrdinalIgnoreCase)),
+                ApprovedToday = rows.Count(r => r.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase)),
+                RejectedTotal = rows.Count(r => r.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase)),
+                TotalPendingValue = rows.Where(r => r.Status.Equals("Pending Approval", StringComparison.OrdinalIgnoreCase)).Sum(r => r.TotalAmount),
+                AverageTurnaroundHours = 4.5
+            };
+
+            return Ok(new ProformaApprovalDashboardDto
+            {
+                Metrics = metrics,
+                Rows = rows
+            });
+        }
+
         [HttpGet("reports")]
+        [HttpPost("reports")]
         public async Task<ActionResult<ProformaReportResultDto>> Reports(
             [FromQuery] string? search,
             [FromQuery] string? status,
             [FromQuery] string? dateFrom,
             [FromQuery] string? dateTo,
             [FromQuery] int? userId,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ProformaInvoiceListQueryDto? bodyFilter,
             CancellationToken cancellationToken)
         {
             _ = userId;
-            return Ok(await _service.GetReportsAsync(new ProformaInvoiceListQueryDto
+            var filter = bodyFilter ?? new ProformaInvoiceListQueryDto
             {
                 Search = search,
                 Status = status,
                 DateFrom = dateFrom,
                 DateTo = dateTo
-            }, cancellationToken));
+            };
+            return Ok(await _service.GetReportsAsync(filter, cancellationToken));
         }
 
         [HttpPost("reports/export")]

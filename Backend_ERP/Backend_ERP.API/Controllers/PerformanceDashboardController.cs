@@ -145,10 +145,13 @@ namespace ERP.API.Controllers
         }
 
         [HttpGet("reports")]
+        [HttpPost("reports")]
         public Task<ActionResult<PerformanceReportDto>> Reports(
-            [FromQuery] PerformanceFilterDto filter,
+            [FromQuery] PerformanceFilterDto? queryFilter,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] PerformanceFilterDto? bodyFilter,
             CancellationToken cancellationToken)
         {
+            var filter = bodyFilter ?? queryFilter ?? new PerformanceFilterDto();
             ApplyOwnScopeFilter(filter);
             return Execute(() => _service.GetReportsAsync(filter, cancellationToken));
         }

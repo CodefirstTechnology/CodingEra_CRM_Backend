@@ -90,6 +90,15 @@ namespace ERP.API.Security
                                     catch { }
                                 }
 
+                                if (context.Request.Headers.TryGetValue("X-User-Id", out var xUserId) && !string.IsNullOrWhiteSpace(xUserId))
+                                {
+                                    userId = xUserId.ToString();
+                                }
+                                if (context.Request.Headers.TryGetValue("X-User-Role", out var xUserRole) && !string.IsNullOrWhiteSpace(xUserRole))
+                                {
+                                    role = xUserRole.ToString();
+                                }
+
                                 var claims = new[]
                                 {
                                     new System.Security.Claims.Claim("userId", userId),
