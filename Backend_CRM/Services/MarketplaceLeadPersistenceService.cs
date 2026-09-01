@@ -224,22 +224,28 @@ namespace CRM.Services
                     cancellationToken);
             }
 
+            var createdAt = item.CreatedAt.HasValue
+                ? (item.CreatedAt.Value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(item.CreatedAt.Value, DateTimeKind.Utc)
+                    : item.CreatedAt.Value.ToUniversalTime())
+                : DateTime.UtcNow;
+
+            var leadDate = DateTime.SpecifyKind(createdAt.Date, DateTimeKind.Utc);
+
             var lead = new Lead
             {
                 FirstName = item.FirstName,
                 LastName = item.LastName,
                 Email = item.Email?.Trim() ?? string.Empty,
                 Mobile = item.Mobile?.Trim() ?? string.Empty,
+                Location = item.Location?.Trim() ?? string.Empty,
                 Notes = notes ?? string.Empty,
                 OrganizationId = organizationId,
+                RawPayload = item.RawPayload,
                 LeadSource = leadSource,
                 LeadStatusId = defaultStatusId > 0 ? defaultStatusId : null,
-                LeadDate = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc),
-                CreatedAt = item.CreatedAt.HasValue
-                    ? (item.CreatedAt.Value.Kind == DateTimeKind.Unspecified
-                        ? DateTime.SpecifyKind(item.CreatedAt.Value, DateTimeKind.Utc)
-                        : item.CreatedAt.Value.ToUniversalTime())
-                    : DateTime.UtcNow,
+                LeadDate = leadDate,
+                CreatedAt = createdAt,
                 UpdatedAt = DateTime.UtcNow,
             };
 

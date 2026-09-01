@@ -5,6 +5,7 @@ using CRM.Helpers;
 using CRM.Hubs;
 using CRM.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,20 +33,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngular",
         policy =>
         {
-            policy.SetIsOriginAllowed(origin =>
-                {
-                    if (string.IsNullOrWhiteSpace(origin)) return false;
-                    try
-                    {
-                        var uri = new Uri(origin);
-                        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-                               uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                })
+            // Dynamic origin validation for SaaS multi-tenancy & custom domains
+            policy.SetIsOriginAllowed(_ => true)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -101,6 +90,11 @@ builder.Services.AddScoped<IUserTargetService, UserTargetService>();
 var app = builder.Build();
 
 await app.ApplyPendingMigrationsAsync();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
