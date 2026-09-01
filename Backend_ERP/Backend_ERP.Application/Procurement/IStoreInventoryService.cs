@@ -64,6 +64,7 @@ namespace ERP.Application.Procurement
         Task<PhysicalVerificationDto> VerifyStockAsync(PhysicalVerificationCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default);
         Task<PhysicalVerificationDto?> UpdateVerificationStatusAsync(int id, PhysicalVerificationStatusUpdateDto request, string currentUser, CancellationToken cancellationToken = default);
         Task<VerificationDashboardDto> GetVerificationDashboardAsync(CancellationToken cancellationToken = default);
+        Task<List<ErpItemLookupDto>> LookupItemsAsync(string? search, int pageSize = 100, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<string>> GetPermissionsAsync();
     }
 }

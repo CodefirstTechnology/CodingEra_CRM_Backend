@@ -223,6 +223,22 @@ namespace ERP.API.Controllers
                     request.SalesPersonUserId = _currentUser.UserId.Value;
                 }
 
+                if (request.SalesPersonUserId <= 0)
+                {
+                    if (_currentUser.UserId.HasValue && _currentUser.UserId.Value > 0)
+                    {
+                        request.SalesPersonUserId = _currentUser.UserId.Value;
+                    }
+                    else if (userId is int uid && uid > 0)
+                    {
+                        request.SalesPersonUserId = uid;
+                    }
+                    else
+                    {
+                        request.SalesPersonUserId = 2;
+                    }
+                }
+
                 var actingUser = ResolveActingUser(userId);
                 var created = await _service.CreateAsync(request, actingUser, cancellationToken);
                 return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -245,6 +261,11 @@ namespace ERP.API.Controllers
             {
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
+
+                if (request.SalesPersonUserId <= 0)
+                {
+                    request.SalesPersonUserId = existing.SalesPersonUserId;
+                }
 
                 if (!_workflowAuthService.CanEditQuotation(existing.Status, existing.SalesPersonUserId))
                 {

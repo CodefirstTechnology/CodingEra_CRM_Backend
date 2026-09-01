@@ -1938,5 +1938,62 @@ namespace ERP.Infrastructure.Procurement
                 Remarks = x.Remarks
             }).ToList()
         };
+
+        public async Task<List<ErpItemLookupDto>> LookupItemsAsync(string? search, int pageSize = 100, CancellationToken cancellationToken = default)
+        {
+            var limit = Math.Clamp(pageSize, 1, 500);
+            var term = search?.Trim().ToLower();
+
+            var rawQuery = _dbContext.RawMaterials.AsNoTracking().Where(x => !x.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                rawQuery = rawQuery.Where(x => x.MaterialCode.ToLower().Contains(term) || x.MaterialName.ToLower().Contains(term) || x.Category.ToLower().Contains(term));
+            }
+
+            var rawItems = await rawQuery
+                .OrderBy(x => x.MaterialName)
+                .Take(limit)
+                .Select(x => new ErpItemLookupDto
+                {
+                    Id = x.Id,
+                    ItemCode = x.MaterialCode,
+                    ItemName = x.MaterialName,
+                    Category = x.Category ?? "Raw Material",
+                    Unit = x.Unit ?? "Nos",
+                    BasePrice = x.UnitCost,
+                    SellingPrice = x.UnitCost > 0 ? Math.Round(x.UnitCost * 1.2m, 2) : 100m,
+                    AvailableQuantity = x.AvailableStock,
+                    ItemType = "RawMaterial"
+                })
+                .ToListAsync(cancellationToken);
+
+            var fgQuery = _dbContext.FinishedGoods.AsNoTracking().Where(x => !x.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(term))
+            {
+                fgQuery = fgQuery.Where(x => x.ProductCode.ToLower().Contains(term) || x.ProductName.ToLower().Contains(term) || x.BatchNumber.ToLower().Contains(term));
+            }
+
+            var fgItems = await fgQuery
+                .OrderBy(x => x.ProductName)
+                .Take(limit)
+                .Select(x => new ErpItemLookupDto
+                {
+                    Id = x.Id,
+                    ItemCode = x.ProductCode,
+                    ItemName = x.ProductName,
+                    Category = "Finished Good",
+                    Unit = x.Unit ?? "Nos",
+                    BasePrice = x.UnitCost,
+                    SellingPrice = x.CurrentValue > 0 && x.FinishedQuantity > 0 ? Math.Round(x.CurrentValue / x.FinishedQuantity, 2) : (x.UnitCost > 0 ? Math.Round(x.UnitCost * 1.2m, 2) : 100m),
+                    AvailableQuantity = x.AvailableQuantity,
+                    ItemType = "FinishedGood"
+                })
+                .ToListAsync(cancellationToken);
+
+            return rawItems.Concat(fgItems)
+                .OrderBy(x => x.ItemName)
+                .Take(limit)
+                .ToList();
+        }
     }
 }

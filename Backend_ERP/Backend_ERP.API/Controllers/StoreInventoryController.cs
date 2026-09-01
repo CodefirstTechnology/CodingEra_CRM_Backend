@@ -469,6 +469,17 @@ namespace ERP.API.Controllers
             }
         }
 
+        [HttpGet("lookups/items")]
+        public async Task<ActionResult<List<ErpItemLookupDto>>> LookupItems(
+            [FromQuery] string? search,
+            [FromQuery] int pageSize = 100,
+            [FromQuery] int? userId = null,
+            CancellationToken cancellationToken = default)
+        {
+            _ = userId;
+            return Ok(await _inventoryService.LookupItemsAsync(search, pageSize, cancellationToken));
+        }
+
         [HttpGet("permissions")]
         public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
         {
