@@ -1305,420 +1305,13 @@ namespace ERP.Infrastructure.Production
             return status == WorkOrderStatus.InProgress ? "In Progress" : status.ToString();
         }
 
-        // ── AUTO-SEEDING FOR DEMONSTRATION & COMPATIBILITY ──
 
-        private async Task EnsureSeededAsync(CancellationToken cancellationToken = default)
-        {
-            // Seed Finished Goods if empty
-            if (!await _dbContext.FinishedGoods.AnyAsync(cancellationToken))
-            {
-                var fg1 = new FinishedGood
-                {
-                    ProductCode = "FG-HSG-100",
-                    ProductName = "Precision Housing Assy",
-                    AvailableQuantity = 100,
-                    WarehouseId = 1,
-                    WarehouseName = "Main Store",
-                    Unit = "Nos"
-                };
-                var fg2 = new FinishedGood
-                {
-                    ProductCode = "FG-SHAFT-55",
-                    ProductName = "Drive Shaft 55mm",
-                    AvailableQuantity = 200,
-                    WarehouseId = 1,
-                    WarehouseName = "Main Store",
-                    Unit = "Nos"
-                };
-                _dbContext.FinishedGoods.AddRange(fg1, fg2);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-
-            var fgs = await _dbContext.FinishedGoods.ToListAsync(cancellationToken);
-            var fgHsg = fgs.FirstOrDefault(x => x.ProductCode == "FG-HSG-100") ?? fgs[0];
-            var fgShaft = fgs.FirstOrDefault(x => x.ProductCode == "FG-SHAFT-55") ?? fgs[0];
-
-            // Seed Warehouse if empty
-            if (!await _dbContext.Warehouses.AnyAsync(cancellationToken))
-            {
-                var wh = new Warehouse
-                {
-                    Code = "WH-001",
-                    Name = "Main Store",
-                    Location = "Zone A",
-                    Capacity = 10000
-                };
-                _dbContext.Warehouses.Add(wh);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-            var warehouse = await _dbContext.Warehouses.FirstAsync(cancellationToken);
-
-            // Seed BOM if empty
-            if (!await _dbContext.BillOfMaterials.AnyAsync(cancellationToken))
-            {
-                var bom1 = new BillOfMaterials
-                {
-                    BomNumber = "BOM-2026-001",
-                    Version = "1.0",
-                    ProductId = fgHsg.Id,
-                    ProductCode = fgHsg.ProductCode,
-                    ProductName = fgHsg.ProductName,
-                    Revision = "Rev 0",
-                    Status = BomStatus.Active,
-                    EffectiveDate = DateOnly.Parse("2026-01-01")
-                };
-                var bom2 = new BillOfMaterials
-                {
-                    BomNumber = "BOM-2026-002",
-                    Version = "1.0",
-                    ProductId = fgShaft.Id,
-                    ProductCode = fgShaft.ProductCode,
-                    ProductName = fgShaft.ProductName,
-                    Revision = "Rev 0",
-                    Status = BomStatus.Active,
-                    EffectiveDate = DateOnly.Parse("2026-01-01")
-                };
-                _dbContext.BillOfMaterials.AddRange(bom1, bom2);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-            var boms = await _dbContext.BillOfMaterials.ToListAsync(cancellationToken);
-            var bom1Obj = boms.FirstOrDefault(x => x.BomNumber == "BOM-2026-001") ?? boms[0];
-            var bom2Obj = boms.FirstOrDefault(x => x.BomNumber == "BOM-2026-002") ?? boms[0];
-
-            // Seed plans if empty
-            if (!await _dbContext.ProductionPlans.AnyAsync(cancellationToken))
-            {
-                var plan1 = new ProductionPlan
-                {
-                    PlanNumber = "PP-2026-071",
-                    PlanningPeriod = "Jul 2026",
-                    ProductId = fgHsg.Id,
-                    ProductCode = fgHsg.ProductCode,
-                    ProductName = fgHsg.ProductName,
-                    RequiredQuantity = 48,
-                    PlannedQuantity = 48,
-                    BomId = bom1Obj.Id,
-                    BomNumber = bom1Obj.BomNumber,
-                    WarehouseId = warehouse.Id,
-                    WarehouseName = warehouse.Name,
-                    Priority = Priority.High,
-                    Planner = "Priya Sharma",
-                    ExpectedStart = DateOnly.Parse("2026-07-20"),
-                    ExpectedFinish = DateOnly.Parse("2026-07-31"),
-                    Status = PlanStatus.Released
-                };
-                var plan2 = new ProductionPlan
-                {
-                    PlanNumber = "PP-2026-072",
-                    PlanningPeriod = "Jul 2026",
-                    ProductId = fgShaft.Id,
-                    ProductCode = fgShaft.ProductCode,
-                    ProductName = fgShaft.ProductName,
-                    RequiredQuantity = 90,
-                    PlannedQuantity = 90,
-                    BomId = bom2Obj.Id,
-                    BomNumber = bom2Obj.BomNumber,
-                    WarehouseId = warehouse.Id,
-                    WarehouseName = warehouse.Name,
-                    Priority = Priority.Medium,
-                    Planner = "Neha Joshi",
-                    ExpectedStart = DateOnly.Parse("2026-07-22"),
-                    ExpectedFinish = DateOnly.Parse("2026-07-26"),
-                    Status = PlanStatus.Draft
-                };
-                var plan3 = new ProductionPlan
-                {
-                    PlanNumber = "PP-2026-068",
-                    PlanningPeriod = "Jun 2026",
-                    ProductId = fgHsg.Id,
-                    ProductCode = fgHsg.ProductCode,
-                    ProductName = fgHsg.ProductName,
-                    RequiredQuantity = 40,
-                    PlannedQuantity = 40,
-                    BomId = bom1Obj.Id,
-                    BomNumber = bom1Obj.BomNumber,
-                    WarehouseId = warehouse.Id,
-                    WarehouseName = warehouse.Name,
-                    Priority = Priority.Medium,
-                    Planner = "Priya Sharma",
-                    ExpectedStart = DateOnly.Parse("2026-06-10"),
-                    ExpectedFinish = DateOnly.Parse("2026-06-28"),
-                    Status = PlanStatus.Completed
-                };
-                _dbContext.ProductionPlans.AddRange(plan1, plan2, plan3);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-            var plans = await _dbContext.ProductionPlans.ToListAsync(cancellationToken);
-            var plan1Obj = plans.FirstOrDefault(x => x.PlanNumber == "PP-2026-071") ?? plans[0];
-            var plan2Obj = plans.FirstOrDefault(x => x.PlanNumber == "PP-2026-072") ?? plans[0];
-            var plan3Obj = plans.FirstOrDefault(x => x.PlanNumber == "PP-2026-068") ?? plans[0];
-
-            // Seed machines if empty
-            if (!await _dbContext.Machines.AnyAsync(cancellationToken))
-            {
-                var m1 = new Machine
-                {
-                    MachineCode = "MCH-CNC-01",
-                    MachineName = "CNC Lathe Station 1",
-                    Department = "Machining",
-                    RunningHours = 148m,
-                    IdleHours = 22m,
-                    BreakdownHours = 6m,
-                    UtilizationPercent = 84m,
-                    MaintenanceDue = DateOnly.Parse("2026-08-15"),
-                    Status = MachineStatus.Running,
-                    Notes = "Primary pump casing machining.",
-                    CreatedBy = "Admin",
-                    UpdatedBy = "Operator Desk"
-                };
-                var m2 = new Machine
-                {
-                    MachineCode = "MCH-ASM-02",
-                    MachineName = "Assembly Line 2",
-                    Department = "Assembly",
-                    RunningHours = 132m,
-                    IdleHours = 40m,
-                    BreakdownHours = 4m,
-                    UtilizationPercent = 75m,
-                    MaintenanceDue = DateOnly.Parse("2026-08-01"),
-                    Status = MachineStatus.Running,
-                    Notes = "Valve assembly line.",
-                    CreatedBy = "Admin",
-                    UpdatedBy = "Operator Desk"
-                };
-                var m3 = new Machine
-                {
-                    MachineCode = "MCH-WND-03",
-                    MachineName = "Winding Machine 3",
-                    Department = "Electrical",
-                    RunningHours = 90m,
-                    IdleHours = 70m,
-                    BreakdownHours = 16m,
-                    UtilizationPercent = 51m,
-                    MaintenanceDue = DateOnly.Parse("2026-07-30"),
-                    Status = MachineStatus.Idle,
-                    Notes = "Awaiting motor plan release.",
-                    CreatedBy = "Admin",
-                    UpdatedBy = "Operator Desk"
-                };
-                var m4 = new Machine
-                {
-                    MachineCode = "MCH-TST-04",
-                    MachineName = "Test Bench 4",
-                    Department = "Quality",
-                    RunningHours = 60m,
-                    IdleHours = 20m,
-                    BreakdownHours = 96m,
-                    UtilizationPercent = 34m,
-                    MaintenanceDue = DateOnly.Parse("2026-07-28"),
-                    Status = MachineStatus.Breakdown,
-                    Notes = "Hydraulic leak — maintenance ticket MT-442.",
-                    CreatedBy = "Admin",
-                    UpdatedBy = "Vikram Singh"
-                };
-                _dbContext.Machines.AddRange(m1, m2, m3, m4);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-            var machines = await _dbContext.Machines.ToListAsync(cancellationToken);
-            var m1Obj = machines.FirstOrDefault(x => x.MachineCode == "MCH-CNC-01") ?? machines[0];
-            var m2Obj = machines.FirstOrDefault(x => x.MachineCode == "MCH-ASM-02") ?? machines[0];
-
-            // Seed work orders if empty
-            if (!await _dbContext.WorkOrders.AnyAsync(cancellationToken))
-            {
-                var wo1 = new WorkOrder
-                {
-                    WorkOrderNumber = "WO-2026-301",
-                    PlanId = plan1Obj.Id,
-                    PlanNumber = plan1Obj.PlanNumber,
-                    BomId = bom1Obj.Id,
-                    BomNumber = bom1Obj.BomNumber,
-                    ProductId = fgHsg.Id,
-                    ProductCode = fgHsg.ProductCode,
-                    ProductName = fgHsg.ProductName,
-                    PlannedQuantity = 24m,
-                    ProducedQuantity = 10m,
-                    PendingQuantity = 14m,
-                    Priority = Priority.High,
-                    Supervisor = "Vikram Singh",
-                    MachineId = m1Obj.Id,
-                    MachineCode = m1Obj.MachineCode,
-                    MachineName = m1Obj.MachineName,
-                    AssignedTeam = "Team Alpha",
-                    StartDate = DateOnly.Parse("2026-07-20"),
-                    DueDate = DateOnly.Parse("2026-07-28"),
-                    Status = WorkOrderStatus.InProgress,
-                    Notes = "First batch of July pump plan."
-                };
-                var wo2 = new WorkOrder
-                {
-                    WorkOrderNumber = "WO-2026-302",
-                    PlanId = plan1Obj.Id,
-                    PlanNumber = plan1Obj.PlanNumber,
-                    BomId = bom1Obj.Id,
-                    BomNumber = bom1Obj.BomNumber,
-                    ProductId = fgHsg.Id,
-                    ProductCode = fgHsg.ProductCode,
-                    ProductName = fgHsg.ProductName,
-                    PlannedQuantity = 24m,
-                    ProducedQuantity = 0m,
-                    PendingQuantity = 24m,
-                    Priority = Priority.High,
-                    Supervisor = "Vikram Singh",
-                    MachineId = m1Obj.Id,
-                    MachineCode = m1Obj.MachineCode,
-                    MachineName = m1Obj.MachineName,
-                    AssignedTeam = "Team Beta",
-                    StartDate = DateOnly.Parse("2026-07-25"),
-                    DueDate = DateOnly.Parse("2026-07-31"),
-                    Status = WorkOrderStatus.Released,
-                    Notes = "Second batch — starts after WO-301 mid-point."
-                };
-                var wo3 = new WorkOrder
-                {
-                    WorkOrderNumber = "WO-2026-290",
-                    PlanId = plan3Obj.Id,
-                    PlanNumber = plan3Obj.PlanNumber,
-                    BomId = bom1Obj.Id,
-                    BomNumber = bom1Obj.BomNumber,
-                    ProductId = fgHsg.Id,
-                    ProductCode = fgHsg.ProductCode,
-                    ProductName = fgHsg.ProductName,
-                    PlannedQuantity = 40m,
-                    ProducedQuantity = 40m,
-                    PendingQuantity = 0m,
-                    Priority = Priority.Medium,
-                    Supervisor = "Vikram Singh",
-                    MachineId = m1Obj.Id,
-                    MachineCode = m1Obj.MachineCode,
-                    MachineName = m1Obj.MachineName,
-                    AssignedTeam = "Team Alpha",
-                    StartDate = DateOnly.Parse("2026-06-10"),
-                    DueDate = DateOnly.Parse("2026-06-28"),
-                    Status = WorkOrderStatus.Closed,
-                    Notes = "June plan WO closed."
-                };
-                var wo4 = new WorkOrder
-                {
-                    WorkOrderNumber = "WO-2026-303",
-                    PlanId = plan2Obj.Id,
-                    PlanNumber = plan2Obj.PlanNumber,
-                    BomId = bom2Obj.Id,
-                    BomNumber = bom2Obj.BomNumber,
-                    ProductId = fgShaft.Id,
-                    ProductCode = fgShaft.ProductCode,
-                    ProductName = fgShaft.ProductName,
-                    PlannedQuantity = 90m,
-                    ProducedQuantity = 0m,
-                    PendingQuantity = 90m,
-                    Priority = Priority.Medium,
-                    Supervisor = "Anita Rao",
-                    MachineId = m2Obj.Id,
-                    MachineCode = m2Obj.MachineCode,
-                    MachineName = m2Obj.MachineName,
-                    AssignedTeam = "Team Gamma",
-                    StartDate = DateOnly.Parse("2026-07-22"),
-                    DueDate = DateOnly.Parse("2026-07-26"),
-                    Status = WorkOrderStatus.Draft,
-                    Notes = "Will release after plan release."
-                };
-                _dbContext.WorkOrders.AddRange(wo1, wo2, wo3, wo4);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-            var wos = await _dbContext.WorkOrders.ToListAsync(cancellationToken);
-            var wo1Obj = wos.FirstOrDefault(x => x.WorkOrderNumber == "WO-2026-301") ?? wos[0];
-            var wo2Obj = wos.FirstOrDefault(x => x.WorkOrderNumber == "WO-2026-302") ?? wos[0];
-            var wo3Obj = wos.FirstOrDefault(x => x.WorkOrderNumber == "WO-2026-290") ?? wos[0];
-
-            // Seed schedules if empty
-            if (!await _dbContext.ProductionSchedules.AnyAsync(cancellationToken))
-            {
-                var s1 = new ProductionSchedule
-                {
-                    ScheduleNumber = "SCH-2026-501",
-                    WorkOrderId = wo1Obj.Id,
-                    WorkOrderNumber = wo1Obj.WorkOrderNumber,
-                    ProductName = wo1Obj.ProductName,
-                    MachineId = m1Obj.Id,
-                    MachineCode = m1Obj.MachineCode,
-                    MachineName = m1Obj.MachineName,
-                    Shift = Shift.A,
-                    Operator = "Rahul Mehta",
-                    StartTime = DateTime.Parse("2026-07-29T06:00:00Z").ToUniversalTime(),
-                    EndTime = DateTime.Parse("2026-07-29T14:00:00Z").ToUniversalTime(),
-                    Capacity = 8m,
-                    UtilizationPercent = 88m,
-                    DelayMinutes = 0,
-                    Status = ScheduleStatus.Running,
-                    Notes = "Today Shift A — casing machining."
-                };
-                var s2 = new ProductionSchedule
-                {
-                    ScheduleNumber = "SCH-2026-502",
-                    WorkOrderId = wo1Obj.Id,
-                    WorkOrderNumber = wo1Obj.WorkOrderNumber,
-                    ProductName = wo1Obj.ProductName,
-                    MachineId = m1Obj.Id,
-                    MachineCode = m1Obj.MachineCode,
-                    MachineName = m1Obj.MachineName,
-                    Shift = Shift.B,
-                    Operator = "Kavita Nair",
-                    StartTime = DateTime.Parse("2026-07-29T14:00:00Z").ToUniversalTime(),
-                    EndTime = DateTime.Parse("2026-07-29T22:00:00Z").ToUniversalTime(),
-                    Capacity = 8m,
-                    UtilizationPercent = 0m,
-                    DelayMinutes = 0,
-                    Status = ScheduleStatus.Scheduled,
-                    Notes = "Upcoming Shift B."
-                };
-                var s3 = new ProductionSchedule
-                {
-                    ScheduleNumber = "SCH-2026-498",
-                    WorkOrderId = wo3Obj.Id,
-                    WorkOrderNumber = wo3Obj.WorkOrderNumber,
-                    ProductName = wo3Obj.ProductName,
-                    MachineId = m2Obj.Id,
-                    MachineCode = m2Obj.MachineCode,
-                    MachineName = m2Obj.MachineName,
-                    Shift = Shift.A,
-                    Operator = "Suresh Patil",
-                    StartTime = DateTime.Parse("2026-07-27T06:00:00Z").ToUniversalTime(),
-                    EndTime = DateTime.Parse("2026-07-27T14:00:00Z").ToUniversalTime(),
-                    Capacity = 10m,
-                    UtilizationPercent = 70m,
-                    DelayMinutes = 45,
-                    Status = ScheduleStatus.Delayed,
-                    Notes = "Material late from RM store."
-                };
-                var s4 = new ProductionSchedule
-                {
-                    ScheduleNumber = "SCH-2026-503",
-                    WorkOrderId = wo2Obj.Id,
-                    WorkOrderNumber = wo2Obj.WorkOrderNumber,
-                    ProductName = wo2Obj.ProductName,
-                    MachineId = m1Obj.Id,
-                    MachineCode = m1Obj.MachineCode,
-                    MachineName = m1Obj.MachineName,
-                    Shift = Shift.A,
-                    Operator = "Rahul Mehta",
-                    StartTime = DateTime.Parse("2026-07-30T06:00:00Z").ToUniversalTime(),
-                    EndTime = DateTime.Parse("2026-07-30T14:00:00Z").ToUniversalTime(),
-                    Capacity = 8m,
-                    UtilizationPercent = 0m,
-                    DelayMinutes = 0,
-                    Status = ScheduleStatus.Scheduled,
-                    Notes = "Tomorrow WO-302 kickoff."
-                };
-                _dbContext.ProductionSchedules.AddRange(s1, s2, s3, s4);
-                await _dbContext.SaveChangesAsync(cancellationToken);
-            }
-        }
 
         // ── SCHEDULING METHODS ──
 
         public async Task<List<ScheduleListItemDto>> GetSchedulesAsync(string? search, string? status, string? shift, int? workOrderId, int? machineId, string? dateFrom, string? dateTo, CancellationToken cancellationToken = default)
         {
-            await EnsureSeededAsync(cancellationToken);
+
 
             var q = _dbContext.ProductionSchedules.Where(x => !x.IsDeleted);
 
@@ -1790,7 +1383,7 @@ namespace ERP.Infrastructure.Production
 
         public async Task<ScheduleDto?> GetScheduleByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            await EnsureSeededAsync(cancellationToken);
+
 
             var s = await _dbContext.ProductionSchedules
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
@@ -1849,7 +1442,7 @@ namespace ERP.Infrastructure.Production
 
         public async Task<ScheduleDashboardDto> GetScheduleDashboardAsync(CancellationToken cancellationToken = default)
         {
-            await EnsureSeededAsync(cancellationToken);
+
 
             var list = await _dbContext.ProductionSchedules.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
             var today = DateTime.UtcNow.Date;
@@ -1871,7 +1464,7 @@ namespace ERP.Infrastructure.Production
 
         public async Task<List<MachineListItemDto>> GetMachinesAsync(string? search, string? status, CancellationToken cancellationToken = default)
         {
-            await EnsureSeededAsync(cancellationToken);
+
 
             var q = _dbContext.Machines.Where(x => !x.IsDeleted);
 
@@ -1918,7 +1511,7 @@ namespace ERP.Infrastructure.Production
 
         public async Task<MachineDto?> GetMachineByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            await EnsureSeededAsync(cancellationToken);
+
 
             var m = await _dbContext.Machines
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
@@ -1977,7 +1570,7 @@ namespace ERP.Infrastructure.Production
 
         public async Task<MachineDashboardDto> GetMachineDashboardAsync(CancellationToken cancellationToken = default)
         {
-            await EnsureSeededAsync(cancellationToken);
+
 
             var list = await _dbContext.Machines.Where(x => !x.IsDeleted).ToListAsync(cancellationToken);
             var running = list.Count(x => x.Status == MachineStatus.Running);

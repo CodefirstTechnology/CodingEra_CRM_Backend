@@ -1,5 +1,7 @@
 using ERP.API.Security;
 using ERP.Application.Common.Security;
+using ERP.Application.Procurement;
+using ERP.Application.Procurement.Dtos;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Enums;
@@ -17,20 +19,61 @@ namespace ERP.API.Controllers
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
         private readonly IErpWorkflowAuthorizationService _workflowAuthService;
+        private readonly IQuotationApprovalNumberingService _numberingService;
+        private readonly IStoreInventoryService _inventoryService;
 
         public QuotationApprovalsController(
             IQuotationApprovalService service,
             ICurrentUser currentUser,
             IErpAuthorizationService authService,
-            IErpWorkflowAuthorizationService workflowAuthService)
+            IErpWorkflowAuthorizationService workflowAuthService,
+            IQuotationApprovalNumberingService numberingService,
+            IStoreInventoryService inventoryService)
         {
             _service = service;
             _currentUser = currentUser;
             _authService = authService;
             _workflowAuthService = workflowAuthService;
+            _numberingService = numberingService;
+            _inventoryService = inventoryService;
         }
 
         // ─── Queries ──────────────────────────────────────────────────────────
+
+        [HttpGet("next-number")]
+        public async Task<ActionResult<string>> GetNextNumber(CancellationToken cancellationToken)
+        {
+            var number = await _numberingService.GenerateNextApprovalNumberAsync(cancellationToken);
+            return Ok(number);
+        }
+
+        /// <summary>Returns finished goods as quotation item lookup options (product picker).</summary>
+        [HttpGet("lookups/finished-goods")]
+        public async Task<ActionResult<IReadOnlyList<QuotationFinishedGoodLookupDto>>> LookupFinishedGoods(
+            [FromQuery] string? search,
+            [FromQuery] int pageSize = 50,
+            CancellationToken cancellationToken = default)
+        {
+            var items = await _inventoryService.GetFinishedGoodsAsync(
+                new StoreListQueryDto { Search = search, Page = 1, PageSize = pageSize },
+                cancellationToken);
+
+            var result = items.Select(x => new QuotationFinishedGoodLookupDto
+            {
+                Id = x.Id,
+                ProductCode = x.ProductCode,
+                ProductName = x.ProductName,
+                AvailableQuantity = x.AvailableQuantity,
+                Unit = "Nos",
+                UnitCost = x.CurrentValue > 0 && x.FinishedQuantity > 0
+                    ? Math.Round(x.CurrentValue / x.FinishedQuantity, 2)
+                    : 0m,
+                WarehouseName = x.WarehouseName,
+                BatchNumber = x.BatchNumber,
+            }).ToList();
+
+            return Ok(result);
+        }
 
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<QuotationApprovalListItemDto>>> GetAll(

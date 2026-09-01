@@ -131,4 +131,17 @@ namespace ERP.Application.Sales.Dtos
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
     }
+
+    /// <summary>Slim finished-good record returned by the quotation product picker lookup.</summary>
+    public class QuotationFinishedGoodLookupDto
+    {
+        public int Id { get; set; }
+        public string ProductCode { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public decimal AvailableQuantity { get; set; }
+        public string Unit { get; set; } = "Nos";
+        public decimal UnitCost { get; set; }
+        public string WarehouseName { get; set; } = string.Empty;
+        public string BatchNumber { get; set; } = string.Empty;
+    }
 }

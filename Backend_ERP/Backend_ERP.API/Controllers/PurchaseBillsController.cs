@@ -25,7 +25,7 @@ namespace ERP.API.Controllers
             [FromQuery] string? paymentStatus,
             [FromQuery] string? vendorName,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20,
+            [FromQuery] int pageSize = 1000,
             [FromQuery] int? userId = null,
             CancellationToken cancellationToken = default)
         {

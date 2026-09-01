@@ -29,7 +29,7 @@ namespace ERP.API.Controllers
             [FromQuery] string? email,
             [FromQuery] string? phone,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20,
+            [FromQuery] int pageSize = 1000,
             [FromQuery] string? sortBy = null,
             [FromQuery] bool sortDescending = false,
             [FromQuery] int? userId = null,
