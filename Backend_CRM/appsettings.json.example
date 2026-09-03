@@ -39,5 +39,19 @@
     "MaxRequestBodyBytes": 65536,
     "ProcessingTimeoutSeconds": 30,
     "CorrelationIdHeaderName": "X-Correlation-Id"
+  },
+  "IndiaMartWebhook": {
+    "Enabled": true,
+    "ApiKey": "",
+    "RequireApiKey": false,
+    "ApiKeyHeaderName": "X-IndiaMart-Webhook-Key",
+    "AllowApiKeyQueryParameter": true,
+    "ApiKeyQueryParameterName": "api_key",
+    "RequireIpWhitelist": false,
+    "AllowedIpAddresses": [],
+    "EnableDetailedPayloadLogging": false,
+    "MaxRequestBodyBytes": 1048576,
+    "ProcessingTimeoutSeconds": 30,
+    "CorrelationIdHeaderName": "X-Correlation-Id"
   }
 }
