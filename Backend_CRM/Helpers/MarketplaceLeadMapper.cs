@@ -170,6 +170,10 @@ namespace CRM.Helpers
             }
 
             var rawDict = new Dictionary<string, object>();
+            if (!string.IsNullOrWhiteSpace(dto.Company))
+            {
+                rawDict["company"] = dto.Company.Trim();
+            }
             if (!string.IsNullOrWhiteSpace(dto.Leadtype))
             {
                 rawDict["leadtype"] = dto.Leadtype.Trim();
@@ -215,7 +219,9 @@ namespace CRM.Helpers
                 Email = dto.Email?.Trim() ?? string.Empty,
                 Mobile = primaryMobile,
                 Requirement = string.IsNullOrWhiteSpace(category) ? null : category,
-                OrganizationName = string.IsNullOrWhiteSpace(company) ? null : company,
+                // In Justdial payloads, the 'company' field is the vendor/subscriber account profile on Justdial,
+                // not the prospective customer's company. OrganizationName is intentionally null.
+                OrganizationName = null,
                 Location = location,
                 RawPayload = rawPayload,
                 Notes = notes,
