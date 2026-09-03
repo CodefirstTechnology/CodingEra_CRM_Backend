@@ -10,7 +10,10 @@ namespace ERP.Application.Sales
         {
             if (string.IsNullOrWhiteSpace(status))
                 return null;
-            return QuotationApprovalStatuses.All.FirstOrDefault(x => string.Equals(x, status.Trim(), StringComparison.OrdinalIgnoreCase));
+            var trimmed = status.Trim();
+            if (string.Equals(trimmed, "Pending Approval", StringComparison.OrdinalIgnoreCase))
+                return QuotationApprovalStatuses.Submitted;
+            return QuotationApprovalStatuses.All.FirstOrDefault(x => string.Equals(x, trimmed, StringComparison.OrdinalIgnoreCase));
         }
 
         public static bool CanBeModified(string status) =>
@@ -30,10 +33,14 @@ namespace ERP.Application.Sales
             status == QuotationApprovalStatuses.Submitted;
 
         public static bool CanApproveReject(string status) =>
-            status == QuotationApprovalStatuses.UnderReview;
+            status == QuotationApprovalStatuses.Submitted ||
+            status == QuotationApprovalStatuses.UnderReview ||
+            string.Equals(status, "Pending Approval", StringComparison.OrdinalIgnoreCase);
 
         public static bool CanReturn(string status) =>
-            status == QuotationApprovalStatuses.UnderReview;
+            status == QuotationApprovalStatuses.Submitted ||
+            status == QuotationApprovalStatuses.UnderReview ||
+            string.Equals(status, "Pending Approval", StringComparison.OrdinalIgnoreCase);
 
         public static bool CanCancel(string status) =>
             status == QuotationApprovalStatuses.Draft ||
@@ -43,7 +50,9 @@ namespace ERP.Application.Sales
             status == QuotationApprovalStatuses.UnderReview;
 
         public static bool CanRequestRevision(string status) =>
-            status == QuotationApprovalStatuses.UnderReview;
+            status == QuotationApprovalStatuses.Submitted ||
+            status == QuotationApprovalStatuses.UnderReview ||
+            string.Equals(status, "Pending Approval", StringComparison.OrdinalIgnoreCase);
             
         public static bool CanReopen(string status) =>
             status == QuotationApprovalStatuses.Cancelled ||

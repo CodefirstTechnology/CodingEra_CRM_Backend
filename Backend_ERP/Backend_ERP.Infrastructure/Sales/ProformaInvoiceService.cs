@@ -1,6 +1,7 @@
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Infrastructure.Data;
 using ERP.Shared.Helpers;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,10 +10,12 @@ namespace ERP.Infrastructure.Sales
     public class ProformaInvoiceService : IProformaInvoiceService
     {
         private readonly IProformaInvoiceRepository _repo;
+        private readonly ERPDbContext _context;
 
-        public ProformaInvoiceService(IProformaInvoiceRepository repo)
+        public ProformaInvoiceService(IProformaInvoiceRepository repo, ERPDbContext context)
         {
             _repo = repo;
+            _context = context;
         }
 
         public async Task<IReadOnlyList<ProformaInvoiceListItemDto>> GetAllAsync(
@@ -687,16 +690,30 @@ namespace ERP.Infrastructure.Sales
         public async Task<IReadOnlyList<ProformaLookupCustomerDto>> LookupCustomersAsync(
             CancellationToken cancellationToken = default)
         {
-            var rows = await _repo.Query().AsNoTracking()
-                .GroupBy(x => new { x.CustomerId, x.CustomerName, x.ContactPerson })
-                .Select(g => g.Key)
-                .OrderBy(x => x.CustomerName)
-                .Take(100)
+            var ledgerCustomers = await _context.CustomerLedgerEntries
+                .AsNoTracking()
+                .Where(x => !string.IsNullOrWhiteSpace(x.CustomerName))
+                .Select(x => new { CustomerId = x.CustomerId > 0 ? x.CustomerId.ToString() : x.CustomerName, CustomerName = x.CustomerName, ContactPerson = "" })
+                .Distinct()
                 .ToListAsync(cancellationToken);
 
-            return rows.Select(x => new ProformaLookupCustomerDto
+            var piCustomers = await _repo.Query().AsNoTracking()
+                .Where(x => !string.IsNullOrWhiteSpace(x.CustomerName))
+                .GroupBy(x => new { x.CustomerId, x.CustomerName, x.ContactPerson })
+                .Select(g => g.Key)
+                .ToListAsync(cancellationToken);
+
+            var combined = ledgerCustomers
+                .Concat(piCustomers.Select(x => new { CustomerId = string.IsNullOrWhiteSpace(x.CustomerId) ? x.CustomerName : x.CustomerId, CustomerName = x.CustomerName, ContactPerson = x.ContactPerson }))
+                .GroupBy(x => x.CustomerName.Trim().ToLower())
+                .Select(g => g.First())
+                .OrderBy(x => x.CustomerName)
+                .Take(200)
+                .ToList();
+
+            return combined.Select(x => new ProformaLookupCustomerDto
             {
-                Id = string.IsNullOrWhiteSpace(x.CustomerId) ? x.CustomerName : x.CustomerId,
+                Id = x.CustomerId,
                 Name = x.CustomerName,
                 ContactPerson = x.ContactPerson
             }).ToList();

@@ -268,6 +268,34 @@ namespace ERP.Infrastructure.Sales
         public Task<QuotationApprovalDto> RequestRevisionAsync(int id, QuotationApprovalDecisionRequestDto request, string actingUser, CancellationToken cancellationToken = default) =>
             TransitionAsync(id, QuotationApprovalStatuses.RevisionRequired, QuotationApprovalHistoryActions.RevisionRequired, request, actingUser, cancellationToken);
 
+        public async Task<QuotationApprovalDto> ChangeStatusAsync(
+            int id,
+            string status,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var entity = await _repo.GetByIdAsync(id, true, true, cancellationToken);
+            if (entity is null)
+                throw new InvalidOperationException($"Quotation approval '{id}' was not found.");
+
+            var now = DateTimeOffset.UtcNow;
+            var old = entity.Status;
+
+            entity.Status = status;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+            entity.History.Add(NewHistory(
+                QuotationApprovalHistoryActions.Updated, old, status,
+                $"Status updated to {status}",
+                actingUser, now));
+
+            await _repo.UpdateAsync(entity, cancellationToken);
+            _logger.LogInformation("QuotationApproval {Id} status updated {Old} -> {Status} by {User}", id, old, status, actingUser);
+
+            return QuotationApprovalMapper.ToDto(
+                await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
+        }
+
         public Task<QuotationApprovalDto> ReopenAsync(int id, QuotationApprovalDecisionRequestDto request, string actingUser, CancellationToken cancellationToken = default) =>
             TransitionAsync(id, QuotationApprovalStatuses.Reopened, QuotationApprovalHistoryActions.Reopened, request, actingUser, cancellationToken);
 

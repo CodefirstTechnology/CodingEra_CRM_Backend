@@ -144,4 +144,10 @@ namespace ERP.Application.Sales.Dtos
         public string WarehouseName { get; set; } = string.Empty;
         public string BatchNumber { get; set; } = string.Empty;
     }
+
+    public class QuotationApprovalStatusRequestDto
+    {
+        public string Status { get; set; } = string.Empty;
+        public string? Remarks { get; set; }
+    }
 }

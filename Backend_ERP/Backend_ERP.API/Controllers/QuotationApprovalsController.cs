@@ -478,6 +478,30 @@ namespace ERP.API.Controllers
             return await Decision(id, request, userId, _service.ReopenAsync, cancellationToken);
         }
 
+        [HttpPost("{id:int}/status")]
+        public async Task<ActionResult<QuotationApprovalDto>> ChangeStatus(
+            int id,
+            [FromBody] QuotationApprovalStatusRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                var status = request?.Status?.Trim();
+                if (string.IsNullOrWhiteSpace(status)) return BadRequest("Status is required.");
+
+                var result = await _service.ChangeStatusAsync(id, status, ResolveActingUser(userId), cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
         [HttpPost("{id:int}/convert")]
         [RequirePermission(ErpPermissions.Quotations.Convert)]
         public async Task<ActionResult<SalesOrderDto>> ConvertToSalesOrder(

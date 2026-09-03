@@ -23,6 +23,10 @@ namespace ERP.Domain.Sales
         public const string Enterprise = "Enterprise";
         public const string Strategic = "Strategic";
         public const string Distributor = "Distributor";
+        public const string Retail = "Retail";
+        public const string Wholesale = "Wholesale";
+        public const string OEM = "OEM";
+        public const string Government = "Government";
 
         public static readonly string[] All =
         [
@@ -30,7 +34,11 @@ namespace ERP.Domain.Sales
             Premium,
             Enterprise,
             Strategic,
-            Distributor
+            Distributor,
+            Retail,
+            Wholesale,
+            OEM,
+            Government
         ];
     }
 
