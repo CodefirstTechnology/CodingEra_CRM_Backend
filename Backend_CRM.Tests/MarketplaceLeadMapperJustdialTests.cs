@@ -76,7 +76,7 @@ public class MarketplaceLeadMapperJustdialTests
     }
 
     [Fact]
-    public void FromJustdial_maps_company_to_OrganizationName()
+    public void FromJustdial_sets_OrganizationName_to_null_and_preserves_company_in_raw_payload()
     {
         var dto = new JustdialWebhookLeadDto
         {
@@ -88,7 +88,10 @@ public class MarketplaceLeadMapperJustdialTests
 
         var lead = MarketplaceLeadMapper.FromJustdial(dto);
 
-        Assert.Equal("Acme Technologies Ltd", lead.OrganizationName);
+        Assert.Null(lead.OrganizationName);
+        Assert.NotNull(lead.RawPayload);
+        using var doc = JsonDocument.Parse(lead.RawPayload!);
+        Assert.Equal("Acme Technologies Ltd", doc.RootElement.GetProperty("company").GetString());
     }
 
     [Fact]
@@ -266,11 +269,10 @@ public class MarketplaceLeadMapperJustdialTests
         Assert.Equal("9820778865", lead.Mobile);
         Assert.Equal("Nariman Point, Mumbai, Maharashtra - 400021", lead.Location);
         Assert.NotNull(lead.RawPayload);
-        Assert.NotNull(lead.OrganizationId);
+        Assert.Null(lead.OrganizationId);
 
-        var org = await db.Organizations.FirstOrDefaultAsync(o => o.Id == lead.OrganizationId);
-        Assert.NotNull(org);
-        Assert.Equal("Reliance Power", org!.Name);
+        using var rawDoc = JsonDocument.Parse(lead.RawPayload!);
+        Assert.Equal("Reliance Power", rawDoc.RootElement.GetProperty("company").GetString());
 
         Assert.Equal("Generators\n[crm-ext:Justdial:JD-PERSIST-1]", lead.Notes);
         Assert.NotNull(lead.LeadDate);
