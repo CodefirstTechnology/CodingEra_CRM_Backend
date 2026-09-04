@@ -71,6 +71,9 @@ namespace CRM.models
         [Column("address")]
         public string Location { get; set; } = string.Empty;
 
+        [Column("raw_payload", TypeName = "jsonb")]
+        public string? RawPayload { get; set; }
+
         [Column("lead_date")]
         public DateTime? LeadDate { get; set; }
 

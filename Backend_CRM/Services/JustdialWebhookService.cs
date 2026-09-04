@@ -238,9 +238,9 @@ namespace CRM.Services
                 errors.Add("name is required.");
             }
 
-            if (string.IsNullOrWhiteSpace(dto.Mobile))
+            if (string.IsNullOrWhiteSpace(dto.Mobile) && string.IsNullOrWhiteSpace(dto.Phone))
             {
-                errors.Add("mobile is required.");
+                errors.Add("mobile or phone is required.");
             }
 
             return errors;

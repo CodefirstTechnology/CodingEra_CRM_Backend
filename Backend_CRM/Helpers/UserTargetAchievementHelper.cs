@@ -48,9 +48,12 @@ namespace CRM.Helpers
         private static bool LooksLikeClosedWonName(string name)
         {
             var normalized = name.Trim();
+            if (string.IsNullOrWhiteSpace(normalized)) return false;
+            if (normalized.Contains("lost", StringComparison.OrdinalIgnoreCase)) return false;
             return normalized.Contains("won", StringComparison.OrdinalIgnoreCase)
-                && normalized.Contains("closed", StringComparison.OrdinalIgnoreCase)
-                && !normalized.Contains("lost", StringComparison.OrdinalIgnoreCase);
+                || string.Equals(normalized, "Lead Closed - Won", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalized, "Closed Won", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(normalized, "Won", StringComparison.OrdinalIgnoreCase);
         }
 
         public static async Task<decimal> CalculateAchievedAmountAsync(
@@ -63,9 +66,15 @@ namespace CRM.Helpers
             var qualifyingNames = await LoadQualifyingStatusNamesAsync(db, cancellationToken);
             var closedWonNames = await LoadClosedWonStatusNamesAsync(db, cancellationToken);
 
-            if (qualifyingNames.Count == 0 && closedWonNames.Count == 0)
+            if (closedWonNames.Count == 0)
             {
-                return 0m;
+                closedWonNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Lead Closed - Won",
+                    "Closed Won",
+                    "Closed - Won",
+                    "Won"
+                };
             }
 
             var deals = await db.Deals.AsNoTracking()

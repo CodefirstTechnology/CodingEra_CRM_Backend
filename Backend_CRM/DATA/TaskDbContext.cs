@@ -1098,6 +1098,15 @@ namespace CRM.DATA
                                 {
                                     l.CreatedAt = utc;
                                 }
+                                else if (l.CreatedAt.Value.Kind != DateTimeKind.Utc)
+                                {
+                                    l.CreatedAt = DateTime.SpecifyKind(l.CreatedAt.Value.ToUniversalTime(), DateTimeKind.Utc);
+                                }
+
+                                if (l.LeadDate.HasValue && l.LeadDate.Value.Kind != DateTimeKind.Utc)
+                                {
+                                    l.LeadDate = DateTime.SpecifyKind(l.LeadDate.Value.ToUniversalTime(), DateTimeKind.Utc);
+                                }
 
                                 break;
                             case User u:

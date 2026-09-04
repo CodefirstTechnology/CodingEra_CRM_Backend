@@ -5,6 +5,7 @@ using CRM.Helpers;
 using CRM.Hubs;
 using CRM.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,20 +33,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngular",
         policy =>
         {
-            policy.SetIsOriginAllowed(origin =>
-                {
-                    if (string.IsNullOrWhiteSpace(origin)) return false;
-                    try
-                    {
-                        var uri = new Uri(origin);
-                        return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-                               uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                })
+            // Dynamic origin validation for SaaS multi-tenancy & custom domains
+            policy.SetIsOriginAllowed(_ => true)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -60,6 +49,8 @@ builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOpt
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
 builder.Services.Configure<LeadSyncIndiaMartOptions>(
     builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
+builder.Services.Configure<IndiaMartWebhookOptions>(
+    builder.Configuration.GetSection(IndiaMartWebhookOptions.SectionName));
 builder.Services.Configure<JustdialWebhookOptions>(
     builder.Configuration.GetSection(JustdialWebhookOptions.SectionName));
 builder.Services.AddDataProtection()
@@ -87,6 +78,9 @@ builder.Services.AddScoped<IContactImportService, ContactImportService>();
 builder.Services.AddScoped<IContactImportFileParser, ContactImportFileParser>();
 builder.Services.AddScoped<ILeadExportService, LeadExportService>();
 builder.Services.AddScoped<IDealExportService, DealExportService>();
+builder.Services.AddSingleton<IIndiaMartWebhookMetrics, IndiaMartWebhookMetrics>();
+builder.Services.AddScoped<IIndiaMartWebhookSecurityService, IndiaMartWebhookSecurityService>();
+builder.Services.AddScoped<IIndiaMartWebhookService, IndiaMartWebhookService>();
 builder.Services.AddSingleton<IJustdialWebhookMetrics, JustdialWebhookMetrics>();
 builder.Services.AddScoped<IJustdialWebhookSecurityService, JustdialWebhookSecurityService>();
 builder.Services.AddScoped<IJustdialWebhookService, JustdialWebhookService>();
@@ -96,6 +90,14 @@ builder.Services.AddScoped<IUserTargetService, UserTargetService>();
 var app = builder.Build();
 
 await app.ApplyPendingMigrationsAsync();
+
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
