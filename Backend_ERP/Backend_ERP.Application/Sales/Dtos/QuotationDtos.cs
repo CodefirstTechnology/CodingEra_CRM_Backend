@@ -35,6 +35,8 @@ namespace ERP.Application.Sales.Dtos
         public int? ConvertedSalesOrderId { get; set; }
         public string? ConvertedSalesOrderNumber { get; set; }
         public string? ConvertedOn { get; set; }
+        public int? DiscountApprovalId { get; set; }
+        public string DiscountApprovalStatus { get; set; } = "None";
         public string CreatedBy { get; set; } = string.Empty;
         public DateTimeOffset CreatedDate { get; set; }
         public string UpdatedBy { get; set; } = string.Empty;

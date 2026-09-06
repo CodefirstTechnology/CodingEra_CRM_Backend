@@ -68,6 +68,12 @@ namespace ERP.Domain.Sales
 
         public DateTimeOffset? ConvertedOn { get; set; }
 
+        public int? DiscountApprovalId { get; set; }
+
+        public string DiscountApprovalStatus { get; set; } = "None";
+
+        public DiscountApproval? DiscountApproval { get; set; }
+
         public string CreatedBy { get; set; } = string.Empty;
 
         public DateTimeOffset CreatedDate { get; set; }

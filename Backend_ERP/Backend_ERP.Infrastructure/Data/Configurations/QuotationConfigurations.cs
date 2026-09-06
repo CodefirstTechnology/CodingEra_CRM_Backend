@@ -53,6 +53,14 @@ namespace ERP.Infrastructure.Data.Configurations
                 .HasFilter("\"ConvertedSalesOrderId\" IS NOT NULL")
                 .HasDatabaseName("uq_quote_converted_so");
 
+            builder.Property(x => x.DiscountApprovalStatus).HasMaxLength(32).HasDefaultValue("None");
+            builder.HasIndex(x => x.DiscountApprovalId);
+
+            builder.HasOne(x => x.DiscountApproval)
+                .WithMany()
+                .HasForeignKey(x => x.DiscountApprovalId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             builder.HasMany(x => x.Items)
                 .WithOne(x => x.Quotation)
                 .HasForeignKey(x => x.QuotationId)

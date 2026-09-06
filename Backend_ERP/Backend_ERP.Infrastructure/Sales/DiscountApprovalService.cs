@@ -1,6 +1,8 @@
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Infrastructure.Sales
 {
@@ -8,13 +10,16 @@ namespace ERP.Infrastructure.Sales
     {
         private readonly IDiscountApprovalRepository _repo;
         private readonly IDiscountApprovalNumberingService _numbering;
+        private readonly ERPDbContext _db;
 
         public DiscountApprovalService(
             IDiscountApprovalRepository repo,
-            IDiscountApprovalNumberingService numbering)
+            IDiscountApprovalNumberingService numbering,
+            ERPDbContext db)
         {
             _repo = repo;
             _numbering = numbering;
+            _db = db;
         }
 
         public async Task<IReadOnlyList<DiscountApprovalListItemDto>> GetAllAsync(
@@ -543,6 +548,123 @@ namespace ERP.Infrastructure.Sales
                 now));
 
             await _repo.UpdateAsync(entity, cancellationToken);
+
+            if (entity.SourceType == DiscountApprovalSourceTypes.Quotation && entity.QuotationId.HasValue)
+            {
+                var quote = await _db.Quotations
+                    .Include(x => x.Items)
+                    .FirstOrDefaultAsync(x => x.Id == entity.QuotationId.Value && !x.IsDeleted, cancellationToken);
+
+                if (quote != null)
+                {
+                    if (markApproved)
+                    {
+                        var approvedDiscount = entity.ApprovedDiscountPercentage ?? entity.RequestedDiscountPercentage;
+                        foreach (var item in quote.Items)
+                        {
+                            if (item.DiscountPercent > approvedDiscount)
+                            {
+                                item.DiscountPercent = approvedDiscount;
+                            }
+
+                            // Strict Financial Precision (Directive 2)
+                            var lineSubtotal = Math.Round(item.Quantity * item.UnitPrice, 2);
+                            item.DiscountAmount = Math.Round(lineSubtotal * (item.DiscountPercent / 100m), 2);
+                            var taxableAmount = lineSubtotal - item.DiscountAmount;
+                            item.TaxAmount = Math.Round(taxableAmount * (item.TaxPercent / 100m), 2);
+                            item.LineTotal = taxableAmount + item.TaxAmount;
+                        }
+                        quote.CalculateTotals();
+                        quote.DiscountApprovalStatus = DiscountApprovalStatuses.Approved;
+                        quote.Status = QuotationStatuses.Sent;
+                        quote.UpdatedBy = actingUser;
+                        quote.UpdatedDate = now;
+                    }
+                    else if (targetStatus == DiscountApprovalStatuses.Rejected || targetStatus == DiscountApprovalStatuses.Returned)
+                    {
+                        quote.IsCurrentRevision = false;
+                        quote.Status = QuotationStatuses.Revised;
+                        quote.DiscountApprovalStatus = targetStatus;
+                        quote.UpdatedBy = actingUser;
+                        quote.UpdatedDate = now;
+
+                        var clone = new Quotation
+                        {
+                            QuotationNumber = quote.QuotationNumber,
+                            RevisionNumber = quote.RevisionNumber + 1,
+                            IsCurrentRevision = true,
+                            CustomerId = quote.CustomerId,
+                            CustomerName = quote.CustomerName,
+                            ContactPerson = quote.ContactPerson,
+                            CustomerEmail = quote.CustomerEmail,
+                            CustomerPhone = quote.CustomerPhone,
+                            BillingAddress = quote.BillingAddress,
+                            ShippingAddress = quote.ShippingAddress,
+                            SalesPerson = quote.SalesPerson,
+                            Status = QuotationStatuses.Draft,
+                            DiscountApprovalStatus = "None",
+                            DiscountApprovalId = null,
+                            QuotationDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                            ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)),
+                            Currency = quote.Currency,
+                            ExchangeRate = quote.ExchangeRate,
+                            FreightAmount = quote.FreightAmount,
+                            PackagingAmount = quote.PackagingAmount,
+                            RoundOff = quote.RoundOff,
+                            PaymentTerms = quote.PaymentTerms,
+                            DeliveryTerms = quote.DeliveryTerms,
+                            Notes = string.IsNullOrWhiteSpace(request?.Remarks)
+                                ? $"{quote.Notes}\n[Discount {targetStatus}]: Please revise discounts.".Trim()
+                                : $"{quote.Notes}\n[Discount {targetStatus}]: {request.Remarks}".Trim(),
+                            CreatedBy = actingUser,
+                            CreatedDate = now,
+                            UpdatedBy = actingUser,
+                            UpdatedDate = now,
+                            IsDeleted = false
+                        };
+
+                        foreach (var item in quote.Items.OrderBy(i => i.SortOrder))
+                        {
+                            var clonedDiscount = item.DiscountPercent > 5.00m ? 5.00m : item.DiscountPercent;
+                            var lineSub = Math.Round(item.Quantity * item.UnitPrice, 2);
+                            var discAmt = Math.Round(lineSub * (clonedDiscount / 100m), 2);
+                            var taxBase = lineSub - discAmt;
+                            var taxAmt = Math.Round(taxBase * (item.TaxPercent / 100m), 2);
+                            var lTotal = taxBase + taxAmt;
+
+                            clone.Items.Add(new QuotationItem
+                            {
+                                ProductId = item.ProductId,
+                                LineNumber = item.LineNumber,
+                                ItemCode = item.ItemCode,
+                                ItemName = item.ItemName,
+                                Description = item.Description,
+                                Quantity = item.Quantity,
+                                Unit = item.Unit,
+                                UnitPrice = item.UnitPrice,
+                                DiscountPercent = clonedDiscount,
+                                DiscountAmount = discAmt,
+                                TaxPercent = item.TaxPercent,
+                                TaxAmount = taxAmt,
+                                LineTotal = lTotal,
+                                SortOrder = item.SortOrder
+                            });
+                        }
+                        clone.CalculateTotals();
+                        _db.Quotations.Add(clone);
+                    }
+                    else if (targetStatus == DiscountApprovalStatuses.Cancelled)
+                    {
+                        quote.DiscountApprovalStatus = DiscountApprovalStatuses.Cancelled;
+                        quote.Status = QuotationStatuses.Draft;
+                        quote.UpdatedBy = actingUser;
+                        quote.UpdatedDate = now;
+                    }
+
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+            }
+
             return DiscountApprovalMapper.ToDto(
                 await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
         }

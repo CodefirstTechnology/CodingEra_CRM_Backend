@@ -10,10 +10,12 @@ namespace ERP.Infrastructure.Sales
     public class QuotationService : IQuotationService
     {
         private readonly ERPDbContext _db;
+        private readonly IDiscountApprovalNumberingService _numbering;
 
-        public QuotationService(ERPDbContext db)
+        public QuotationService(ERPDbContext db, IDiscountApprovalNumberingService numbering)
         {
             _db = db;
+            _numbering = numbering;
         }
 
         public async Task<PagedResult<QuotationDto>> GetPagedAsync(
@@ -127,11 +129,80 @@ namespace ERP.Infrastructure.Sales
                 IsDeleted = false
             };
 
-            HydrateItems(entity, request.Items);
+            var candidateIds = request.Items
+                .Where(x => x.ProductId.HasValue && x.ProductId.Value > 0)
+                .Select(x => x.ProductId!.Value)
+                .Distinct()
+                .ToList();
+
+            var validProductIds = candidateIds.Count > 0
+                ? (await _db.FinishedGoods
+                    .Where(fg => candidateIds.Contains(fg.Id) && !fg.IsDeleted)
+                    .Select(fg => fg.Id)
+                    .ToListAsync(cancellationToken)).ToHashSet()
+                : new HashSet<int>();
+
+            HydrateItems(entity, request.Items, validProductIds);
             CalculateTotals(entity);
+
+            var maxDiscount = entity.Items.Count > 0 ? entity.Items.Max(i => i.DiscountPercent) : 0m;
+            if (maxDiscount > 5.00m)
+            {
+                entity.Status = QuotationStatuses.PendingDiscountApproval;
+                entity.DiscountApprovalStatus = DiscountApprovalStatuses.Pending;
+            }
+            else
+            {
+                entity.Status = QuotationStatuses.Draft;
+                entity.DiscountApprovalStatus = "None";
+            }
 
             _db.Quotations.Add(entity);
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (maxDiscount > 5.00m)
+            {
+                var approvalNumber = await _numbering.GenerateNextApprovalNumberAsync(cancellationToken);
+                var approval = new DiscountApproval
+                {
+                    ApprovalNumber = approvalNumber,
+                    RequestDate = entity.QuotationDate,
+                    SourceType = DiscountApprovalSourceTypes.Quotation,
+                    QuotationId = entity.Id,
+                    QuotationNumber = entity.QuotationNumber,
+                    CustomerName = entity.CustomerName,
+                    CustomerCategory = PriceListCustomerCategories.Standard,
+                    SalesPersonUserId = 1,
+                    RequestedDiscountPercentage = maxDiscount,
+                    RequestedAmount = entity.DiscountTotal,
+                    ApprovalLevel = DiscountApprovalLevels.Manager,
+                    Priority = DiscountApprovalPriorities.Normal,
+                    Status = DiscountApprovalStatuses.Pending,
+                    Reason = $"Quotation line discount of {maxDiscount:F2}% exceeds 5.00% threshold.",
+                    Remarks = $"Auto-generated from Quotation {entity.QuotationNumber}",
+                    CreatedBy = actingUser,
+                    CreatedDate = now,
+                    UpdatedBy = actingUser,
+                    UpdatedDate = now,
+                    IsDeleted = false
+                };
+
+                approval.History.Add(new DiscountApprovalHistory
+                {
+                    Action = DiscountApprovalHistoryActions.Created,
+                    OldStatus = string.Empty,
+                    NewStatus = DiscountApprovalStatuses.Pending,
+                    Remarks = $"Discount approval request auto-created from Quotation {entity.QuotationNumber}",
+                    PerformedBy = actingUser,
+                    PerformedOn = now
+                });
+
+                _db.DiscountApprovals.Add(approval);
+                await _db.SaveChangesAsync(cancellationToken);
+
+                entity.DiscountApprovalId = approval.Id;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
 
             return MapToDto(entity);
         }
@@ -177,8 +248,102 @@ namespace ERP.Infrastructure.Sales
             _db.QuotationItems.RemoveRange(entity.Items);
             entity.Items.Clear();
 
-            HydrateItems(entity, request.Items);
+            var candidateIds = request.Items
+                .Where(x => x.ProductId.HasValue && x.ProductId.Value > 0)
+                .Select(x => x.ProductId!.Value)
+                .Distinct()
+                .ToList();
+
+            var validProductIds = candidateIds.Count > 0
+                ? (await _db.FinishedGoods
+                    .Where(fg => candidateIds.Contains(fg.Id) && !fg.IsDeleted)
+                    .Select(fg => fg.Id)
+                    .ToListAsync(cancellationToken)).ToHashSet()
+                : new HashSet<int>();
+
+            HydrateItems(entity, request.Items, validProductIds);
             CalculateTotals(entity);
+
+            var maxDiscount = entity.Items.Count > 0 ? entity.Items.Max(i => i.DiscountPercent) : 0m;
+            if (maxDiscount > 5.00m)
+            {
+                entity.Status = QuotationStatuses.PendingDiscountApproval;
+                entity.DiscountApprovalStatus = DiscountApprovalStatuses.Pending;
+
+                DiscountApproval? da = null;
+                if (entity.DiscountApprovalId.HasValue)
+                {
+                    da = await _db.DiscountApprovals
+                        .Include(x => x.History)
+                        .FirstOrDefaultAsync(x => x.Id == entity.DiscountApprovalId.Value && !x.IsDeleted, cancellationToken);
+                }
+
+                if (da != null && (da.Status == DiscountApprovalStatuses.Pending || da.Status == DiscountApprovalStatuses.UnderReview))
+                {
+                    da.RequestedDiscountPercentage = maxDiscount;
+                    da.RequestedAmount = entity.DiscountTotal;
+                    da.UpdatedBy = actingUser;
+                    da.UpdatedDate = now;
+                    da.History.Add(new DiscountApprovalHistory
+                    {
+                        Action = DiscountApprovalHistoryActions.Updated,
+                        OldStatus = da.Status,
+                        NewStatus = da.Status,
+                        Remarks = $"Quotation items updated with max discount {maxDiscount:F2}%",
+                        PerformedBy = actingUser,
+                        PerformedOn = now
+                    });
+                }
+                else
+                {
+                    var approvalNumber = await _numbering.GenerateNextApprovalNumberAsync(cancellationToken);
+                    var approval = new DiscountApproval
+                    {
+                        ApprovalNumber = approvalNumber,
+                        RequestDate = entity.QuotationDate,
+                        SourceType = DiscountApprovalSourceTypes.Quotation,
+                        QuotationId = entity.Id,
+                        QuotationNumber = entity.QuotationNumber,
+                        CustomerName = entity.CustomerName,
+                        CustomerCategory = PriceListCustomerCategories.Standard,
+                        SalesPersonUserId = 1,
+                        RequestedDiscountPercentage = maxDiscount,
+                        RequestedAmount = entity.DiscountTotal,
+                        ApprovalLevel = DiscountApprovalLevels.Manager,
+                        Priority = DiscountApprovalPriorities.Normal,
+                        Status = DiscountApprovalStatuses.Pending,
+                        Reason = $"Quotation line discount of {maxDiscount:F2}% exceeds 5.00% threshold.",
+                        Remarks = $"Updated from Quotation {entity.QuotationNumber}",
+                        CreatedBy = actingUser,
+                        CreatedDate = now,
+                        UpdatedBy = actingUser,
+                        UpdatedDate = now,
+                        IsDeleted = false
+                    };
+
+                    approval.History.Add(new DiscountApprovalHistory
+                    {
+                        Action = DiscountApprovalHistoryActions.Created,
+                        OldStatus = string.Empty,
+                        NewStatus = DiscountApprovalStatuses.Pending,
+                        Remarks = $"Discount approval request created from updated Quotation {entity.QuotationNumber}",
+                        PerformedBy = actingUser,
+                        PerformedOn = now
+                    });
+
+                    _db.DiscountApprovals.Add(approval);
+                    await _db.SaveChangesAsync(cancellationToken);
+                    entity.DiscountApprovalId = approval.Id;
+                }
+            }
+            else
+            {
+                if (entity.Status == QuotationStatuses.PendingDiscountApproval)
+                {
+                    entity.Status = QuotationStatuses.Draft;
+                }
+                entity.DiscountApprovalStatus = "None";
+            }
 
             await _db.SaveChangesAsync(cancellationToken);
             return MapToDto(entity);
@@ -419,11 +584,18 @@ namespace ERP.Infrastructure.Sales
             return $"{prefix}{(count + 1):D4}";
         }
 
-        private static void HydrateItems(Quotation quote, IEnumerable<QuotationItemUpsertDto> dtos)
+        private static void HydrateItems(
+            Quotation quote,
+            IEnumerable<QuotationItemUpsertDto> dtos,
+            HashSet<int>? validFinishedGoodIds = null)
         {
             var idx = 1;
             foreach (var dto in dtos)
             {
+                var validProductId = dto.ProductId.HasValue && (validFinishedGoodIds?.Contains(dto.ProductId.Value) ?? false)
+                    ? dto.ProductId
+                    : null;
+
                 var discountAmt = Math.Round(dto.Quantity * dto.UnitPrice * (dto.DiscountPercent / 100m), 2);
                 var taxable = (dto.Quantity * dto.UnitPrice) - discountAmt;
                 var taxAmt = Math.Round(taxable * (dto.TaxPercent / 100m), 2);
@@ -431,7 +603,7 @@ namespace ERP.Infrastructure.Sales
 
                 quote.Items.Add(new QuotationItem
                 {
-                    ProductId = dto.ProductId,
+                    ProductId = validProductId,
                     LineNumber = idx,
                     SortOrder = dto.SortOrder > 0 ? dto.SortOrder : idx,
                     ItemCode = dto.ItemCode ?? string.Empty,
@@ -492,6 +664,8 @@ namespace ERP.Infrastructure.Sales
                 ConvertedSalesOrderId = q.ConvertedSalesOrderId,
                 ConvertedSalesOrderNumber = q.ConvertedSalesOrderNumber,
                 ConvertedOn = q.ConvertedOn?.ToString("o"),
+                DiscountApprovalId = q.DiscountApprovalId,
+                DiscountApprovalStatus = q.DiscountApprovalStatus,
                 CreatedBy = q.CreatedBy,
                 CreatedDate = q.CreatedDate,
                 UpdatedBy = q.UpdatedBy,

@@ -3,6 +3,7 @@ namespace ERP.Domain.Sales
     public static class QuotationStatuses
     {
         public const string Draft = "Draft";
+        public const string PendingDiscountApproval = "PendingDiscountApproval";
         public const string Sent = "Sent";
         public const string Approved = "Approved"; // Client Accepted
         public const string ConvertedToSO = "ConvertedToSO";
@@ -13,6 +14,7 @@ namespace ERP.Domain.Sales
         public static readonly string[] All =
         [
             Draft,
+            PendingDiscountApproval,
             Sent,
             Approved,
             ConvertedToSO,
