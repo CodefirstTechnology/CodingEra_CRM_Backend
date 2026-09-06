@@ -351,13 +351,148 @@ namespace ERP.Infrastructure.Sales
             string actingUser,
             CancellationToken cancellationToken = default)
         {
+            await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+            // 1. Try locking canonical Quotation row with row-level pessimistic lock (SELECT ... FOR UPDATE)
+            var quote = await _db.Quotations
+                .FromSqlRaw(@"SELECT * FROM quotations WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
+                .Include(x => x.Items)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var now = DateTimeOffset.UtcNow;
+            var number = await NextNumberAsync(cancellationToken);
+
+            if (quote is not null)
+            {
+                // Strict validation: Must be 'Approved' (Client Accepted)
+                if (!string.Equals(quote.Status, QuotationStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Quotation must be in 'Approved' status to convert to a Sales Order. Current status: '{quote.Status}'.");
+                }
+
+                // Strict validation: Cannot be converted more than once
+                if (quote.ConvertedSalesOrderId.HasValue && quote.ConvertedSalesOrderId.Value > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Quotation '{quote.QuotationNumber}' has already been converted to Sales Order '{quote.ConvertedSalesOrderNumber ?? quote.ConvertedSalesOrderId.Value.ToString()}'.");
+                }
+
+                var existingOrder = await _db.SalesOrders
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.QuotationId == quote.Id && x.Status != SalesOrderStatuses.Cancelled, cancellationToken);
+                if (existingOrder is not null)
+                {
+                    throw new InvalidOperationException(
+                        $"A Sales Order ({existingOrder.SalesOrderNumber}) already exists for Quotation '{quote.QuotationNumber}'.");
+                }
+
+                var salesOrderItems = quote.Items.OrderBy(i => i.SortOrder).Select((item, idx) => new SalesOrderItem
+                {
+                    LineKey = Guid.NewGuid().ToString("N"),
+                    SortIndex = idx + 1,
+                    ItemName = item.ItemName,
+                    Description = item.Description ?? string.Empty,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit ?? "NOS",
+                    Rate = item.UnitPrice,
+                    Discount = item.DiscountPercent,
+                    Gst = item.TaxPercent,
+                    Amount = item.LineTotal
+                }).ToList();
+
+                if (salesOrderItems.Count == 0)
+                {
+                    salesOrderItems.Add(new SalesOrderItem
+                    {
+                        LineKey = Guid.NewGuid().ToString("N"),
+                        SortIndex = 1,
+                        ItemName = $"Quotation #{quote.QuotationNumber} Items",
+                        Description = quote.Notes,
+                        Quantity = 1m,
+                        Unit = "NOS",
+                        Rate = quote.GrandTotal,
+                        Discount = 0m,
+                        Gst = 18m,
+                        Amount = quote.GrandTotal
+                    });
+                }
+
+                var order = new SalesOrder
+                {
+                    SalesOrderNumber = number,
+                    QuotationId = quote.Id,
+                    QuotationNumber = quote.QuotationNumber,
+                    SourceType = SalesOrderSourceTypes.Quotation,
+                    CustomerName = quote.CustomerName,
+                    ContactPerson = quote.ContactPerson,
+                    BillingAddress = quote.BillingAddress,
+                    ShippingAddress = quote.ShippingAddress,
+                    CustomerEmail = quote.CustomerEmail,
+                    CustomerPhone = quote.CustomerPhone,
+                    SalesPerson = quote.SalesPerson,
+                    Notes = quote.Notes,
+                    OrderDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                    PaymentTerms = string.IsNullOrWhiteSpace(quote.PaymentTerms) ? "Net 30" : quote.PaymentTerms,
+                    DeliveryTerms = string.IsNullOrWhiteSpace(quote.DeliveryTerms) ? "Standard Delivery" : quote.DeliveryTerms,
+                    Subtotal = quote.Subtotal,
+                    DiscountTotal = quote.DiscountTotal,
+                    GstTotal = quote.TaxTotal,
+                    GrandTotal = quote.GrandTotal,
+                    Status = SalesOrderStatuses.Submitted,
+                    Remarks = $"Converted from Quotation {quote.QuotationNumber}" + (!string.IsNullOrWhiteSpace(quote.ClientPoNumber) ? $" (Client PO: {quote.ClientPoNumber})" : string.Empty),
+                    CreatedBy = actingUser,
+                    CreatedDate = now,
+                    UpdatedBy = actingUser,
+                    UpdatedDate = now,
+                    Items = salesOrderItems
+                };
+
+                order.StatusHistory.Add(NewHistory(
+                    SalesOrderStatuses.Submitted,
+                    now,
+                    actingUser,
+                    $"Converted from Quotation {quote.QuotationNumber}",
+                    "Converted"));
+
+                await _db.SalesOrders.AddAsync(order, cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+
+                // Update Quotation state atomically
+                quote.ConvertedSalesOrderId = order.Id;
+                quote.ConvertedSalesOrderNumber = order.SalesOrderNumber;
+                quote.ConvertedOn = now;
+                quote.Status = QuotationStatuses.ConvertedToSO;
+                quote.UpdatedBy = actingUser;
+                quote.UpdatedDate = now;
+
+                // Also update any matching legacy QuotationApproval record if one exists
+                var matchingQa = await _db.QuotationApprovals
+                    .FirstOrDefaultAsync(x => x.QuotationId == quote.Id && !x.IsDeleted, cancellationToken);
+                if (matchingQa is not null)
+                {
+                    matchingQa.SalesOrderId = order.Id;
+                    matchingQa.SalesOrderNumber = order.SalesOrderNumber;
+                    matchingQa.UpdatedBy = actingUser;
+                    matchingQa.UpdatedDate = now;
+                }
+
+                await _db.SaveChangesAsync(cancellationToken);
+                await tx.CommitAsync(cancellationToken);
+
+                return SalesOrderMapper.ToDto(
+                    await LoadTrackedAsync(order.Id, asTracking: false, cancellationToken) ?? order);
+            }
+
+            // 2. Fallback for legacy QuotationApproval records
             var qa = await _db.QuotationApprovals
+                .FromSqlRaw(@"SELECT * FROM ""QuotationApprovals"" WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
                 .Include(x => x.History)
-                .FirstOrDefaultAsync(x => x.Id == quotationApprovalId && !x.IsDeleted, cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (qa is null)
             {
-                throw new InvalidOperationException($"Quotation approval '{quotationApprovalId}' was not found.");
+                throw new InvalidOperationException($"Quotation '{quotationApprovalId}' was not found.");
             }
 
             if (!string.Equals(qa.Status, QuotationApprovalStatuses.Approved, StringComparison.OrdinalIgnoreCase))
@@ -384,10 +519,7 @@ namespace ERP.Infrastructure.Sales
                 }
             }
 
-            var now = DateTimeOffset.UtcNow;
-            var number = await NextNumberAsync(cancellationToken);
-
-            var items = new List<SalesOrderItemDto>
+            var legacyItems = new List<SalesOrderItemDto>
             {
                 new SalesOrderItemDto
                 {
@@ -411,10 +543,10 @@ namespace ERP.Infrastructure.Sales
                 ShippingAddress = string.Empty
             };
 
-            var prepared = PrepareItems(items);
+            var prepared = PrepareItems(legacyItems);
             var (subtotal, discountTotal, gstTotal, grandTotal) = SalesOrderCalculator.Summarize(prepared);
 
-            var order = new SalesOrder
+            var legacyOrder = new SalesOrder
             {
                 SalesOrderNumber = number,
                 QuotationId = qa.QuotationId,
@@ -456,18 +588,18 @@ namespace ERP.Infrastructure.Sales
                 }).ToList()
             };
 
-            order.StatusHistory.Add(NewHistory(
+            legacyOrder.StatusHistory.Add(NewHistory(
                 SalesOrderStatuses.Submitted,
                 now,
                 actingUser,
                 $"Converted from Quotation Approval {qa.ApprovalNumber}",
                 "Converted"));
 
-            await _db.SalesOrders.AddAsync(order, cancellationToken);
+            await _db.SalesOrders.AddAsync(legacyOrder, cancellationToken);
             await _db.SaveChangesAsync(cancellationToken);
 
-            qa.SalesOrderId = order.Id;
-            qa.SalesOrderNumber = order.SalesOrderNumber;
+            qa.SalesOrderId = legacyOrder.Id;
+            qa.SalesOrderNumber = legacyOrder.SalesOrderNumber;
             qa.UpdatedBy = actingUser;
             qa.UpdatedDate = now;
             qa.History.Add(new QuotationApprovalHistory
@@ -475,15 +607,16 @@ namespace ERP.Infrastructure.Sales
                 Action = QuotationApprovalHistoryActions.Updated,
                 OldStatus = qa.Status,
                 NewStatus = qa.Status,
-                Remarks = $"Converted to Sales Order {order.SalesOrderNumber}",
+                Remarks = $"Converted to Sales Order {legacyOrder.SalesOrderNumber}",
                 PerformedBy = actingUser,
                 PerformedOn = now
             });
 
             await _db.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
 
             return SalesOrderMapper.ToDto(
-                await LoadTrackedAsync(order.Id, asTracking: false, cancellationToken) ?? order);
+                await LoadTrackedAsync(legacyOrder.Id, asTracking: false, cancellationToken) ?? legacyOrder);
         }
 
         public async Task<SalesOrderPdfResultDto?> GeneratePdfAsync(

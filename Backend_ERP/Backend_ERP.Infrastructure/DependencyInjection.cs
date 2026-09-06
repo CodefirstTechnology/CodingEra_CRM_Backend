@@ -43,6 +43,7 @@ namespace ERP.Infrastructure
             services.AddScoped<IQuotationApprovalNumberingService, QuotationApprovalNumberingService>();
             services.AddScoped<IQuotationApprovalRepository, QuotationApprovalRepository>();
             services.AddScoped<IQuotationApprovalService, QuotationApprovalService>();
+            services.AddScoped<IQuotationService, QuotationService>();
 
             // Procurement Phase 1 Vendor Master Services
             services.AddScoped<ERP.Infrastructure.Procurement.VendorNumberingService>();

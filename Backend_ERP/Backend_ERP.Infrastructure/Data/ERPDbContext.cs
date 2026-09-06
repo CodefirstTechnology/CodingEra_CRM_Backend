@@ -70,6 +70,10 @@ namespace ERP.Infrastructure.Data
         public DbSet<DiscountApprovalDocumentSequence> DiscountApprovalDocumentSequences =>
             Set<DiscountApprovalDocumentSequence>();
 
+        public DbSet<Quotation> Quotations => Set<Quotation>();
+
+        public DbSet<QuotationItem> QuotationItems => Set<QuotationItem>();
+
         public DbSet<QuotationApproval> QuotationApprovals => Set<QuotationApproval>();
 
         public DbSet<QuotationApprovalHistory> QuotationApprovalHistories => Set<QuotationApprovalHistory>();
