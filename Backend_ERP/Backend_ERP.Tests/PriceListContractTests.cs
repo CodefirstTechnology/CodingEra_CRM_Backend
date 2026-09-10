@@ -169,9 +169,94 @@ public class PriceListContractTests
     }
 
     [Fact]
-    public void Numbering_prefix_matches_pl_year_pattern()
+    public void Priority_defaults_to_zero_and_is_supported_on_dtos()
     {
-        Assert.Matches(@"^PL-\d{4}-\d{5}$", "PL-2026-00001");
-        Assert.Matches(@"^PL-\d{4}-\d{5}$", "PL-2026-00010");
+        var createDto = new PriceListCreateRequestDto();
+        Assert.Equal(0, createDto.Priority);
+
+        var entity = new PriceList();
+        Assert.Equal(0, entity.Priority);
+
+        createDto.Priority = 10;
+        Assert.Equal(10, createDto.Priority);
+
+        var updateDto = new PriceListUpdateRequestDto { Priority = 5 };
+        Assert.Equal(5, updateDto.Priority);
+
+        var listDto = new PriceListListItemDto { Priority = 2 };
+        Assert.Equal(2, listDto.Priority);
+
+        var fullDto = new PriceListDto { Priority = 7 };
+        Assert.Equal(7, fullDto.Priority);
+
+        var historyDto = new PriceListHistoryDto { Priority = 3 };
+        Assert.Equal(3, historyDto.Priority);
+    }
+
+    [Fact]
+    public void Resolve_dto_includes_priority_and_alternative_lists_metadata()
+    {
+        var resolve = new PriceListResolveDto
+        {
+            PriceListId = 12,
+            PriceListNumber = "PL-2026-00012",
+            PriceListName = "Promotional Steel Q1",
+            Priority = 10,
+            ItemCode = "STL-MS-001",
+            ItemName = "MS Plate 10mm",
+            BasePrice = 60000,
+            SellingPrice = 54000,
+            MinimumPrice = 52000,
+            DiscountPercentage = 10,
+            MaximumDiscount = 15,
+            TaxPercentage = 18,
+            AlternativeListsAvailable = 2,
+            ResolvedViaPriority = true
+        };
+
+        Assert.Equal(10, resolve.Priority);
+        Assert.Equal(2, resolve.AlternativeListsAvailable);
+        Assert.True(resolve.ResolvedViaPriority);
+        Assert.Equal(15m, resolve.MaximumDiscount);
+    }
+
+    [Fact]
+    public void Resolution_ordering_prioritizes_higher_priority_then_effective_from()
+    {
+        var standardList = new PriceList
+        {
+            Id = 1,
+            Priority = 0,
+            EffectiveFrom = new DateOnly(2026, 1, 1),
+            PriceListName = "Standard Catalog"
+        };
+        var olderPromoList = new PriceList
+        {
+            Id = 2,
+            Priority = 5,
+            EffectiveFrom = new DateOnly(2026, 1, 1),
+            PriceListName = "Older Promo"
+        };
+        var latestHighPriorityList = new PriceList
+        {
+            Id = 3,
+            Priority = 10,
+            EffectiveFrom = new DateOnly(2026, 3, 1),
+            PriceListName = "Spring Flash Sale"
+        };
+
+        var lists = new List<PriceList> { standardList, olderPromoList, latestHighPriorityList };
+
+        var sorted = lists
+            .OrderByDescending(p => p.Priority)
+            .ThenByDescending(p => p.EffectiveFrom)
+            .ThenByDescending(p => p.Id)
+            .ToList();
+
+        Assert.Equal(3, sorted[0].Id);
+        Assert.Equal("Spring Flash Sale", sorted[0].PriceListName);
+        Assert.Equal(2, sorted[1].Id);
+        Assert.Equal(1, sorted[2].Id);
     }
 }
+

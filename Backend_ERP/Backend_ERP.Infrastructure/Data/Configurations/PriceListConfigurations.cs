@@ -19,6 +19,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.CustomerCategory).HasMaxLength(64).IsRequired();
             builder.Property(x => x.Currency).HasMaxLength(8).IsRequired();
             builder.Property(x => x.Status).HasMaxLength(64).IsRequired();
+            builder.Property(x => x.Priority).HasDefaultValue(0).IsRequired();
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.CreatedBy).HasMaxLength(64);
             builder.Property(x => x.UpdatedBy).HasMaxLength(64);
@@ -27,8 +28,10 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.CustomerCategory);
             builder.HasIndex(x => x.Currency);
             builder.HasIndex(x => x.EffectiveFrom);
+            builder.HasIndex(x => x.Priority);
             builder.HasIndex(x => x.IsDeleted);
             builder.HasIndex(x => new { x.PriceListName, x.CustomerCategory, x.Currency, x.Status });
+            builder.HasIndex(x => new { x.Status, x.CustomerCategory, x.Currency, x.Priority, x.EffectiveFrom });
 
             builder.HasMany(x => x.Items)
                 .WithOne(x => x.PriceList)
@@ -75,6 +78,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.Action).HasMaxLength(64).IsRequired();
+            builder.Property(x => x.Priority);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.ChangedBy).HasMaxLength(64);
 

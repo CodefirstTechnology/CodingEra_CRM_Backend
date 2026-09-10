@@ -10,6 +10,8 @@ namespace ERP.Domain.Sales
 
         public string Action { get; set; } = string.Empty;
 
+        public int? Priority { get; set; }
+
         public string Remarks { get; set; } = string.Empty;
 
         public string ChangedBy { get; set; } = string.Empty;

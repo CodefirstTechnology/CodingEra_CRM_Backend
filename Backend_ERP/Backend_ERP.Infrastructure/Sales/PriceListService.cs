@@ -40,6 +40,7 @@ namespace ERP.Infrastructure.Sales
             CancellationToken cancellationToken = default)
         {
             var (category, from, to, status) = ValidateAndNormalizeCreate(request);
+            var priority = Math.Max(0, request.Priority);
 
             if (status == PriceListStatuses.Active)
             {
@@ -49,6 +50,7 @@ namespace ERP.Infrastructure.Sales
                     request.Currency.Trim().ToUpperInvariant(),
                     from,
                     to,
+                    priority,
                     null,
                     cancellationToken);
             }
@@ -73,6 +75,7 @@ namespace ERP.Infrastructure.Sales
                 EffectiveFrom = from,
                 EffectiveTo = to,
                 Status = status,
+                Priority = priority,
                 Remarks = request.Remarks?.Trim() ?? string.Empty,
                 CreatedBy = actingUser,
                 CreatedDate = now,
@@ -81,7 +84,7 @@ namespace ERP.Infrastructure.Sales
                 Items = BuildItems(request.Items),
                 History =
                 [
-                    NewHistory(PriceListHistoryActions.Created, "Price list created", actingUser, now)
+                    NewHistory(PriceListHistoryActions.Created, "Price list created", actingUser, now, priority)
                 ]
             };
 
@@ -91,7 +94,8 @@ namespace ERP.Infrastructure.Sales
                     PriceListHistoryActions.Activated,
                     "Activated on create",
                     actingUser,
-                    now));
+                    now,
+                    priority));
             }
 
             await _repo.CreateAsync(entity, cancellationToken);
@@ -134,6 +138,8 @@ namespace ERP.Infrastructure.Sales
                 throw new InvalidOperationException("Effective to must be on or after effective from.");
             }
 
+            var priority = Math.Max(0, request.Priority);
+
             if (entity.Status == PriceListStatuses.Active)
             {
                 await EnsureNoOverlapAsync(
@@ -142,6 +148,7 @@ namespace ERP.Infrastructure.Sales
                     request.Currency.Trim().ToUpperInvariant(),
                     from,
                     to,
+                    priority,
                     id,
                     cancellationToken);
             }
@@ -165,6 +172,7 @@ namespace ERP.Infrastructure.Sales
             entity.Currency = request.Currency.Trim().ToUpperInvariant();
             entity.EffectiveFrom = from;
             entity.EffectiveTo = to;
+            entity.Priority = priority;
             entity.Remarks = request.Remarks?.Trim() ?? string.Empty;
             entity.UpdatedBy = actingUser;
             entity.UpdatedDate = now;
@@ -178,7 +186,8 @@ namespace ERP.Infrastructure.Sales
                 PriceListHistoryActions.Updated,
                 "Price list updated",
                 actingUser,
-                now));
+                now,
+                priority));
 
             await _repo.UpdateAsync(entity, cancellationToken);
             return PriceListMapper.ToDto(
@@ -238,6 +247,7 @@ namespace ERP.Infrastructure.Sales
                 entity.Currency,
                 entity.EffectiveFrom,
                 entity.EffectiveTo,
+                entity.Priority,
                 id,
                 cancellationToken);
 
@@ -253,7 +263,8 @@ namespace ERP.Infrastructure.Sales
                     ? string.Empty
                     : $": {request.Remarks.Trim()}"),
                 actingUser,
-                now));
+                now,
+                entity.Priority));
 
             await _repo.UpdateAsync(entity, cancellationToken);
             return PriceListMapper.ToDto(
@@ -278,6 +289,7 @@ namespace ERP.Infrastructure.Sales
                 Description = source.Description,
                 CustomerCategory = source.CustomerCategory,
                 Currency = source.Currency,
+                Priority = source.Priority,
                 EffectiveFrom = DateHelper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow)),
                 EffectiveTo = source.EffectiveTo is null
                     ? null
@@ -312,7 +324,8 @@ namespace ERP.Infrastructure.Sales
                     PriceListHistoryActions.Cloned,
                     $"Cloned from {source.PriceListNumber}",
                     actingUser,
-                    DateTimeOffset.UtcNow));
+                    DateTimeOffset.UtcNow,
+                    entity.Priority));
                 await _repo.UpdateAsync(entity, cancellationToken);
                 return PriceListMapper.ToDto(
                     await _repo.GetByIdAsync(created.Id, true, false, cancellationToken) ?? entity);
@@ -355,37 +368,44 @@ namespace ERP.Infrastructure.Sales
                 : request.Currency.Trim().ToUpperInvariant();
 
             var active = await _repo.GetActiveAsync(date, cancellationToken);
-            var match = active
+            var matches = active
                 .Where(x => x.CustomerCategory == category
                     && (currency is null || x.Currency == currency))
                 .SelectMany(list => list.Items
                     .Where(i => i.ItemCode.Equals(request.ItemCode.Trim(), StringComparison.OrdinalIgnoreCase))
                     .Select(item => new { List = list, Item = item }))
-                .OrderByDescending(x => x.List.EffectiveFrom)
+                .OrderByDescending(x => x.List.Priority)
+                .ThenByDescending(x => x.List.EffectiveFrom)
                 .ThenByDescending(x => x.List.Id)
-                .FirstOrDefault();
+                .ToList();
 
-            if (match is null)
+            if (!matches.Any())
             {
                 return null;
             }
 
+            var winning = matches.First();
+
             return new PriceListResolveDto
             {
-                PriceListId = match.List.Id,
-                PriceListNumber = match.List.PriceListNumber,
-                PriceListName = match.List.PriceListName,
-                CustomerCategory = match.List.CustomerCategory,
-                Currency = match.List.Currency,
-                ItemCode = match.Item.ItemCode,
-                ItemName = match.Item.ItemName,
-                BasePrice = match.Item.BasePrice,
-                SellingPrice = match.Item.SellingPrice,
-                DiscountPercentage = match.Item.DiscountPercentage,
-                MinimumPrice = match.Item.MinimumPrice,
-                TaxPercentage = match.Item.TaxPercentage,
-                EffectiveFrom = DateHelper.FormatDate(match.List.EffectiveFrom),
-                EffectiveTo = PriceListMapper.FormatOptionalDate(match.List.EffectiveTo)
+                PriceListId = winning.List.Id,
+                PriceListNumber = winning.List.PriceListNumber,
+                PriceListName = winning.List.PriceListName,
+                Priority = winning.List.Priority,
+                CustomerCategory = winning.List.CustomerCategory,
+                Currency = winning.List.Currency,
+                ItemCode = winning.Item.ItemCode,
+                ItemName = winning.Item.ItemName,
+                BasePrice = winning.Item.BasePrice,
+                SellingPrice = winning.Item.SellingPrice,
+                DiscountPercentage = winning.Item.DiscountPercentage,
+                MinimumPrice = winning.Item.MinimumPrice,
+                MaximumDiscount = winning.Item.MaximumDiscount,
+                TaxPercentage = winning.Item.TaxPercentage,
+                EffectiveFrom = DateHelper.FormatDate(winning.List.EffectiveFrom),
+                EffectiveTo = PriceListMapper.FormatOptionalDate(winning.List.EffectiveTo),
+                AlternativeListsAvailable = matches.Count - 1,
+                ResolvedViaPriority = winning.List.Priority > 0
             };
         }
 
@@ -556,14 +576,15 @@ namespace ERP.Infrastructure.Sales
             string currency,
             DateOnly from,
             DateOnly? to,
+            int priority,
             int? excludeId,
             CancellationToken cancellationToken)
         {
             if (await _repo.HasOverlappingActiveAsync(
-                    name, category, currency, from, to, excludeId, cancellationToken))
+                    name, category, currency, from, to, priority, excludeId, cancellationToken))
             {
                 throw new InvalidOperationException(
-                    "An overlapping active price list already exists for the same name, customer category, currency, and period.");
+                    $"An active price list with Priority {priority} already exists for Category '{category}' and Currency '{currency}' within the specified date range. Please assign a different Priority or adjust dates.");
             }
         }
 
@@ -726,12 +747,14 @@ namespace ERP.Infrastructure.Sales
             string action,
             string remarks,
             string changedBy,
-            DateTimeOffset changedOn) => new()
+            DateTimeOffset changedOn,
+            int? priority = null) => new()
         {
             Action = action,
             Remarks = remarks,
             ChangedBy = changedBy,
-            ChangedOn = changedOn
+            ChangedOn = changedOn,
+            Priority = priority
         };
     }
 }

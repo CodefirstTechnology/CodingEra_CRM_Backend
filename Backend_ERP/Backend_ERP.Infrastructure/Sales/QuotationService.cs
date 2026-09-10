@@ -574,6 +574,63 @@ namespace ERP.Infrastructure.Sales
             return MapToDto(clone);
         }
 
+        public async Task<QuotationDto> ChangeStatusAsync(
+            int id,
+            QuotationStatusChangeRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var entity = await _db.Quotations
+                .Include(x => x.Items)
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+
+            if (entity is null)
+            {
+                throw new KeyNotFoundException($"Quotation with ID {id} not found.");
+            }
+
+            if (entity.Status == QuotationStatuses.ConvertedToSO)
+            {
+                throw new InvalidOperationException("Converted quotation cannot change status.");
+            }
+
+            var newStatus = request.Status?.Trim();
+            if (string.IsNullOrWhiteSpace(newStatus))
+            {
+                throw new InvalidOperationException("Status cannot be empty.");
+            }
+
+            if (string.Equals(newStatus, "PendingApproval", StringComparison.OrdinalIgnoreCase))
+            {
+                newStatus = QuotationStatuses.PendingApproval;
+            }
+            else if (string.Equals(newStatus, "RevisionRequired", StringComparison.OrdinalIgnoreCase))
+            {
+                newStatus = QuotationStatuses.RevisionRequired;
+            }
+
+            var matchedStatus = QuotationStatuses.All.FirstOrDefault(s => string.Equals(s, newStatus, StringComparison.OrdinalIgnoreCase));
+            if (matchedStatus == null)
+            {
+                throw new InvalidOperationException($"Invalid quotation status '{newStatus}'.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            entity.Status = matchedStatus;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+
+            if (!string.IsNullOrWhiteSpace(request.Remarks))
+            {
+                entity.Notes = string.IsNullOrWhiteSpace(entity.Notes)
+                    ? $"[Status: {matchedStatus}] {request.Remarks}"
+                    : $"{entity.Notes}\n[Status: {matchedStatus}] {request.Remarks}".Trim();
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return MapToDto(entity);
+        }
+
         public async Task<string> GetNextNumberAsync(CancellationToken cancellationToken = default)
         {
             var yearMonth = DateTime.UtcNow.ToString("yyyyMM");

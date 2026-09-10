@@ -21,6 +21,7 @@ namespace ERP.Application.Sales.Dtos
     {
         public int Id { get; set; }
         public string Action { get; set; } = string.Empty;
+        public int? Priority { get; set; }
         public string Remarks { get; set; } = string.Empty;
         public string ChangedBy { get; set; } = string.Empty;
         public string ChangedOn { get; set; } = string.Empty;
@@ -37,6 +38,7 @@ namespace ERP.Application.Sales.Dtos
         public string EffectiveFrom { get; set; } = string.Empty;
         public string? EffectiveTo { get; set; }
         public string Status { get; set; } = string.Empty;
+        public int Priority { get; set; } = 0;
         public string Remarks { get; set; } = string.Empty;
         public string CreatedBy { get; set; } = string.Empty;
         public string CreatedDate { get; set; } = string.Empty;
@@ -56,6 +58,7 @@ namespace ERP.Application.Sales.Dtos
         public string EffectiveFrom { get; set; } = string.Empty;
         public string? EffectiveTo { get; set; }
         public string Status { get; set; } = string.Empty;
+        public int Priority { get; set; } = 0;
         public int ItemCount { get; set; }
     }
 
@@ -85,6 +88,7 @@ namespace ERP.Application.Sales.Dtos
         public string EffectiveFrom { get; set; } = string.Empty;
         public string? EffectiveTo { get; set; }
         public string? Status { get; set; }
+        public int Priority { get; set; } = 0;
         public string? Remarks { get; set; }
         public List<PriceListItemRequestDto> Items { get; set; } = new();
     }
@@ -98,6 +102,7 @@ namespace ERP.Application.Sales.Dtos
         public string Currency { get; set; } = "INR";
         public string EffectiveFrom { get; set; } = string.Empty;
         public string? EffectiveTo { get; set; }
+        public int Priority { get; set; } = 0;
         public string? Remarks { get; set; }
         public List<PriceListItemRequestDto> Items { get; set; } = new();
     }
@@ -115,6 +120,7 @@ namespace ERP.Application.Sales.Dtos
         public int PriceListId { get; set; }
         public string PriceListNumber { get; set; } = string.Empty;
         public string PriceListName { get; set; } = string.Empty;
+        public int Priority { get; set; }
         public string CustomerCategory { get; set; } = string.Empty;
         public string Currency { get; set; } = string.Empty;
         public string ItemCode { get; set; } = string.Empty;
@@ -123,9 +129,12 @@ namespace ERP.Application.Sales.Dtos
         public decimal SellingPrice { get; set; }
         public decimal DiscountPercentage { get; set; }
         public decimal MinimumPrice { get; set; }
+        public decimal MaximumDiscount { get; set; }
         public decimal TaxPercentage { get; set; }
         public string EffectiveFrom { get; set; } = string.Empty;
         public string? EffectiveTo { get; set; }
+        public int AlternativeListsAvailable { get; set; }
+        public bool ResolvedViaPriority { get; set; }
     }
 
     public class PriceListCompareDto

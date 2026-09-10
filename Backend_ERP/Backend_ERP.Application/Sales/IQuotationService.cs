@@ -46,6 +46,12 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<QuotationDto> ChangeStatusAsync(
+            int id,
+            QuotationStatusChangeRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
         Task<string> GetNextNumberAsync(CancellationToken cancellationToken = default);
     }
 }

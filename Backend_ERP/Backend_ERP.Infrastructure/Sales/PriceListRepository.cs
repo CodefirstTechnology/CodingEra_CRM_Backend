@@ -84,7 +84,9 @@ namespace ERP.Infrastructure.Sales
                 .Where(x => x.Status == PriceListStatuses.Active
                     && x.EffectiveFrom <= date
                     && (x.EffectiveTo == null || x.EffectiveTo >= date))
-                .OrderByDescending(x => x.EffectiveFrom)
+                .OrderByDescending(x => x.Priority)
+                .ThenByDescending(x => x.EffectiveFrom)
+                .ThenByDescending(x => x.Id)
                 .ToListAsync(cancellationToken);
         }
 
@@ -108,15 +110,16 @@ namespace ERP.Infrastructure.Sales
             string currency,
             DateOnly effectiveFrom,
             DateOnly? effectiveTo,
+            int priority,
             int? excludeId,
             CancellationToken cancellationToken = default)
         {
             var end = effectiveTo ?? DateOnly.MaxValue;
             var q = Query().Where(x =>
                 x.Status == PriceListStatuses.Active
-                && x.PriceListName == priceListName
                 && x.CustomerCategory == customerCategory
                 && x.Currency == currency
+                && x.Priority == priority
                 && x.EffectiveFrom <= end
                 && (x.EffectiveTo == null || x.EffectiveTo >= effectiveFrom));
 

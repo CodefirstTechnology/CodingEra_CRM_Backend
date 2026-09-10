@@ -20,6 +20,8 @@ namespace ERP.Domain.Sales
 
         public string Status { get; set; } = PriceListStatuses.Draft;
 
+        public int Priority { get; set; } = 0;
+
         public string Remarks { get; set; } = string.Empty;
 
         public string CreatedBy { get; set; } = string.Empty;

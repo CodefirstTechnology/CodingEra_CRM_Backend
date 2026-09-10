@@ -117,6 +117,12 @@ namespace ERP.Application.Sales.Dtos
         public string? Reason { get; set; }
     }
 
+    public class QuotationStatusChangeRequestDto
+    {
+        public string Status { get; set; } = string.Empty;
+        public string? Remarks { get; set; }
+    }
+
     public class QuotationListQueryDto
     {
         public string? Search { get; set; }

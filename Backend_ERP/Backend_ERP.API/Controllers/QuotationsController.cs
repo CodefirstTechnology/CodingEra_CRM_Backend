@@ -119,6 +119,17 @@ namespace ERP.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("{id:int}/status")]
+        public async Task<ActionResult<QuotationDto>> ChangeStatus(
+            int id,
+            [FromBody] QuotationStatusChangeRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var user = ResolveActingUser();
+            var result = await _quotationService.ChangeStatusAsync(id, request, user, cancellationToken);
+            return Ok(result);
+        }
+
         /// <summary>
         /// Converts an approved (client-accepted) quote to a Sales Order under row-level pessimistic lock.
         /// </summary>

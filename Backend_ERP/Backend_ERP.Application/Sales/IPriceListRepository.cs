@@ -36,6 +36,7 @@ namespace ERP.Application.Sales
             string currency,
             DateOnly effectiveFrom,
             DateOnly? effectiveTo,
+            int priority,
             int? excludeId,
             CancellationToken cancellationToken = default);
 

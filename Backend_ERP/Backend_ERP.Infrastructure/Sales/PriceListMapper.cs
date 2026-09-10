@@ -31,6 +31,7 @@ namespace ERP.Infrastructure.Sales
             EffectiveFrom = FormatDate(e.EffectiveFrom),
             EffectiveTo = FormatOptionalDate(e.EffectiveTo),
             Status = e.Status,
+            Priority = e.Priority,
             ItemCount = e.Items?.Count ?? 0
         };
 
@@ -55,6 +56,7 @@ namespace ERP.Infrastructure.Sales
         {
             Id = h.Id,
             Action = h.Action,
+            Priority = h.Priority,
             Remarks = h.Remarks,
             ChangedBy = h.ChangedBy,
             ChangedOn = FormatDateTime(h.ChangedOn)
@@ -71,6 +73,7 @@ namespace ERP.Infrastructure.Sales
             EffectiveFrom = FormatDate(e.EffectiveFrom),
             EffectiveTo = FormatOptionalDate(e.EffectiveTo),
             Status = e.Status,
+            Priority = e.Priority,
             Remarks = e.Remarks,
             CreatedBy = e.CreatedBy,
             CreatedDate = FormatDateTime(e.CreatedDate),
