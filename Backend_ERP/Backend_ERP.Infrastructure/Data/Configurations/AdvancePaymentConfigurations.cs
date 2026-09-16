@@ -29,6 +29,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.ForfeitedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
             builder.Property(x => x.RefundReferenceNumber).HasMaxLength(64);
             builder.Property(x => x.RefundProcessedBy).HasMaxLength(100);
+            builder.Property(x => x.ReconciliationStatus).HasMaxLength(32).HasDefaultValue("Unreconciled");
+            builder.Property(x => x.BankStatementReference).HasMaxLength(100);
+            builder.Property(x => x.PlaceOfSupply).HasMaxLength(50).HasDefaultValue("Maharashtra");
             builder.Property(x => x.Status).HasMaxLength(64).IsRequired();
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.AttachmentName).HasMaxLength(512);
@@ -42,11 +45,17 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.CustomerName);
             builder.HasIndex(x => x.IsDeleted);
             builder.HasIndex(x => x.SalesOrderId);
+            builder.HasIndex(x => x.BankAccountId);
 
             builder.HasOne(x => x.SalesOrder)
                 .WithMany()
                 .HasForeignKey(x => x.SalesOrderId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasOne(x => x.BankAccount)
+                .WithMany()
+                .HasForeignKey(x => x.BankAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(x => x.Applications)
                 .WithOne(x => x.AdvancePayment)
@@ -57,6 +66,16 @@ namespace ERP.Infrastructure.Data.Configurations
                 .WithOne(x => x.AdvancePayment)
                 .HasForeignKey(x => x.AdvancePaymentId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.ReceiptVouchers)
+                .WithOne(x => x.AdvancePayment)
+                .HasForeignKey(x => x.AdvancePaymentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.RefundVouchers)
+                .WithOne(x => x.AdvancePayment)
+                .HasForeignKey(x => x.AdvancePaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
@@ -69,6 +88,8 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.Property(x => x.SalesOrderNumber).HasMaxLength(64).IsRequired();
             builder.Property(x => x.ApplyAmount).HasPrecision(18, 2);
+            builder.Property(x => x.ExchangeRateAtAllocation).HasPrecision(18, 4).HasDefaultValue(1.0000m);
+            builder.Property(x => x.RealizedFxGainLoss).HasPrecision(18, 2).HasDefaultValue(0.00m);
             builder.Property(x => x.IsReversal).HasDefaultValue(false);
             builder.Property(x => x.ReversalReason).HasMaxLength(2000);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
@@ -83,6 +104,74 @@ namespace ERP.Infrastructure.Data.Configurations
                 .WithMany()
                 .HasForeignKey(x => x.OriginalApplicationId)
                 .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+
+    public class AdvancePaymentReceiptVoucherConfiguration : IEntityTypeConfiguration<AdvancePaymentReceiptVoucher>
+    {
+        public void Configure(EntityTypeBuilder<AdvancePaymentReceiptVoucher> builder)
+        {
+            builder.ToTable("advance_payment_receipt_vouchers");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.VoucherNumber).HasMaxLength(32).IsRequired();
+            builder.HasIndex(x => x.VoucherNumber).IsUnique();
+
+            builder.Property(x => x.CustomerName).HasMaxLength(200);
+            builder.Property(x => x.PlaceOfSupply).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.TaxableAmount).HasPrecision(18, 2);
+            builder.Property(x => x.CgstRate).HasPrecision(5, 2);
+            builder.Property(x => x.CgstAmount).HasPrecision(18, 2);
+            builder.Property(x => x.SgstRate).HasPrecision(5, 2);
+            builder.Property(x => x.SgstAmount).HasPrecision(18, 2);
+            builder.Property(x => x.IgstRate).HasPrecision(5, 2);
+            builder.Property(x => x.IgstAmount).HasPrecision(18, 2);
+            builder.Property(x => x.TotalVoucherAmount).HasPrecision(18, 2);
+            builder.Property(x => x.CreatedBy).HasMaxLength(100).IsRequired();
+
+            builder.HasIndex(x => x.AdvancePaymentId);
+        }
+    }
+
+    public class AdvancePaymentRefundVoucherConfiguration : IEntityTypeConfiguration<AdvancePaymentRefundVoucher>
+    {
+        public void Configure(EntityTypeBuilder<AdvancePaymentRefundVoucher> builder)
+        {
+            builder.ToTable("advance_payment_refund_vouchers");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.RefundVoucherNumber).HasMaxLength(32).IsRequired();
+            builder.HasIndex(x => x.RefundVoucherNumber).IsUnique();
+
+            builder.Property(x => x.RefundAmount).HasPrecision(18, 2);
+            builder.Property(x => x.TaxRefundedAmount).HasPrecision(18, 2);
+            builder.Property(x => x.BankReferenceNumber).HasMaxLength(64).IsRequired();
+            builder.Property(x => x.CreatedBy).HasMaxLength(100).IsRequired();
+
+            builder.HasIndex(x => x.AdvancePaymentId);
+            builder.HasIndex(x => x.ReceiptVoucherId);
+
+            builder.HasOne(x => x.ReceiptVoucher)
+                .WithMany()
+                .HasForeignKey(x => x.ReceiptVoucherId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+
+    public class BankAccountConfiguration : IEntityTypeConfiguration<ERP.Domain.Accounting.BankAccount>
+    {
+        public void Configure(EntityTypeBuilder<ERP.Domain.Accounting.BankAccount> builder)
+        {
+            builder.ToTable("bank_accounts");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.AccountName).HasMaxLength(100).IsRequired();
+            builder.Property(x => x.AccountNumber).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.BankName).HasMaxLength(100).IsRequired();
+            builder.Property(x => x.Branch).HasMaxLength(100);
+            builder.Property(x => x.IfscCode).HasMaxLength(20);
+            builder.Property(x => x.AccountType).HasMaxLength(30);
+            builder.Property(x => x.Currency).HasMaxLength(10);
         }
     }
 

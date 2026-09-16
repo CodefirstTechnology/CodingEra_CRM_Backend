@@ -37,6 +37,12 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<AdvancePaymentDocumentSequence> AdvancePaymentDocumentSequences => Set<AdvancePaymentDocumentSequence>();
 
+        public DbSet<ERP.Domain.Accounting.BankAccount> BankAccounts => Set<ERP.Domain.Accounting.BankAccount>();
+
+        public DbSet<AdvancePaymentReceiptVoucher> AdvancePaymentReceiptVouchers => Set<AdvancePaymentReceiptVoucher>();
+
+        public DbSet<AdvancePaymentRefundVoucher> AdvancePaymentRefundVouchers => Set<AdvancePaymentRefundVoucher>();
+
         public DbSet<SalesTarget> SalesTargets => Set<SalesTarget>();
 
         public DbSet<SalesTargetAssignment> SalesTargetAssignments => Set<SalesTargetAssignment>();

@@ -94,6 +94,10 @@ namespace ERP.Infrastructure.Sales
             VerifiedOn = FormatOptionalDateTime(e.VerifiedOn),
             ReceivedBy = e.ReceivedBy,
             ReceivedOn = FormatOptionalDateTime(e.ReceivedOn),
+            BankAccountId = e.BankAccountId,
+            BankAccountName = e.BankAccount?.AccountName,
+            PlaceOfSupply = e.PlaceOfSupply,
+            ReconciliationStatus = e.ReconciliationStatus,
             CreatedBy = e.CreatedBy,
             CreatedDate = FormatDateTime(e.CreatedDate),
             UpdatedBy = e.UpdatedBy,
@@ -106,6 +110,8 @@ namespace ERP.Infrastructure.Sales
                     SalesOrderId = a.SalesOrderId,
                     SalesOrderNumber = a.SalesOrderNumber,
                     ApplyAmount = a.ApplyAmount,
+                    ExchangeRateAtAllocation = a.ExchangeRateAtAllocation,
+                    RealizedFxGainLoss = a.RealizedFxGainLoss,
                     IsReversal = a.IsReversal,
                     ReversalReason = a.ReversalReason,
                     OriginalApplicationId = a.OriginalApplicationId,
@@ -116,7 +122,51 @@ namespace ERP.Infrastructure.Sales
             Timeline = e.Timeline
                 .OrderBy(t => t.PerformedOn)
                 .Select(ToTimelineDto)
+                .ToList(),
+            ReceiptVouchers = e.ReceiptVouchers
+                .OrderByDescending(v => v.CreatedDate)
+                .Select(ToReceiptVoucherDto)
+                .ToList(),
+            RefundVouchers = e.RefundVouchers
+                .OrderByDescending(v => v.CreatedDate)
+                .Select(ToRefundVoucherDto)
                 .ToList()
+        };
+
+        public static ReceiptVoucherDto ToReceiptVoucherDto(AdvancePaymentReceiptVoucher v) => new()
+        {
+            Id = v.Id,
+            VoucherNumber = v.VoucherNumber,
+            AdvancePaymentId = v.AdvancePaymentId,
+            CustomerId = v.CustomerId,
+            CustomerName = v.CustomerName,
+            PlaceOfSupply = v.PlaceOfSupply,
+            IsInterState = v.IsInterState,
+            TaxableAmount = v.TaxableAmount,
+            CgstRate = v.CgstRate,
+            CgstAmount = v.CgstAmount,
+            SgstRate = v.SgstRate,
+            SgstAmount = v.SgstAmount,
+            IgstRate = v.IgstRate,
+            IgstAmount = v.IgstAmount,
+            TotalVoucherAmount = v.TotalVoucherAmount,
+            VoucherDate = FormatDate(v.VoucherDate),
+            CreatedDate = FormatDateTime(v.CreatedDate),
+            CreatedBy = v.CreatedBy
+        };
+
+        public static RefundVoucherDto ToRefundVoucherDto(AdvancePaymentRefundVoucher r) => new()
+        {
+            Id = r.Id,
+            RefundVoucherNumber = r.RefundVoucherNumber,
+            AdvancePaymentId = r.AdvancePaymentId,
+            ReceiptVoucherId = r.ReceiptVoucherId,
+            RefundAmount = r.RefundAmount,
+            TaxRefundedAmount = r.TaxRefundedAmount,
+            RefundVoucherDate = FormatDate(r.RefundVoucherDate),
+            BankReferenceNumber = r.BankReferenceNumber,
+            CreatedDate = FormatDateTime(r.CreatedDate),
+            CreatedBy = r.CreatedBy
         };
     }
 }

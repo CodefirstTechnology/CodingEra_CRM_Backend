@@ -99,6 +99,8 @@ namespace ERP.Infrastructure.Sales
                 AdvanceAmount = advanceAmount,
                 AppliedAmount = 0m,
                 RemainingAmount = advanceAmount,
+                BankAccountId = request.BankAccountId,
+                PlaceOfSupply = string.IsNullOrWhiteSpace(request.PlaceOfSupply) ? "Maharashtra" : request.PlaceOfSupply.Trim(),
                 Status = status,
                 Remarks = request.Remarks?.Trim() ?? string.Empty,
                 AttachmentName = string.IsNullOrWhiteSpace(request.AttachmentName)
@@ -196,6 +198,11 @@ namespace ERP.Infrastructure.Sales
             entity.ExchangeRate = request.ExchangeRate is > 0 ? request.ExchangeRate.Value : 1m;
             entity.AdvanceAmount = advanceAmount;
             entity.RemainingAmount = AdvancePaymentCalculator.CalcRemaining(advanceAmount, entity.AppliedAmount);
+            entity.BankAccountId = request.BankAccountId;
+            if (!string.IsNullOrWhiteSpace(request.PlaceOfSupply))
+            {
+                entity.PlaceOfSupply = request.PlaceOfSupply.Trim();
+            }
             entity.Remarks = request.Remarks?.Trim() ?? string.Empty;
             entity.AttachmentName = string.IsNullOrWhiteSpace(request.AttachmentName)
                 ? null
@@ -316,6 +323,66 @@ namespace ERP.Infrastructure.Sales
                 actingUser,
                 now));
 
+            // Phase 2: Indian Statutory GST Receipt Voucher Generation (CGST Act Section 31(3)(d))
+            var receiveReq = request as AdvancePaymentReceiveRequestDto;
+            var pos = receiveReq?.PlaceOfSupply?.Trim();
+            if (string.IsNullOrWhiteSpace(pos))
+            {
+                pos = string.IsNullOrWhiteSpace(entity.PlaceOfSupply) ? "Maharashtra" : entity.PlaceOfSupply;
+            }
+            entity.PlaceOfSupply = pos;
+
+            bool isInterState;
+            if (receiveReq?.IsInterState.HasValue == true)
+            {
+                isInterState = receiveReq.IsInterState.Value;
+            }
+            else
+            {
+                isInterState = !string.Equals(pos, "Maharashtra", StringComparison.OrdinalIgnoreCase);
+            }
+
+            decimal cgstRate = isInterState ? 0m : 9.00m;
+            decimal sgstRate = isInterState ? 0m : 9.00m;
+            decimal igstRate = isInterState ? 18.00m : 0m;
+            decimal taxRate = isInterState ? igstRate : (cgstRate + sgstRate);
+
+            decimal taxableAmount = Math.Round(entity.AdvanceAmount / (1m + (taxRate / 100m)), 2, MidpointRounding.AwayFromZero);
+            decimal totalTax = entity.AdvanceAmount - taxableAmount;
+            decimal cgstAmount = isInterState ? 0m : Math.Round(totalTax / 2m, 2, MidpointRounding.AwayFromZero);
+            decimal sgstAmount = isInterState ? 0m : (totalTax - cgstAmount);
+            decimal igstAmount = isInterState ? totalTax : 0m;
+
+            var voucherNumber = await _numbering.GenerateNextReceiptVoucherNumberAsync(cancellationToken);
+            int customerIdInt = int.TryParse(entity.CustomerId, out var parsedCid) ? parsedCid : 1;
+
+            var receiptVoucher = new AdvancePaymentReceiptVoucher
+            {
+                VoucherNumber = voucherNumber,
+                AdvancePaymentId = entity.Id,
+                CustomerId = customerIdInt,
+                CustomerName = entity.CustomerName,
+                PlaceOfSupply = pos,
+                IsInterState = isInterState,
+                TaxableAmount = taxableAmount,
+                CgstRate = cgstRate,
+                CgstAmount = cgstAmount,
+                SgstRate = sgstRate,
+                SgstAmount = sgstAmount,
+                IgstRate = igstRate,
+                IgstAmount = igstAmount,
+                TotalVoucherAmount = entity.AdvanceAmount,
+                VoucherDate = entity.PaymentDate,
+                CreatedDate = now,
+                CreatedBy = actingUser
+            };
+            _db.AdvancePaymentReceiptVouchers.Add(receiptVoucher);
+            entity.Timeline.Add(NewTimeline(
+                AdvancePaymentTimelineActions.Created,
+                $"Statutory GST Receipt Voucher {voucherNumber} generated (Taxable: ₹{taxableAmount:N2}, Total Tax: ₹{totalTax:N2})",
+                actingUser,
+                now));
+
             await _repo.UpdateAsync(entity, cancellationToken);
             return AdvancePaymentMapper.ToDto(
                 await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
@@ -398,78 +465,140 @@ namespace ERP.Infrastructure.Sales
                     $"Cannot apply payment from status '{entity.Status}'. Payment must be Received or PartiallyApplied.");
             }
 
-            if (request.SalesOrderId <= 0)
-            {
-                throw new InvalidOperationException("Sales order is required when applying payment.");
-            }
+            var lines = request.Lines != null && request.Lines.Count > 0
+                ? request.Lines
+                : new List<AdvancePaymentApplyLineDto>
+                {
+                    new()
+                    {
+                        SalesOrderId = request.SalesOrderId,
+                        SalesOrderNumber = request.SalesOrderNumber,
+                        ApplyAmount = request.ApplyAmount,
+                        Remarks = request.Remarks
+                    }
+                };
 
-            var applyAmount = AdvancePaymentCalculator.Round2(request.ApplyAmount);
-            if (applyAmount <= 0)
+            if (lines.Count == 0)
             {
-                throw new InvalidOperationException("Apply amount must be greater than zero.");
-            }
-
-            if (AdvancePaymentCalculator.WouldOverAllocate(entity.RemainingAmount, applyAmount))
-            {
-                throw new InvalidOperationException(
-                    $"Apply amount {applyAmount} exceeds remaining amount {entity.RemainingAmount}.");
-            }
-
-            var salesOrder = await LockSalesOrderAsync(request.SalesOrderId, cancellationToken);
-            if (salesOrder is null)
-            {
-                throw new InvalidOperationException($"Sales order '{request.SalesOrderId}' not found.");
-            }
-
-            var orderPayableBalance = AdvancePaymentCalculator.Round2(salesOrder.GrandTotal - salesOrder.AdvanceAllocatedAmount);
-            if (applyAmount > orderPayableBalance)
-            {
-                throw new InvalidOperationException(
-                    $"Apply amount {applyAmount} exceeds remaining payable balance {orderPayableBalance} on Sales Order '{salesOrder.SalesOrderNumber}'.");
+                throw new InvalidOperationException("At least one sales order allocation line is required.");
             }
 
             var now = DateTimeOffset.UtcNow;
             var oldStatus = entity.Status;
-            entity.AppliedAmount = AdvancePaymentCalculator.Round2(entity.AppliedAmount + applyAmount);
-            entity.RemainingAmount = AdvancePaymentCalculator.CalcRemaining(
-                entity.AdvanceAmount,
-                entity.AppliedAmount,
-                entity.RefundedAmount,
-                entity.ForfeitedAmount);
 
-            if (entity.RemainingAmount < 0)
+            foreach (var line in lines)
             {
-                throw new InvalidOperationException("Remaining amount cannot be negative.");
+                if (line.SalesOrderId <= 0)
+                {
+                    throw new InvalidOperationException("Sales order is required when applying payment.");
+                }
+
+                var applyAmount = AdvancePaymentCalculator.Round2(line.ApplyAmount);
+                if (applyAmount <= 0)
+                {
+                    throw new InvalidOperationException("Apply amount must be greater than zero.");
+                }
+
+                if (AdvancePaymentCalculator.WouldOverAllocate(entity.RemainingAmount, applyAmount))
+                {
+                    throw new InvalidOperationException(
+                        $"Apply amount {applyAmount} exceeds remaining amount {entity.RemainingAmount}.");
+                }
+
+                var salesOrder = await LockSalesOrderAsync(line.SalesOrderId, cancellationToken);
+                if (salesOrder is null)
+                {
+                    throw new InvalidOperationException($"Sales order '{line.SalesOrderId}' not found.");
+                }
+
+                var orderPayableBalance = AdvancePaymentCalculator.Round2(salesOrder.GrandTotal - salesOrder.AdvanceAllocatedAmount);
+                if (applyAmount > orderPayableBalance)
+                {
+                    throw new InvalidOperationException(
+                        $"Apply amount {applyAmount} exceeds remaining payable balance {orderPayableBalance} on Sales Order '{salesOrder.SalesOrderNumber}'.");
+                }
+
+                entity.AppliedAmount = AdvancePaymentCalculator.Round2(entity.AppliedAmount + applyAmount);
+                entity.RemainingAmount = AdvancePaymentCalculator.CalcRemaining(
+                    entity.AdvanceAmount,
+                    entity.AppliedAmount,
+                    entity.RefundedAmount,
+                    entity.ForfeitedAmount);
+
+                if (entity.RemainingAmount < 0)
+                {
+                    throw new InvalidOperationException("Remaining amount cannot be negative.");
+                }
+
+                salesOrder.AdvanceAllocatedAmount = AdvancePaymentCalculator.Round2(salesOrder.AdvanceAllocatedAmount + applyAmount);
+                salesOrder.UpdatedBy = actingUser;
+                salesOrder.UpdatedDate = now;
+
+                var newStatus = AdvancePaymentCalculator.ResolveStatusAfterApply(entity.RemainingAmount);
+                entity.Status = newStatus;
+                entity.UpdatedBy = actingUser;
+                entity.UpdatedDate = now;
+
+                // Phase 2: Multi-Currency Foreign Exchange (FX) Realization
+                decimal allocationRate = 1.0000m;
+                decimal realizedFx = 0.00m;
+                if (!string.Equals(entity.Currency, "INR", StringComparison.OrdinalIgnoreCase))
+                {
+                    allocationRate = request.ExchangeRateAtAllocation ?? entity.ExchangeRate;
+                    realizedFx = Math.Round(applyAmount * (allocationRate - entity.ExchangeRate), 2, MidpointRounding.AwayFromZero);
+                }
+
+                var lineRemark = (!string.IsNullOrWhiteSpace(line.Remarks) ? line.Remarks : request.Remarks)?.Trim() ?? string.Empty;
+
+                var application = new AdvancePaymentApplication
+                {
+                    AdvancePaymentId = entity.Id,
+                    SalesOrderId = salesOrder.Id,
+                    SalesOrderNumber = salesOrder.SalesOrderNumber,
+                    ApplyAmount = applyAmount,
+                    ExchangeRateAtAllocation = allocationRate,
+                    RealizedFxGainLoss = realizedFx,
+                    IsReversal = false,
+                    Remarks = lineRemark,
+                    AppliedBy = actingUser,
+                    AppliedOn = now
+                };
+                entity.Applications.Add(application);
+
+                entity.Timeline.Add(NewTimeline(
+                    AdvancePaymentTimelineActions.Applied,
+                    $"Applied ₹{applyAmount:N2} to {salesOrder.SalesOrderNumber} ({oldStatus} → {newStatus})"
+                    + (string.IsNullOrWhiteSpace(lineRemark) ? string.Empty : $": {lineRemark}"),
+                    actingUser,
+                    now));
+
+                if (realizedFx != 0)
+                {
+                    var fxType = realizedFx > 0 ? "Gain" : "Loss";
+                    entity.Timeline.Add(NewTimeline(
+                        AdvancePaymentTimelineActions.Updated,
+                        $"FX Realization: {fxType} of ₹{Math.Abs(realizedFx):N2} recorded at exchange rate {allocationRate:F4} vs booking rate {entity.ExchangeRate:F4}",
+                        actingUser,
+                        now));
+                }
+
+                // Phase 2: Proforma Invoice Auto-Settlement
+                var proformaInvoice = await _db.ProformaInvoices
+                    .FirstOrDefaultAsync(x => (x.SalesOrderId == salesOrder.Id || (entity.QuotationId.HasValue && x.QuotationId == entity.QuotationId)) 
+                        && x.Status != ProformaInvoiceStatuses.Cancelled, cancellationToken);
+                if (proformaInvoice != null)
+                {
+                    proformaInvoice.AdvanceReceivedAmount = AdvancePaymentCalculator.Round2(proformaInvoice.AdvanceReceivedAmount + applyAmount);
+                    proformaInvoice.PaymentStatus = proformaInvoice.AdvanceReceivedAmount >= proformaInvoice.GrandTotal
+                        ? "FullyPaid"
+                        : (proformaInvoice.AdvanceReceivedAmount > 0 ? "PartiallyPaid" : "Unpaid");
+
+                    if (proformaInvoice.PaymentStatus == "FullyPaid" && !string.IsNullOrWhiteSpace(salesOrder.Remarks) && salesOrder.Remarks.Contains("Payment Hold"))
+                    {
+                        salesOrder.Remarks = salesOrder.Remarks.Replace("Payment Hold", "Payment Cleared").Trim();
+                    }
+                }
             }
-
-            salesOrder.AdvanceAllocatedAmount = AdvancePaymentCalculator.Round2(salesOrder.AdvanceAllocatedAmount + applyAmount);
-            salesOrder.UpdatedBy = actingUser;
-            salesOrder.UpdatedDate = now;
-
-            var newStatus = AdvancePaymentCalculator.ResolveStatusAfterApply(entity.RemainingAmount);
-            entity.Status = newStatus;
-            entity.UpdatedBy = actingUser;
-            entity.UpdatedDate = now;
-
-            var application = new AdvancePaymentApplication
-            {
-                AdvancePaymentId = entity.Id,
-                SalesOrderId = salesOrder.Id,
-                SalesOrderNumber = salesOrder.SalesOrderNumber,
-                ApplyAmount = applyAmount,
-                IsReversal = false,
-                Remarks = request.Remarks?.Trim() ?? string.Empty,
-                AppliedBy = actingUser,
-                AppliedOn = now
-            };
-            entity.Applications.Add(application);
-
-            entity.Timeline.Add(NewTimeline(
-                AdvancePaymentTimelineActions.Applied,
-                $"Applied ₹{applyAmount:N2} to {salesOrder.SalesOrderNumber} ({oldStatus} → {newStatus})"
-                + (string.IsNullOrWhiteSpace(request.Remarks) ? string.Empty : $": {request.Remarks.Trim()}"),
-                actingUser,
-                now));
 
             await _db.SaveChangesAsync(cancellationToken);
             if (tx is not null)
@@ -478,6 +607,61 @@ namespace ERP.Infrastructure.Sales
             }
 
             return AdvancePaymentMapper.ToDto(entity);
+        }
+
+        public async Task<IReadOnlyList<AdvancePaymentAvailableSalesOrderDto>> GetAvailableSalesOrdersAsync(
+            string? customerId,
+            CancellationToken cancellationToken = default)
+        {
+            string? customerName = null;
+            if (!string.IsNullOrWhiteSpace(customerId))
+            {
+                var ap = await _db.AdvancePayments
+                    .AsNoTracking()
+                    .Where(p => p.CustomerId == customerId || p.CustomerName == customerId)
+                    .OrderByDescending(p => p.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (ap != null)
+                {
+                    customerName = ap.CustomerName;
+                }
+            }
+
+            var query = _db.SalesOrders.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(customerName))
+            {
+                query = query.Where(o => o.CustomerName == customerName);
+            }
+            else if (!string.IsNullOrWhiteSpace(customerId))
+            {
+                query = query.Where(o => o.CustomerName == customerId);
+            }
+
+            var orders = await query
+                .Where(o => o.Status != SalesOrderStatuses.Cancelled)
+                .OrderByDescending(o => o.Id)
+                .ToListAsync(cancellationToken);
+
+            return orders
+                .Select(o =>
+                {
+                    var balance = Math.Max(0m, o.GrandTotal - o.AdvanceAllocatedAmount);
+                    return new AdvancePaymentAvailableSalesOrderDto
+                    {
+                        Id = o.Id,
+                        SalesOrderNumber = o.SalesOrderNumber,
+                        CustomerId = customerId ?? string.Empty,
+                        CustomerName = o.CustomerName,
+                        OrderDate = o.OrderDate.ToString("yyyy-MM-dd"),
+                        OrderValue = o.GrandTotal,
+                        AlreadyPaid = o.AdvanceAllocatedAmount,
+                        OutstandingBalance = balance,
+                        Status = o.Status
+                    };
+                })
+                .Where(o => o.OutstandingBalance > 0)
+                .ToList();
         }
 
         public async Task<AdvancePaymentDto?> ReverseApplicationAsync(
@@ -570,12 +754,20 @@ namespace ERP.Infrastructure.Sales
             entity.UpdatedBy = actingUser;
             entity.UpdatedDate = now;
 
+            decimal reversalFx = 0.00m;
+            if (originalApp.ExchangeRateAtAllocation != 0 && !string.Equals(entity.Currency, "INR", StringComparison.OrdinalIgnoreCase))
+            {
+                reversalFx = -Math.Round(reversalAmount * (originalApp.ExchangeRateAtAllocation - entity.ExchangeRate), 2, MidpointRounding.AwayFromZero);
+            }
+
             var reversalApp = new AdvancePaymentApplication
             {
                 AdvancePaymentId = entity.Id,
                 SalesOrderId = originalApp.SalesOrderId,
                 SalesOrderNumber = originalApp.SalesOrderNumber,
                 ApplyAmount = -reversalAmount,
+                ExchangeRateAtAllocation = originalApp.ExchangeRateAtAllocation,
+                RealizedFxGainLoss = reversalFx,
                 IsReversal = true,
                 OriginalApplicationId = originalApp.Id,
                 ReversalReason = request.Reason.Trim(),
@@ -590,6 +782,17 @@ namespace ERP.Infrastructure.Sales
                 $"Reversed ₹{reversalAmount:N2} from Sales Order {salesOrder.SalesOrderNumber}. Reason: {request.Reason.Trim()}",
                 actingUser,
                 now));
+
+            // Phase 2: Adjust Proforma Invoice Advance Received Balance
+            var proformaInvoice = await _db.ProformaInvoices
+                .FirstOrDefaultAsync(x => x.SalesOrderId == originalApp.SalesOrderId && x.Status != ProformaInvoiceStatuses.Cancelled, cancellationToken);
+            if (proformaInvoice != null)
+            {
+                proformaInvoice.AdvanceReceivedAmount = Math.Max(0m, AdvancePaymentCalculator.Round2(proformaInvoice.AdvanceReceivedAmount - reversalAmount));
+                proformaInvoice.PaymentStatus = proformaInvoice.AdvanceReceivedAmount >= proformaInvoice.GrandTotal
+                    ? "FullyPaid"
+                    : (proformaInvoice.AdvanceReceivedAmount > 0 ? "PartiallyPaid" : "Unpaid");
+            }
 
             await _db.SaveChangesAsync(cancellationToken);
             if (tx is not null)
@@ -663,6 +866,37 @@ namespace ERP.Infrastructure.Sales
                 + (string.IsNullOrWhiteSpace(request.Remarks) ? string.Empty : $": {request.Remarks.Trim()}"),
                 actingUser,
                 now));
+
+            // Phase 2: Statutory GST Refund Voucher Generation
+            var receiptVoucher = await _db.AdvancePaymentReceiptVouchers
+                .FirstOrDefaultAsync(x => x.AdvancePaymentId == entity.Id, cancellationToken);
+            if (receiptVoucher != null)
+            {
+                var totalTax = receiptVoucher.CgstAmount + receiptVoucher.SgstAmount + receiptVoucher.IgstAmount;
+                decimal taxRefunded = receiptVoucher.TotalVoucherAmount > 0
+                    ? Math.Round(refundAmount * (totalTax / receiptVoucher.TotalVoucherAmount), 2, MidpointRounding.AwayFromZero)
+                    : 0m;
+
+                var refundVoucherNumber = await _numbering.GenerateNextRefundVoucherNumberAsync(cancellationToken);
+                var refundVoucher = new AdvancePaymentRefundVoucher
+                {
+                    RefundVoucherNumber = refundVoucherNumber,
+                    AdvancePaymentId = entity.Id,
+                    ReceiptVoucherId = receiptVoucher.Id,
+                    RefundAmount = refundAmount,
+                    TaxRefundedAmount = taxRefunded,
+                    RefundVoucherDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                    BankReferenceNumber = request.RefundReferenceNumber.Trim(),
+                    CreatedDate = now,
+                    CreatedBy = actingUser
+                };
+                _db.AdvancePaymentRefundVouchers.Add(refundVoucher);
+                entity.Timeline.Add(NewTimeline(
+                    AdvancePaymentTimelineActions.Created,
+                    $"Statutory GST Refund Voucher {refundVoucherNumber} generated against {receiptVoucher.VoucherNumber} (Tax Refunded: ₹{taxRefunded:N2})",
+                    actingUser,
+                    now));
+            }
 
             await _db.SaveChangesAsync(cancellationToken);
             if (tx is not null)
@@ -999,11 +1233,6 @@ namespace ERP.Infrastructure.Sales
             if (string.IsNullOrWhiteSpace(paymentMode))
             {
                 throw new InvalidOperationException("Payment mode is required.");
-            }
-
-            if (string.IsNullOrWhiteSpace(referenceNumber))
-            {
-                throw new InvalidOperationException("Reference number is required.");
             }
 
             if (string.IsNullOrWhiteSpace(currency))

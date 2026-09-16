@@ -68,12 +68,20 @@ namespace ERP.Application.Sales
             [AdvancePaymentStatuses.Rejected] = []
         };
 
-        public static string? Normalize(string status) =>
-            AdvancePaymentStatuses.All.FirstOrDefault(s =>
+        public static string? Normalize(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status)) return null;
+            if (status.Equals("Verified", StringComparison.OrdinalIgnoreCase))
+            {
+                return AdvancePaymentStatuses.FinanceVerification;
+            }
+
+            return AdvancePaymentStatuses.All.FirstOrDefault(s =>
                 s.Equals(status, StringComparison.OrdinalIgnoreCase)
                 || s.Replace(" ", "", StringComparison.Ordinal)
                     .Equals(status.Replace(" ", "", StringComparison.OrdinalIgnoreCase),
                         StringComparison.OrdinalIgnoreCase));
+        }
 
         public static bool CanTransition(string from, string to)
         {

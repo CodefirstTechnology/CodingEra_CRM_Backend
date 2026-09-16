@@ -13,6 +13,10 @@ namespace ERP.Domain.Sales
         public string SalesOrderNumber { get; set; } = string.Empty;
 
         public decimal ApplyAmount { get; set; }
+ 
+        public decimal ExchangeRateAtAllocation { get; set; } = 1.0000m;
+
+        public decimal RealizedFxGainLoss { get; set; } = 0.00m;
 
         public bool IsReversal { get; set; } = false;
 

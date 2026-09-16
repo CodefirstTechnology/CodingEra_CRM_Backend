@@ -40,6 +40,18 @@ namespace ERP.Domain.Sales
 
         public decimal ForfeitedAmount { get; set; }
 
+        public int? BankAccountId { get; set; }
+
+        public ERP.Domain.Accounting.BankAccount? BankAccount { get; set; }
+
+        public string ReconciliationStatus { get; set; } = "Unreconciled";
+
+        public DateTimeOffset? BankReconciledOn { get; set; }
+
+        public string? BankStatementReference { get; set; }
+
+        public string PlaceOfSupply { get; set; } = "Maharashtra";
+
         public string? RefundReferenceNumber { get; set; }
 
         public string? RefundProcessedBy { get; set; }
@@ -75,5 +87,11 @@ namespace ERP.Domain.Sales
 
         public ICollection<AdvancePaymentTimeline> Timeline { get; set; } =
             new List<AdvancePaymentTimeline>();
+
+        public ICollection<AdvancePaymentReceiptVoucher> ReceiptVouchers { get; set; } =
+            new List<AdvancePaymentReceiptVoucher>();
+
+        public ICollection<AdvancePaymentRefundVoucher> RefundVouchers { get; set; } =
+            new List<AdvancePaymentRefundVoucher>();
     }
 }

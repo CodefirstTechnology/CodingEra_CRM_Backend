@@ -277,7 +277,7 @@ namespace ERP.API.Controllers
         [RequirePermission(ErpPermissions.AdvancePayments.Receive)]
         public async Task<ActionResult<AdvancePaymentDto>> Receive(
             int id,
-            [FromBody] AdvancePaymentRemarksRequestDto? request,
+            [FromBody] AdvancePaymentReceiveRequestDto? request,
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
@@ -312,6 +312,16 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             return await Workflow(id, request, userId, _service.CancelAsync, cancellationToken);
+        }
+
+        [HttpGet("sales-orders")]
+        [RequirePermission(ErpPermissions.AdvancePayments.View)]
+        public async Task<ActionResult<IReadOnlyList<AdvancePaymentAvailableSalesOrderDto>>> GetAvailableSalesOrders(
+            [FromQuery] string? customerId,
+            CancellationToken cancellationToken)
+        {
+            var rows = await _service.GetAvailableSalesOrdersAsync(customerId, cancellationToken);
+            return Ok(rows);
         }
 
         [HttpPost("{id:int}/apply")]
@@ -405,6 +415,46 @@ namespace ERP.API.Controllers
             {
                 return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
+        }
+
+        [HttpGet("{id:int}/receipt-vouchers")]
+        public async Task<ActionResult<IReadOnlyList<ReceiptVoucherDto>>> GetReceiptVouchers(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            var payment = await _service.GetByIdAsync(id, cancellationToken);
+            if (payment is null) return NotFound();
+            return Ok(payment.ReceiptVouchers);
+        }
+
+        [HttpGet("{id:int}/refund-vouchers")]
+        public async Task<ActionResult<IReadOnlyList<RefundVoucherDto>>> GetRefundVouchers(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            var payment = await _service.GetByIdAsync(id, cancellationToken);
+            if (payment is null) return NotFound();
+            return Ok(payment.RefundVouchers);
+        }
+
+        [HttpGet("{id:int}/applications")]
+        public async Task<ActionResult<IReadOnlyList<AdvancePaymentApplicationDto>>> GetApplications(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            var payment = await _service.GetByIdAsync(id, cancellationToken);
+            if (payment is null) return NotFound();
+            return Ok(payment.Applications);
+        }
+
+        [HttpGet("{id:int}/approval-history")]
+        public async Task<ActionResult<IReadOnlyList<AdvancePaymentTimelineDto>>> GetApprovalHistory(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            var payment = await _service.GetByIdAsync(id, cancellationToken);
+            if (payment is null) return NotFound();
+            return Ok(payment.Timeline);
         }
 
         [HttpGet("{id:int}/timeline")]

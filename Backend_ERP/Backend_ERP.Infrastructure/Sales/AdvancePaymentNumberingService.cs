@@ -40,5 +40,59 @@ namespace ERP.Infrastructure.Sales
             await _db.SaveChangesAsync(cancellationToken);
             return $"{DefaultPrefix}-{year}-{seq.LastNumber:D5}";
         }
+
+        public async Task<string> GenerateNextReceiptVoucherNumberAsync(
+            CancellationToken cancellationToken = default)
+        {
+            const string prefix = "RV";
+            var year = DateTime.UtcNow.Year;
+            var seq = await _db.AdvancePaymentDocumentSequences
+                .FirstOrDefaultAsync(
+                    x => x.FinancialYear == year && x.Prefix == prefix,
+                    cancellationToken);
+
+            if (seq is null)
+            {
+                seq = new AdvancePaymentDocumentSequence
+                {
+                    FinancialYear = year,
+                    Prefix = prefix,
+                    LastNumber = 0,
+                    CreatedOn = DateTimeOffset.UtcNow
+                };
+                _db.AdvancePaymentDocumentSequences.Add(seq);
+            }
+
+            seq.LastNumber += 1;
+            await _db.SaveChangesAsync(cancellationToken);
+            return $"{prefix}-{year}-{seq.LastNumber:D5}";
+        }
+
+        public async Task<string> GenerateNextRefundVoucherNumberAsync(
+            CancellationToken cancellationToken = default)
+        {
+            const string prefix = "RFV";
+            var year = DateTime.UtcNow.Year;
+            var seq = await _db.AdvancePaymentDocumentSequences
+                .FirstOrDefaultAsync(
+                    x => x.FinancialYear == year && x.Prefix == prefix,
+                    cancellationToken);
+
+            if (seq is null)
+            {
+                seq = new AdvancePaymentDocumentSequence
+                {
+                    FinancialYear = year,
+                    Prefix = prefix,
+                    LastNumber = 0,
+                    CreatedOn = DateTimeOffset.UtcNow
+                };
+                _db.AdvancePaymentDocumentSequences.Add(seq);
+            }
+
+            seq.LastNumber += 1;
+            await _db.SaveChangesAsync(cancellationToken);
+            return $"{prefix}-{year}-{seq.LastNumber:D5}";
+        }
     }
 }

@@ -39,7 +39,10 @@ namespace ERP.Infrastructure.Sales
             if (includeDetails)
             {
                 q = q.Include(x => x.Applications)
-                    .Include(x => x.Timeline);
+                    .Include(x => x.Timeline)
+                    .Include(x => x.BankAccount)
+                    .Include(x => x.ReceiptVouchers)
+                    .Include(x => x.RefundVouchers);
             }
 
             if (!asTracking)

@@ -59,6 +59,10 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<IReadOnlyList<AdvancePaymentAvailableSalesOrderDto>> GetAvailableSalesOrdersAsync(
+            string? customerId,
+            CancellationToken cancellationToken = default);
+
         Task<AdvancePaymentDto?> ReverseApplicationAsync(
             int id,
             ReverseAllocationRequestDto request,

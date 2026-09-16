@@ -54,6 +54,10 @@ namespace ERP.Domain.Sales
 
         public decimal GrandTotal { get; set; }
 
+        public decimal AdvanceReceivedAmount { get; set; } = 0m;
+
+        public string PaymentStatus { get; set; } = "Unpaid";
+
         public string Status { get; set; } = ProformaInvoiceStatuses.Draft;
 
         public string Remarks { get; set; } = string.Empty;

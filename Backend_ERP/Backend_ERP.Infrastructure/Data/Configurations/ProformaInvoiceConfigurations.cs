@@ -38,6 +38,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.DiscountTotal).HasPrecision(18, 2);
             builder.Property(x => x.TaxTotal).HasPrecision(18, 2);
             builder.Property(x => x.GrandTotal).HasPrecision(18, 2);
+            builder.Property(x => x.AdvanceReceivedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+            builder.Property(x => x.PaymentStatus).HasMaxLength(32).HasDefaultValue("Unpaid");
 
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.InvoiceDate);
