@@ -25,6 +25,7 @@ public sealed class EmployeeAccountService : IEmployeeAccountService
     public async Task SyncAllEmployeeAccountsAsync(CancellationToken cancellationToken = default)
     {
         var employees = await _context.Employees
+            .IgnoreQueryFilters()
             .OrderBy(x => x.Id)
             .ToListAsync(cancellationToken);
 
@@ -34,6 +35,7 @@ public sealed class EmployeeAccountService : IEmployeeAccountService
         }
 
         var legacyPlaceholder = await _context.Users
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Email == LegacyPlaceholderEmail, cancellationToken);
 
         if (legacyPlaceholder != null && legacyPlaceholder.EmployeeId == null)
@@ -57,14 +59,17 @@ public sealed class EmployeeAccountService : IEmployeeAccountService
         var employeeRoleId = RoleSeed.Employee.Id;
 
         var linkedUser = await _context.Users
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.EmployeeId == employee.Id, cancellationToken);
 
         if (linkedUser != null)
         {
+            linkedUser.TenantId = employee.TenantId;
             linkedUser.FullName = employee.FullName;
             linkedUser.Email = email;
             linkedUser.RoleId = employeeRoleId;
             linkedUser.IsActive = isActive;
+            linkedUser.Status = isActive ? "Active" : "Deactivated";
             linkedUser.UpdatedAt = DateTime.UtcNow;
 
             if (string.IsNullOrWhiteSpace(linkedUser.PasswordHash))
@@ -75,6 +80,7 @@ public sealed class EmployeeAccountService : IEmployeeAccountService
         else
         {
             var existingByEmail = await _context.Users
+                .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(x => x.Email.ToLower() == email, cancellationToken);
 
             if (existingByEmail != null)
@@ -84,9 +90,11 @@ public sealed class EmployeeAccountService : IEmployeeAccountService
                     return;
                 }
 
+                existingByEmail.TenantId = employee.TenantId;
                 existingByEmail.EmployeeId = employee.Id;
                 existingByEmail.FullName = employee.FullName;
                 existingByEmail.IsActive = isActive;
+                existingByEmail.Status = isActive ? "Active" : "Deactivated";
                 existingByEmail.UpdatedAt = DateTime.UtcNow;
 
                 if (string.IsNullOrWhiteSpace(existingByEmail.PasswordHash))
@@ -98,11 +106,13 @@ public sealed class EmployeeAccountService : IEmployeeAccountService
             {
                 _context.Users.Add(new User
                 {
+                    TenantId = employee.TenantId,
                     FullName = employee.FullName,
                     Email = email,
                     PasswordHash = passwordHash,
                     RoleId = employeeRoleId,
                     EmployeeId = employee.Id,
+                    Status = isActive ? "Active" : "Deactivated",
                     IsActive = isActive,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow

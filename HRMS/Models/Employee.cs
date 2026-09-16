@@ -4,12 +4,18 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace HRMS.Models;
 
 [Table("employees")]
-public class Employee
+public class Employee : ITenantEntity, IAuditableEntity
 {
     [Key]
     [Column("id")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
+
+    [Column("tenant_id")]
+    public int TenantId { get; set; }
+
+    [ForeignKey(nameof(TenantId))]
+    public Tenant? Tenant { get; set; }
 
     [Column("employee_code")]
     [MaxLength(32)]
@@ -74,6 +80,12 @@ public class Employee
     [Column("ifsc_code")]
     [MaxLength(16)]
     public string? IfscCode { get; set; }
+
+    [Column("created_by")]
+    public int? CreatedBy { get; set; }
+
+    [Column("updated_by")]
+    public int? UpdatedBy { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

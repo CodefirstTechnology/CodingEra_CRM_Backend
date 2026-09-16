@@ -9,34 +9,14 @@ public static class HrmsRolePermissions
         {
             [UserRole.SUPER_ADMIN] = new(StringComparer.OrdinalIgnoreCase)
             {
+                HrmsPermissions.TenantsView,
+                HrmsPermissions.TenantsManage,
+                HrmsPermissions.TenantAdminsManage,
+                HrmsPermissions.PlatformAuditView,
+                HrmsPermissions.PlatformReportsView,
                 HrmsPermissions.SystemSettings,
-                HrmsPermissions.ManageHrAdmins,
-                HrmsPermissions.ManageEmployees,
-                HrmsPermissions.EmployeesViewAll,
-                HrmsPermissions.EmployeesViewOwn,
-                HrmsPermissions.EmployeesCreate,
-                HrmsPermissions.EmployeesUpdate,
-                HrmsPermissions.EmployeesUpdateOwn,
-                HrmsPermissions.EmployeesDelete,
-                HrmsPermissions.AttendanceViewAll,
-                HrmsPermissions.AttendanceViewOwn,
-                HrmsPermissions.AttendanceManage,
-                HrmsPermissions.AttendanceMarkOwn,
-                HrmsPermissions.LeaveViewAll,
-                HrmsPermissions.LeaveViewOwn,
-                HrmsPermissions.LeaveApply,
-                HrmsPermissions.LeaveApprove,
-                HrmsPermissions.LeaveManage,
-                HrmsPermissions.PayrollProcess,
-                HrmsPermissions.PayslipsViewAll,
-                HrmsPermissions.PayslipsViewOwn,
-                HrmsPermissions.DocumentsManageAll,
-                HrmsPermissions.DocumentsManageOwn,
-                HrmsPermissions.PerformanceManageAll,
-                HrmsPermissions.PerformanceSelfReview,
-                HrmsPermissions.ReportsView,
-                HrmsPermissions.MasterDataManage,
-                HrmsPermissions.HealthView
+                HrmsPermissions.HealthView,
+                HrmsPermissions.ManageHrAdmins
             },
             [UserRole.HR_ADMIN] = new(StringComparer.OrdinalIgnoreCase)
             {
@@ -63,8 +43,12 @@ public static class HrmsRolePermissions
                 HrmsPermissions.DocumentsManageOwn,
                 HrmsPermissions.PerformanceManageAll,
                 HrmsPermissions.PerformanceSelfReview,
+                HrmsPermissions.AssetsManage,
+                HrmsPermissions.AssetsViewAll,
+                HrmsPermissions.AssetsViewOwn,
                 HrmsPermissions.ReportsView,
-                HrmsPermissions.MasterDataManage
+                HrmsPermissions.MasterDataManage,
+                HrmsPermissions.AuditViewTenant
             },
             [UserRole.EMPLOYEE] = new(StringComparer.OrdinalIgnoreCase)
             {
@@ -76,7 +60,8 @@ public static class HrmsRolePermissions
                 HrmsPermissions.LeaveApply,
                 HrmsPermissions.PayslipsViewOwn,
                 HrmsPermissions.DocumentsManageOwn,
-                HrmsPermissions.PerformanceSelfReview
+                HrmsPermissions.PerformanceSelfReview,
+                HrmsPermissions.AssetsViewOwn
             }
         };
 

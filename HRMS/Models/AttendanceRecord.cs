@@ -4,12 +4,18 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace HRMS.Models;
 
 [Table("attendance_records")]
-public class AttendanceRecord
+public class AttendanceRecord : ITenantEntity, IAuditableEntity
 {
     [Key]
     [Column("id")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
+
+    [Column("tenant_id")]
+    public int TenantId { get; set; }
+
+    [ForeignKey(nameof(TenantId))]
+    public Tenant? Tenant { get; set; }
 
     [Column("employee_id")]
     public int EmployeeId { get; set; }
@@ -56,6 +62,12 @@ public class AttendanceRecord
 
     [Column("clock_out_server_at")]
     public DateTime? ClockOutServerAt { get; set; }
+
+    [Column("created_by")]
+    public int? CreatedBy { get; set; }
+
+    [Column("updated_by")]
+    public int? UpdatedBy { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

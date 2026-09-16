@@ -11,8 +11,14 @@ public class LeaveRejectionReason
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
+    [Column("tenant_id")]
+    public int? TenantId { get; set; }
+
+    [ForeignKey(nameof(TenantId))]
+    public Tenant? Tenant { get; set; }
+
     [Column("title")]
-    [MaxLength(128)]
+    [MaxLength(256)]
     public string Title { get; set; } = string.Empty;
 
     [Column("is_active")]

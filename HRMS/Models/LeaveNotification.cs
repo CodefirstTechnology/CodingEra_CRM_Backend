@@ -4,12 +4,18 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace HRMS.Models;
 
 [Table("leave_notifications")]
-public class LeaveNotification
+public class LeaveNotification : ITenantEntity
 {
     [Key]
     [Column("id")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
+
+    [Column("tenant_id")]
+    public int TenantId { get; set; }
+
+    [ForeignKey(nameof(TenantId))]
+    public Tenant? Tenant { get; set; }
 
     [Column("employee_id")]
     public int EmployeeId { get; set; }
@@ -33,6 +39,9 @@ public class LeaveNotification
 
     [Column("is_read")]
     public bool IsRead { get; set; }
+
+    [Column("created_by")]
+    public int? CreatedBy { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

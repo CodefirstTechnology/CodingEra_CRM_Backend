@@ -8,7 +8,6 @@ namespace HRMS.Controllers;
 
 [Route("api/auth")]
 [ApiController]
-[AllowAnonymous]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -40,6 +39,10 @@ public class AuthController : ControllerBase
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
             ?? User.FindFirst("role")?.Value;
         var employeeId = User.FindFirst("employeeId")?.Value;
+        var tenantId = User.FindFirst("tenantId")?.Value;
+        var tenantName = User.FindFirst("tenantName")?.Value;
+        var tenantCode = User.FindFirst("tenantCode")?.Value;
+        var tenantPlan = User.FindFirst("tenantPlan")?.Value;
 
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(role))
         {
@@ -57,6 +60,10 @@ public class AuthController : ControllerBase
             FullName = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? string.Empty,
             Email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? string.Empty,
             Role = parsedRole.ToString(),
+            TenantId = int.TryParse(tenantId, out var tId) ? tId : null,
+            TenantName = tenantName,
+            TenantCode = tenantCode,
+            TenantPlan = tenantPlan,
             EmployeeId = int.TryParse(employeeId, out var empId) ? empId : null,
             Permissions = Authorization.HrmsRolePermissions.GetPermissions(parsedRole).ToArray()
         });

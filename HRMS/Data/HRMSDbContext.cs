@@ -1,3 +1,4 @@
+using HRMS.Authorization;
 using HRMS.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -5,11 +6,22 @@ namespace HRMS.Data;
 
 public class HRMSDbContext : DbContext
 {
-    public HRMSDbContext(DbContextOptions<HRMSDbContext> options)
+    private readonly ITenantAccessor? _tenantAccessor;
+    private readonly ICurrentUserAccessor? _currentUserAccessor;
+
+    public HRMSDbContext(
+        DbContextOptions<HRMSDbContext> options,
+        ITenantAccessor? tenantAccessor = null,
+        ICurrentUserAccessor? currentUserAccessor = null)
         : base(options)
     {
+        _tenantAccessor = tenantAccessor;
+        _currentUserAccessor = currentUserAccessor;
     }
 
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<CompanyAsset> CompanyAssets => Set<CompanyAsset>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Branch> Branches => Set<Branch>();
     public DbSet<Designation> Designations => Set<Designation>();
@@ -29,126 +41,141 @@ public class HRMSDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Tenant>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => e.Status);
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.Action);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId || e.TenantId == null);
+        });
+
+        modelBuilder.Entity<CompanyAsset>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.AssetCode }).IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.AssignedToEmployeeId);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
         modelBuilder.Entity<Department>(entity =>
         {
-            entity.HasIndex(e => e.Name).IsUnique();
-            entity.HasData(
-                new Department { Id = 1, Name = "Engineering", IsActive = true },
-                new Department { Id = 2, Name = "Human Resources", IsActive = true },
-                new Department { Id = 3, Name = "Sales", IsActive = true });
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<Branch>(entity =>
         {
-            entity.HasIndex(e => e.Name).IsUnique();
-            entity.HasData(
-                new Branch { Id = 1, Name = "Headquarters - Mumbai", IsActive = true },
-                new Branch { Id = 2, Name = "Branch - Pune", IsActive = true },
-                new Branch { Id = 3, Name = "Branch - Bangalore", IsActive = true });
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<Designation>(entity =>
         {
-            entity.HasIndex(e => e.Name).IsUnique();
-            entity.HasData(
-                new Designation { Id = 1, Name = "Senior Full Stack Developer", IsActive = true },
-                new Designation { Id = 2, Name = "HR Lead", IsActive = true },
-                new Designation { Id = 3, Name = "Sales Executive", IsActive = true });
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<LeaveType>(entity =>
         {
-            entity.HasIndex(e => e.Code).IsUnique();
-            entity.HasData(
-                new LeaveType { Id = 1, Name = "Casual Leave", Code = "CL", DefaultAllocatedDays = 12, IsActive = true },
-                new LeaveType { Id = 2, Name = "Sick Leave", Code = "SL", DefaultAllocatedDays = 10, IsActive = true },
-                new LeaveType { Id = 3, Name = "Earned Leave", Code = "EL", DefaultAllocatedDays = 15, IsActive = true });
+            entity.HasIndex(e => new { e.TenantId, e.Code });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<LeaveRejectionReason>(entity =>
         {
-            entity.HasIndex(e => e.Title).IsUnique();
-            entity.HasData(
-                new LeaveRejectionReason { Id = 1, Title = "Project Delivery Deadline / Critical Milestone", IsActive = true, SortOrder = 1 },
-                new LeaveRejectionReason { Id = 2, Title = "Insufficient Leave Balance", IsActive = true, SortOrder = 2 },
-                new LeaveRejectionReason { Id = 3, Title = "Team Resource Shortage on Requested Dates", IsActive = true, SortOrder = 3 },
-                new LeaveRejectionReason { Id = 4, Title = "Overlapping Team Member Leave", IsActive = true, SortOrder = 4 },
-                new LeaveRejectionReason { Id = 5, Title = "Incomplete Information / Missing Attachments", IsActive = true, SortOrder = 5 },
-                new LeaveRejectionReason { Id = 6, Title = "Other Reason", IsActive = true, SortOrder = 6 });
+            entity.HasIndex(e => e.Title);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId || e.TenantId == null);
         });
 
         modelBuilder.Entity<DocumentCategory>(entity =>
         {
-            entity.HasIndex(e => e.Name).IsUnique();
-            entity.HasData(
-                new DocumentCategory { Id = 1, Name = "Identity (Aadhaar)", IsActive = true },
-                new DocumentCategory { Id = 2, Name = "PAN", IsActive = true },
-                new DocumentCategory { Id = 3, Name = "Education", IsActive = true });
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<Employee>(entity =>
         {
-            entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => e.EmployeeCode).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Email }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeCode });
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.DepartmentId);
             entity.HasIndex(e => e.BranchId);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<AttendanceRecord>(entity =>
         {
-            entity.HasIndex(e => new { e.EmployeeId, e.AttendanceDate }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId, e.AttendanceDate });
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.AttendanceDate);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<LeaveAllocation>(entity =>
         {
-            entity.HasIndex(e => new { e.EmployeeId, e.LeaveTypeId, e.Year }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId, e.LeaveTypeId, e.Year });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<LeaveRequest>(entity =>
         {
+            entity.HasIndex(e => e.TenantId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.EmployeeId);
             entity.HasOne(e => e.ApprovedByUser)
                 .WithMany()
                 .HasForeignKey(e => e.ApprovedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<LeaveNotification>(entity =>
         {
+            entity.HasIndex(e => e.TenantId);
             entity.HasIndex(e => e.EmployeeId);
             entity.HasIndex(e => e.IsRead);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<PayrollRecord>(entity =>
         {
-            entity.HasIndex(e => new { e.EmployeeId, e.PayMonth, e.PayYear }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId, e.PayMonth, e.PayYear });
             entity.HasIndex(e => e.Status);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<EmployeeDocument>(entity =>
         {
+            entity.HasIndex(e => e.TenantId);
             entity.HasIndex(e => e.EmployeeId);
             entity.HasIndex(e => e.DocumentCategoryId);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<PerformanceReview>(entity =>
         {
-            entity.HasIndex(e => new { e.EmployeeId, e.ReviewPeriod }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId, e.ReviewPeriod });
             entity.HasIndex(e => e.Status);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.RoleId);
+            entity.HasIndex(e => e.TenantId);
             entity.HasOne(e => e.Role)
                 .WithMany()
                 .HasForeignKey(e => e.RoleId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId || e.TenantId == null);
         });
 
         modelBuilder.Entity<Role>(entity =>
@@ -159,5 +186,51 @@ public class HRMSDbContext : DbContext
                 RoleSeed.HrAdmin,
                 RoleSeed.Employee);
         });
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var entries = ChangeTracker.Entries();
+        var now = DateTime.UtcNow;
+        var currentUserId = _currentUserAccessor?.UserId;
+        var currentTenantId = _tenantAccessor?.TenantId;
+
+        foreach (var entry in entries)
+        {
+            if (entry.Entity is ITenantEntity tenantEntity)
+            {
+                if (tenantEntity.TenantId <= 0 && currentTenantId.HasValue && currentTenantId.Value > 0)
+                {
+                    tenantEntity.TenantId = currentTenantId.Value;
+                }
+            }
+
+            if (entry.Entity is IAuditableEntity auditableEntity)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    if (auditableEntity.CreatedAt == default)
+                    {
+                        auditableEntity.CreatedAt = now;
+                    }
+                    auditableEntity.UpdatedAt = now;
+                    if (currentUserId.HasValue)
+                    {
+                        auditableEntity.CreatedBy ??= currentUserId.Value;
+                        auditableEntity.UpdatedBy ??= currentUserId.Value;
+                    }
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    auditableEntity.UpdatedAt = now;
+                    if (currentUserId.HasValue)
+                    {
+                        auditableEntity.UpdatedBy = currentUserId.Value;
+                    }
+                }
+            }
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
     }
 }

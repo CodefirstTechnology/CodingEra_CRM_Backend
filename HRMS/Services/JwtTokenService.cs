@@ -40,6 +40,17 @@ public sealed class JwtTokenService : IJwtTokenService
             new("roleId", user.RoleId.ToString())
         };
 
+        if (user.TenantId.HasValue)
+        {
+            claims.Add(new Claim("tenantId", user.TenantId.Value.ToString()));
+            if (user.Tenant != null)
+            {
+                claims.Add(new Claim("tenantCode", user.Tenant.Code));
+                claims.Add(new Claim("tenantName", user.Tenant.Name));
+                claims.Add(new Claim("tenantPlan", user.Tenant.Plan));
+            }
+        }
+
         if (user.EmployeeId.HasValue)
         {
             claims.Add(new Claim("employeeId", user.EmployeeId.Value.ToString()));

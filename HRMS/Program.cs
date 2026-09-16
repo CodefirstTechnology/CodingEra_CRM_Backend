@@ -16,6 +16,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<HRMSDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantAccessor, TenantAccessor>();
+builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddScoped<IAssetService, AssetService>();
+
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IEmployeeAccountService, EmployeeAccountService>();
@@ -23,8 +30,6 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key is required.");
@@ -120,10 +125,11 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        logger.LogInformation("Applying database migrations...");
+        logger.LogInformation("Applying database migrations and bootstrap...");
         db.Database.Migrate();
         await LeaveWorkflowSchemaBootstrap.EnsureAsync(db);
         await AttendanceSchemaBootstrap.EnsureAsync(db);
+        await MultiTenantBootstrap.EnsureAsync(db);
         await AuthSeed.SeedAsync(db, employeeAccounts);
         logger.LogInformation("Database startup completed successfully.");
     }
