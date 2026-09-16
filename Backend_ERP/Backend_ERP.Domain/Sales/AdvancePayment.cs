@@ -36,6 +36,16 @@ namespace ERP.Domain.Sales
 
         public decimal RemainingAmount { get; set; }
 
+        public decimal RefundedAmount { get; set; }
+
+        public decimal ForfeitedAmount { get; set; }
+
+        public string? RefundReferenceNumber { get; set; }
+
+        public string? RefundProcessedBy { get; set; }
+
+        public DateTimeOffset? RefundProcessedOn { get; set; }
+
         public string Status { get; set; } = AdvancePaymentStatuses.Draft;
 
         public string Remarks { get; set; } = string.Empty;

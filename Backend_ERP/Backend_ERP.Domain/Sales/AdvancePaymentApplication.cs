@@ -14,6 +14,14 @@ namespace ERP.Domain.Sales
 
         public decimal ApplyAmount { get; set; }
 
+        public bool IsReversal { get; set; } = false;
+
+        public string? ReversalReason { get; set; }
+
+        public int? OriginalApplicationId { get; set; }
+
+        public AdvancePaymentApplication? OriginalApplication { get; set; }
+
         public string Remarks { get; set; } = string.Empty;
 
         public string AppliedBy { get; set; } = string.Empty;

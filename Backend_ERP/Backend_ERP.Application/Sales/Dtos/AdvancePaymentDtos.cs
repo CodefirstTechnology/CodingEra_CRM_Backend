@@ -18,6 +18,11 @@ namespace ERP.Application.Sales.Dtos
         public decimal AdvanceAmount { get; set; }
         public decimal AppliedAmount { get; set; }
         public decimal RemainingAmount { get; set; }
+        public decimal RefundedAmount { get; set; }
+        public decimal ForfeitedAmount { get; set; }
+        public string? RefundReferenceNumber { get; set; }
+        public string? RefundProcessedBy { get; set; }
+        public string? RefundProcessedOn { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public string? AttachmentName { get; set; }
@@ -39,6 +44,9 @@ namespace ERP.Application.Sales.Dtos
         public int SalesOrderId { get; set; }
         public string SalesOrderNumber { get; set; } = string.Empty;
         public decimal ApplyAmount { get; set; }
+        public bool IsReversal { get; set; }
+        public string? ReversalReason { get; set; }
+        public int? OriginalApplicationId { get; set; }
         public string Remarks { get; set; } = string.Empty;
         public string AppliedBy { get; set; } = string.Empty;
         public string AppliedOn { get; set; } = string.Empty;
@@ -213,5 +221,25 @@ namespace ERP.Application.Sales.Dtos
         public int Id { get; set; }
         public string QuotationNumber { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
+    }
+
+    public class ReverseAllocationRequestDto
+    {
+        public int ApplicationId { get; set; }
+        public decimal ReversalAmount { get; set; } // Must be > 0 and <= Original Application Amount
+        public string Reason { get; set; } = string.Empty; // Mandatory
+    }
+
+    public class ProcessRefundRequestDto
+    {
+        public decimal RefundAmount { get; set; } // Must be <= RemainingAmount
+        public string RefundReferenceNumber { get; set; } = string.Empty; // UTR or Cheque
+        public string Remarks { get; set; } = string.Empty;
+    }
+
+    public class ProcessForfeitureRequestDto
+    {
+        public decimal ForfeitureAmount { get; set; } // Must be <= RemainingAmount
+        public string Reason { get; set; } = string.Empty;
     }
 }

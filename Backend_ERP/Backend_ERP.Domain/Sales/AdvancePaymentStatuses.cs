@@ -8,6 +8,8 @@ namespace ERP.Domain.Sales
         public const string Received = "Received";
         public const string PartiallyApplied = "PartiallyApplied";
         public const string FullyApplied = "FullyApplied";
+        public const string Refunded = "Refunded";
+        public const string Forfeited = "Forfeited";
         public const string Cancelled = "Cancelled";
         public const string Rejected = "Rejected";
 
@@ -19,6 +21,8 @@ namespace ERP.Domain.Sales
             Received,
             PartiallyApplied,
             FullyApplied,
+            Refunded,
+            Forfeited,
             Cancelled,
             Rejected
         ];
@@ -56,6 +60,9 @@ namespace ERP.Domain.Sales
         public const string Rejected = "Rejected";
         public const string Cancelled = "Cancelled";
         public const string Applied = "Applied";
+        public const string Reversed = "Reversed";
+        public const string Refunded = "Refunded";
+        public const string Forfeited = "Forfeited";
         public const string Deleted = "Deleted";
     }
 }

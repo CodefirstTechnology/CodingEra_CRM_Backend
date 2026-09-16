@@ -1,6 +1,8 @@
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Infrastructure.Sales
 {
@@ -8,13 +10,16 @@ namespace ERP.Infrastructure.Sales
     {
         private readonly IAdvancePaymentRepository _repo;
         private readonly IAdvancePaymentNumberingService _numbering;
+        private readonly ERPDbContext _db;
 
         public AdvancePaymentService(
             IAdvancePaymentRepository repo,
-            IAdvancePaymentNumberingService numbering)
+            IAdvancePaymentNumberingService numbering,
+            ERPDbContext db)
         {
             _repo = repo;
             _numbering = numbering;
+            _db = db;
         }
 
         public async Task<IReadOnlyList<AdvancePaymentListItemDto>> GetAllAsync(
@@ -342,13 +347,46 @@ namespace ERP.Infrastructure.Sales
                 actingUser,
                 cancellationToken);
 
+        private async Task<AdvancePayment?> LockAdvancePaymentAsync(int id, CancellationToken cancellationToken)
+        {
+            if (_db.Database.IsRelational())
+            {
+                return await _db.AdvancePayments
+                    .FromSqlRaw(@"SELECT * FROM advance_payments WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", id)
+                    .Include(x => x.Applications)
+                    .Include(x => x.Timeline)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            return await _db.AdvancePayments
+                .Include(x => x.Applications)
+                .Include(x => x.Timeline)
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+        }
+
+        private async Task<SalesOrder?> LockSalesOrderAsync(int salesOrderId, CancellationToken cancellationToken)
+        {
+            if (_db.Database.IsRelational())
+            {
+                return await _db.SalesOrders
+                    .FromSqlRaw(@"SELECT * FROM sales_orders WHERE ""Id"" = {0} FOR UPDATE", salesOrderId)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            return await _db.SalesOrders
+                .FirstOrDefaultAsync(x => x.Id == salesOrderId, cancellationToken);
+        }
+
         public async Task<AdvancePaymentDto?> ApplyAsync(
             int id,
             AdvancePaymentApplyRequestDto request,
             string actingUser,
             CancellationToken cancellationToken = default)
         {
-            var entity = await _repo.GetByIdAsync(id, true, true, cancellationToken);
+            var isRelational = _db.Database.IsRelational();
+            await using var tx = isRelational ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
+
+            var entity = await LockAdvancePaymentAsync(id, cancellationToken);
             if (entity is null)
             {
                 return null;
@@ -377,20 +415,17 @@ namespace ERP.Infrastructure.Sales
                     $"Apply amount {applyAmount} exceeds remaining amount {entity.RemainingAmount}.");
             }
 
-            if (await _repo.ApplicationExistsAsync(id, request.SalesOrderId, cancellationToken))
+            var salesOrder = await LockSalesOrderAsync(request.SalesOrderId, cancellationToken);
+            if (salesOrder is null)
             {
-                throw new InvalidOperationException(
-                    $"Advance payment already applied to sales order '{request.SalesOrderId}'.");
+                throw new InvalidOperationException($"Sales order '{request.SalesOrderId}' not found.");
             }
 
-            var (salesOrderId, salesOrderNumber) = await ResolveSalesOrderAsync(
-                request.SalesOrderId,
-                request.SalesOrderNumber,
-                cancellationToken);
-
-            if (salesOrderId is null)
+            var orderPayableBalance = AdvancePaymentCalculator.Round2(salesOrder.GrandTotal - salesOrder.AdvanceAllocatedAmount);
+            if (applyAmount > orderPayableBalance)
             {
-                throw new InvalidOperationException("Sales order is required when applying payment.");
+                throw new InvalidOperationException(
+                    $"Apply amount {applyAmount} exceeds remaining payable balance {orderPayableBalance} on Sales Order '{salesOrder.SalesOrderNumber}'.");
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -398,47 +433,313 @@ namespace ERP.Infrastructure.Sales
             entity.AppliedAmount = AdvancePaymentCalculator.Round2(entity.AppliedAmount + applyAmount);
             entity.RemainingAmount = AdvancePaymentCalculator.CalcRemaining(
                 entity.AdvanceAmount,
-                entity.AppliedAmount);
+                entity.AppliedAmount,
+                entity.RefundedAmount,
+                entity.ForfeitedAmount);
 
             if (entity.RemainingAmount < 0)
             {
                 throw new InvalidOperationException("Remaining amount cannot be negative.");
             }
 
-            var newStatus = AdvancePaymentCalculator.ResolveStatusAfterApply(entity.RemainingAmount);
-            if (!AdvancePaymentStatusRules.CanTransition(oldStatus, newStatus)
-                && oldStatus != newStatus)
-            {
-                throw new InvalidOperationException(
-                    $"Cannot transition advance payment from '{oldStatus}' to '{newStatus}'.");
-            }
+            salesOrder.AdvanceAllocatedAmount = AdvancePaymentCalculator.Round2(salesOrder.AdvanceAllocatedAmount + applyAmount);
+            salesOrder.UpdatedBy = actingUser;
+            salesOrder.UpdatedDate = now;
 
+            var newStatus = AdvancePaymentCalculator.ResolveStatusAfterApply(entity.RemainingAmount);
             entity.Status = newStatus;
             entity.UpdatedBy = actingUser;
             entity.UpdatedDate = now;
 
             var application = new AdvancePaymentApplication
             {
-                SalesOrderId = salesOrderId.Value,
-                SalesOrderNumber = string.IsNullOrWhiteSpace(salesOrderNumber)
-                    ? (request.SalesOrderNumber?.Trim() ?? string.Empty)
-                    : salesOrderNumber,
+                AdvancePaymentId = entity.Id,
+                SalesOrderId = salesOrder.Id,
+                SalesOrderNumber = salesOrder.SalesOrderNumber,
                 ApplyAmount = applyAmount,
+                IsReversal = false,
                 Remarks = request.Remarks?.Trim() ?? string.Empty,
                 AppliedBy = actingUser,
                 AppliedOn = now
             };
+            entity.Applications.Add(application);
 
             entity.Timeline.Add(NewTimeline(
                 AdvancePaymentTimelineActions.Applied,
-                $"Applied {applyAmount} to {application.SalesOrderNumber} ({oldStatus} → {newStatus})"
+                $"Applied ₹{applyAmount:N2} to {salesOrder.SalesOrderNumber} ({oldStatus} → {newStatus})"
                 + (string.IsNullOrWhiteSpace(request.Remarks) ? string.Empty : $": {request.Remarks.Trim()}"),
                 actingUser,
                 now));
 
-            await _repo.ApplyAsync(entity, application, cancellationToken);
-            return AdvancePaymentMapper.ToDto(
-                await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
+            await _db.SaveChangesAsync(cancellationToken);
+            if (tx is not null)
+            {
+                await tx.CommitAsync(cancellationToken);
+            }
+
+            return AdvancePaymentMapper.ToDto(entity);
+        }
+
+        public async Task<AdvancePaymentDto?> ReverseApplicationAsync(
+            int id,
+            ReverseAllocationRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.ApplicationId <= 0)
+            {
+                throw new InvalidOperationException("Application ID is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Reason))
+            {
+                throw new InvalidOperationException("Reversal reason is mandatory.");
+            }
+
+            var reversalAmount = AdvancePaymentCalculator.Round2(request.ReversalAmount);
+            if (reversalAmount <= 0)
+            {
+                throw new InvalidOperationException("Reversal amount must be greater than zero.");
+            }
+
+            var isRelational = _db.Database.IsRelational();
+            await using var tx = isRelational ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
+
+            var entity = await LockAdvancePaymentAsync(id, cancellationToken);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            var originalApp = entity.Applications.FirstOrDefault(a => a.Id == request.ApplicationId);
+            if (originalApp is null)
+            {
+                throw new InvalidOperationException($"Application with ID {request.ApplicationId} not found on this advance payment.");
+            }
+
+            if (originalApp.IsReversal)
+            {
+                throw new InvalidOperationException("Cannot reverse an existing reversal entry.");
+            }
+
+            var alreadyReversed = entity.Applications
+                .Where(a => a.OriginalApplicationId == originalApp.Id && a.IsReversal)
+                .Sum(a => Math.Abs(a.ApplyAmount));
+            var availableToReverse = AdvancePaymentCalculator.Round2(originalApp.ApplyAmount - alreadyReversed);
+            if (reversalAmount > availableToReverse)
+            {
+                throw new InvalidOperationException(
+                    $"Reversal amount {reversalAmount} exceeds available unreversed amount {availableToReverse} on application #{originalApp.Id}.");
+            }
+
+            var salesOrder = await LockSalesOrderAsync(originalApp.SalesOrderId, cancellationToken);
+            if (salesOrder is null)
+            {
+                throw new InvalidOperationException($"Sales order '{originalApp.SalesOrderId}' not found.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var oldStatus = entity.Status;
+
+            entity.AppliedAmount = AdvancePaymentCalculator.Round2(entity.AppliedAmount - reversalAmount);
+            entity.RemainingAmount = AdvancePaymentCalculator.CalcRemaining(
+                entity.AdvanceAmount,
+                entity.AppliedAmount,
+                entity.RefundedAmount,
+                entity.ForfeitedAmount);
+
+            salesOrder.AdvanceAllocatedAmount = Math.Max(0m, AdvancePaymentCalculator.Round2(salesOrder.AdvanceAllocatedAmount - reversalAmount));
+            salesOrder.UpdatedBy = actingUser;
+            salesOrder.UpdatedDate = now;
+
+            string newStatus;
+            if (entity.AppliedAmount <= 0)
+            {
+                newStatus = AdvancePaymentStatuses.Received;
+            }
+            else if (entity.RemainingAmount <= 0)
+            {
+                newStatus = AdvancePaymentStatuses.FullyApplied;
+            }
+            else
+            {
+                newStatus = AdvancePaymentStatuses.PartiallyApplied;
+            }
+
+            entity.Status = newStatus;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+
+            var reversalApp = new AdvancePaymentApplication
+            {
+                AdvancePaymentId = entity.Id,
+                SalesOrderId = originalApp.SalesOrderId,
+                SalesOrderNumber = originalApp.SalesOrderNumber,
+                ApplyAmount = -reversalAmount,
+                IsReversal = true,
+                OriginalApplicationId = originalApp.Id,
+                ReversalReason = request.Reason.Trim(),
+                Remarks = request.Reason.Trim(),
+                AppliedBy = actingUser,
+                AppliedOn = now
+            };
+            entity.Applications.Add(reversalApp);
+
+            entity.Timeline.Add(NewTimeline(
+                AdvancePaymentTimelineActions.Reversed,
+                $"Reversed ₹{reversalAmount:N2} from Sales Order {salesOrder.SalesOrderNumber}. Reason: {request.Reason.Trim()}",
+                actingUser,
+                now));
+
+            await _db.SaveChangesAsync(cancellationToken);
+            if (tx is not null)
+            {
+                await tx.CommitAsync(cancellationToken);
+            }
+
+            return AdvancePaymentMapper.ToDto(entity);
+        }
+
+        public async Task<AdvancePaymentDto?> ProcessRefundAsync(
+            int id,
+            ProcessRefundRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var refundAmount = AdvancePaymentCalculator.Round2(request.RefundAmount);
+            if (refundAmount <= 0)
+            {
+                throw new InvalidOperationException("Refund amount must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RefundReferenceNumber))
+            {
+                throw new InvalidOperationException("Refund reference number (UTR or Cheque) is mandatory.");
+            }
+
+            var isRelational = _db.Database.IsRelational();
+            await using var tx = isRelational ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
+
+            var entity = await LockAdvancePaymentAsync(id, cancellationToken);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            if (entity.Status != AdvancePaymentStatuses.Received && entity.Status != AdvancePaymentStatuses.PartiallyApplied)
+            {
+                throw new InvalidOperationException($"Cannot process refund for advance payment in '{entity.Status}' status. Must be Received or PartiallyApplied.");
+            }
+
+            if (refundAmount > entity.RemainingAmount)
+            {
+                throw new InvalidOperationException($"Refund amount {refundAmount} exceeds remaining amount {entity.RemainingAmount}.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            entity.RefundedAmount = AdvancePaymentCalculator.Round2(entity.RefundedAmount + refundAmount);
+            entity.RemainingAmount = AdvancePaymentCalculator.CalcRemaining(
+                entity.AdvanceAmount,
+                entity.AppliedAmount,
+                entity.RefundedAmount,
+                entity.ForfeitedAmount);
+
+            entity.RefundReferenceNumber = request.RefundReferenceNumber.Trim();
+            entity.RefundProcessedBy = actingUser;
+            entity.RefundProcessedOn = now;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+
+            if (entity.RemainingAmount == 0)
+            {
+                entity.Status = entity.AppliedAmount == 0 && entity.ForfeitedAmount == 0
+                    ? AdvancePaymentStatuses.Refunded
+                    : AdvancePaymentStatuses.FullyApplied;
+            }
+
+            entity.Timeline.Add(NewTimeline(
+                AdvancePaymentTimelineActions.Refunded,
+                $"Processed refund of ₹{refundAmount:N2}. Reference: {request.RefundReferenceNumber.Trim()}"
+                + (string.IsNullOrWhiteSpace(request.Remarks) ? string.Empty : $": {request.Remarks.Trim()}"),
+                actingUser,
+                now));
+
+            await _db.SaveChangesAsync(cancellationToken);
+            if (tx is not null)
+            {
+                await tx.CommitAsync(cancellationToken);
+            }
+
+            return AdvancePaymentMapper.ToDto(entity);
+        }
+
+        public async Task<AdvancePaymentDto?> ProcessForfeitureAsync(
+            int id,
+            ProcessForfeitureRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var forfeitureAmount = AdvancePaymentCalculator.Round2(request.ForfeitureAmount);
+            if (forfeitureAmount <= 0)
+            {
+                throw new InvalidOperationException("Forfeiture amount must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Reason))
+            {
+                throw new InvalidOperationException("Forfeiture reason is mandatory.");
+            }
+
+            var isRelational = _db.Database.IsRelational();
+            await using var tx = isRelational ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
+
+            var entity = await LockAdvancePaymentAsync(id, cancellationToken);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            if (entity.Status != AdvancePaymentStatuses.Received && entity.Status != AdvancePaymentStatuses.PartiallyApplied)
+            {
+                throw new InvalidOperationException($"Cannot process forfeiture for advance payment in '{entity.Status}' status. Must be Received or PartiallyApplied.");
+            }
+
+            if (forfeitureAmount > entity.RemainingAmount)
+            {
+                throw new InvalidOperationException($"Forfeiture amount {forfeitureAmount} exceeds remaining amount {entity.RemainingAmount}.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            entity.ForfeitedAmount = AdvancePaymentCalculator.Round2(entity.ForfeitedAmount + forfeitureAmount);
+            entity.RemainingAmount = AdvancePaymentCalculator.CalcRemaining(
+                entity.AdvanceAmount,
+                entity.AppliedAmount,
+                entity.RefundedAmount,
+                entity.ForfeitedAmount);
+
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+
+            if (entity.RemainingAmount == 0)
+            {
+                entity.Status = entity.AppliedAmount == 0 && entity.RefundedAmount == 0
+                    ? AdvancePaymentStatuses.Forfeited
+                    : AdvancePaymentStatuses.FullyApplied;
+            }
+
+            entity.Timeline.Add(NewTimeline(
+                AdvancePaymentTimelineActions.Forfeited,
+                $"Forfeited deposit of ₹{forfeitureAmount:N2}. Reason: {request.Reason.Trim()}",
+                actingUser,
+                now));
+
+            await _db.SaveChangesAsync(cancellationToken);
+            if (tx is not null)
+            {
+                await tx.CommitAsync(cancellationToken);
+            }
+
+            return AdvancePaymentMapper.ToDto(entity);
         }
 
         public async Task<IReadOnlyList<AdvancePaymentTimelineDto>?> GetTimelineAsync(

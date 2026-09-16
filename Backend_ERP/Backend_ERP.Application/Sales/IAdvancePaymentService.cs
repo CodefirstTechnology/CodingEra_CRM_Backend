@@ -59,6 +59,24 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<AdvancePaymentDto?> ReverseApplicationAsync(
+            int id,
+            ReverseAllocationRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<AdvancePaymentDto?> ProcessRefundAsync(
+            int id,
+            ProcessRefundRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<AdvancePaymentDto?> ProcessForfeitureAsync(
+            int id,
+            ProcessForfeitureRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<AdvancePaymentTimelineDto>?> GetTimelineAsync(
             int id,
             CancellationToken cancellationToken = default);

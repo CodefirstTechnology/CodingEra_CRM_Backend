@@ -341,6 +341,72 @@ namespace ERP.API.Controllers
             }
         }
 
+        [HttpPost("{id:int}/reverse-application")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Apply)]
+        public async Task<ActionResult<AdvancePaymentDto>> ReverseApplication(
+            int id,
+            [FromBody] ReverseAllocationRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                var updated = await _service.ReverseApplicationAsync(id, request, ResolveActingUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/refund")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
+        public async Task<ActionResult<AdvancePaymentDto>> Refund(
+            int id,
+            [FromBody] ProcessRefundRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                var updated = await _service.ProcessRefundAsync(id, request, ResolveActingUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/forfeit")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
+        public async Task<ActionResult<AdvancePaymentDto>> Forfeit(
+            int id,
+            [FromBody] ProcessForfeitureRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                var updated = await _service.ProcessForfeitureAsync(id, request, ResolveActingUser(userId), cancellationToken);
+                return updated is null ? NotFound() : Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
         [HttpGet("{id:int}/timeline")]
         public async Task<ActionResult<IReadOnlyList<AdvancePaymentTimelineDto>>> Timeline(
             int id,

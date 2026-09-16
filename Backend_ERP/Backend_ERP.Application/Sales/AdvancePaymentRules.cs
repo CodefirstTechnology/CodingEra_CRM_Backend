@@ -7,8 +7,12 @@ namespace ERP.Application.Sales
         public static decimal Round2(decimal value) =>
             Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
-        public static decimal CalcRemaining(decimal advanceAmount, decimal appliedAmount) =>
-            Round2(Math.Max(0, advanceAmount) - Math.Max(0, appliedAmount));
+        public static decimal CalcRemaining(
+            decimal advanceAmount,
+            decimal appliedAmount,
+            decimal refundedAmount = 0m,
+            decimal forfeitedAmount = 0m) =>
+            Round2(Math.Max(0, advanceAmount) - Math.Max(0, appliedAmount) - Math.Max(0, refundedAmount) - Math.Max(0, forfeitedAmount));
 
         public static bool WouldOverAllocate(decimal remainingAmount, decimal applyAmount) =>
             Round2(applyAmount) > Round2(remainingAmount);
@@ -41,14 +45,25 @@ namespace ERP.Application.Sales
             [AdvancePaymentStatuses.Received] =
             [
                 AdvancePaymentStatuses.PartiallyApplied,
-                AdvancePaymentStatuses.FullyApplied
+                AdvancePaymentStatuses.FullyApplied,
+                AdvancePaymentStatuses.Refunded,
+                AdvancePaymentStatuses.Forfeited
             ],
             [AdvancePaymentStatuses.PartiallyApplied] =
             [
                 AdvancePaymentStatuses.PartiallyApplied,
-                AdvancePaymentStatuses.FullyApplied
+                AdvancePaymentStatuses.FullyApplied,
+                AdvancePaymentStatuses.Received,
+                AdvancePaymentStatuses.Refunded,
+                AdvancePaymentStatuses.Forfeited
             ],
-            [AdvancePaymentStatuses.FullyApplied] = [],
+            [AdvancePaymentStatuses.FullyApplied] =
+            [
+                AdvancePaymentStatuses.PartiallyApplied,
+                AdvancePaymentStatuses.Received
+            ],
+            [AdvancePaymentStatuses.Refunded] = [],
+            [AdvancePaymentStatuses.Forfeited] = [],
             [AdvancePaymentStatuses.Cancelled] = [],
             [AdvancePaymentStatuses.Rejected] = []
         };

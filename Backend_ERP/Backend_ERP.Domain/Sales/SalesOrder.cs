@@ -44,6 +44,10 @@ namespace ERP.Domain.Sales
 
         public decimal GrandTotal { get; set; }
 
+        public decimal AdvanceAllocatedAmount { get; set; } = 0m;
+
+        public decimal TotalAmount => GrandTotal;
+
         public string Status { get; set; } = SalesOrderStatuses.Draft;
 
         public string Remarks { get; set; } = string.Empty;

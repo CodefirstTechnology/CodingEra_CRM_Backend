@@ -25,6 +25,10 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.AdvanceAmount).HasPrecision(18, 2);
             builder.Property(x => x.AppliedAmount).HasPrecision(18, 2);
             builder.Property(x => x.RemainingAmount).HasPrecision(18, 2);
+            builder.Property(x => x.RefundedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+            builder.Property(x => x.ForfeitedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+            builder.Property(x => x.RefundReferenceNumber).HasMaxLength(64);
+            builder.Property(x => x.RefundProcessedBy).HasMaxLength(100);
             builder.Property(x => x.Status).HasMaxLength(64).IsRequired();
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.AttachmentName).HasMaxLength(512);
@@ -65,12 +69,20 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.Property(x => x.SalesOrderNumber).HasMaxLength(64).IsRequired();
             builder.Property(x => x.ApplyAmount).HasPrecision(18, 2);
+            builder.Property(x => x.IsReversal).HasDefaultValue(false);
+            builder.Property(x => x.ReversalReason).HasMaxLength(2000);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.AppliedBy).HasMaxLength(64);
 
-            builder.HasIndex(x => new { x.AdvancePaymentId, x.SalesOrderId }).IsUnique();
+            builder.HasIndex(x => new { x.AdvancePaymentId, x.SalesOrderId });
             builder.HasIndex(x => x.SalesOrderId);
             builder.HasIndex(x => x.AppliedOn);
+            builder.HasIndex(x => x.OriginalApplicationId);
+
+            builder.HasOne(x => x.OriginalApplication)
+                .WithMany()
+                .HasForeignKey(x => x.OriginalApplicationId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
