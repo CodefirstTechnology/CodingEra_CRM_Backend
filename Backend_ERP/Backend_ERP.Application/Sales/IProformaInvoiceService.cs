@@ -46,6 +46,12 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<ProformaInvoiceUpiDetailsDto?> GetUpiDetailsAsync(
+            int id,
+            string? companyVpa = null,
+            string? companyName = null,
+            CancellationToken cancellationToken = default);
+
         Task<ProformaInvoiceDto> GenerateFromSalesOrderAsync(
             int salesOrderId,
             string actingUser,

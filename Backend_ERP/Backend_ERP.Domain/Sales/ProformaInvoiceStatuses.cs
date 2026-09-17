@@ -12,6 +12,7 @@ namespace ERP.Domain.Sales
         public const string Accepted = "Accepted";
         public const string Expired = "Expired";
         public const string Cancelled = "Cancelled";
+        public const string PartiallyConverted = "Partially Converted";
         public const string Converted = "Converted";
 
         public static readonly string[] All =
@@ -26,6 +27,7 @@ namespace ERP.Domain.Sales
             Accepted,
             Expired,
             Cancelled,
+            PartiallyConverted,
             Converted
         ];
     }

@@ -108,6 +108,13 @@ namespace ERP.Application.Sales
             ],
             [ProformaInvoiceStatuses.Accepted] =
             [
+                ProformaInvoiceStatuses.PartiallyConverted,
+                ProformaInvoiceStatuses.Converted,
+                ProformaInvoiceStatuses.Cancelled
+            ],
+            [ProformaInvoiceStatuses.PartiallyConverted] =
+            [
+                ProformaInvoiceStatuses.PartiallyConverted,
                 ProformaInvoiceStatuses.Converted,
                 ProformaInvoiceStatuses.Cancelled
             ],

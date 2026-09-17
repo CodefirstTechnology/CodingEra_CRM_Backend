@@ -593,6 +593,12 @@ namespace ERP.Infrastructure.Sales
                         ? "FullyPaid"
                         : (proformaInvoice.AdvanceReceivedAmount > 0 ? "PartiallyPaid" : "Unpaid");
 
+                    if (proformaInvoice.PaymentStatus == "FullyPaid" && !proformaInvoice.IsProductionReleased)
+                    {
+                        proformaInvoice.IsProductionReleased = true;
+                        proformaInvoice.ProductionReleasedOn = DateTimeOffset.UtcNow;
+                    }
+
                     if (proformaInvoice.PaymentStatus == "FullyPaid" && !string.IsNullOrWhiteSpace(salesOrder.Remarks) && salesOrder.Remarks.Contains("Payment Hold"))
                     {
                         salesOrder.Remarks = salesOrder.Remarks.Replace("Payment Hold", "Payment Cleared").Trim();

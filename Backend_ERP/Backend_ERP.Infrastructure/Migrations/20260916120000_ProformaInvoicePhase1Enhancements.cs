@@ -1,9 +1,13 @@
+using ERP.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace ERP.Infrastructure.Migrations
+namespace Backend_ERP.Infrastructure.Migrations
 {
+    [DbContext(typeof(ERPDbContext))]
+    [Migration("20260916120000_ProformaInvoicePhase1Enhancements")]
     public partial class ProformaInvoicePhase1Enhancements : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

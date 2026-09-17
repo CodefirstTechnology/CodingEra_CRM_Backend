@@ -82,7 +82,9 @@ namespace ERP.Infrastructure.Sales
                 Discount = i.Discount,
                 Gst = i.Gst,
                 TaxAmount = i.TaxAmount,
-                Amount = i.Amount
+                Amount = i.Amount,
+                ConvertedQuantity = i.ConvertedQuantity,
+                RemainingQuantity = i.RemainingQuantity
             }).ToList(),
             Subtotal = e.Subtotal,
             DiscountTotal = e.DiscountTotal,
@@ -119,6 +121,8 @@ namespace ERP.Infrastructure.Sales
                     ConvertedOn = e.ConvertedOn is null ? null : FormatDateTime(e.ConvertedOn.Value),
                     Remarks = e.Remarks
                 },
+            IsProductionReleased = e.IsProductionReleased,
+            ProductionReleasedOn = e.ProductionReleasedOn is null ? null : FormatDateTime(e.ProductionReleasedOn.Value),
             CreatedBy = e.CreatedBy,
             CreatedDate = FormatDateTime(e.CreatedDate),
             UpdatedBy = e.UpdatedBy,

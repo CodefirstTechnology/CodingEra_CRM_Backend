@@ -643,51 +643,83 @@ namespace ERP.Infrastructure.Sales
                 return null;
             }
 
-            if (entity.Status != ProformaInvoiceStatuses.Accepted
-                && !ProformaInvoiceStatusRules.CanTransition(entity.Status, ProformaInvoiceStatuses.Converted))
+            if (entity.Status != ProformaInvoiceStatuses.Approved
+                && entity.Status != ProformaInvoiceStatuses.Accepted
+                && entity.Status != ProformaInvoiceStatuses.PartiallyConverted)
             {
-                // Allow convert from Accepted primarily; also if already allowed by rules.
+                throw new InvalidOperationException($"Cannot convert PI in status '{entity.Status}'.");
             }
 
-            if (!ProformaInvoiceStatusRules.CanTransition(entity.Status, ProformaInvoiceStatuses.Converted)
-                && entity.Status != ProformaInvoiceStatuses.Accepted)
-            {
-                throw new InvalidOperationException(
-                    $"Cannot convert proforma from '{entity.Status}'. Accept it first.");
-            }
+            var now = DateTimeOffset.UtcNow;
+            var old = entity.Status;
 
-            // Force Accepted -> Converted if currently Accepted.
-            if (entity.Status == ProformaInvoiceStatuses.Accepted
-                || ProformaInvoiceStatusRules.CanTransition(entity.Status, ProformaInvoiceStatuses.Converted))
+            if (request.Items != null && request.Items.Count > 0)
             {
-                var now = DateTimeOffset.UtcNow;
-                var old = entity.Status;
-                if (old != ProformaInvoiceStatuses.Accepted
-                    && old != ProformaInvoiceStatuses.Converted
-                    && ProformaInvoiceStatusRules.CanTransition(old, ProformaInvoiceStatuses.Accepted))
+                foreach (var reqItem in request.Items)
                 {
-                    entity.StatusHistory.Add(NewStatusHistory(old, ProformaInvoiceStatuses.Accepted, "Auto-accepted before convert", actingUser, now));
-                    old = ProformaInvoiceStatuses.Accepted;
-                    entity.Status = ProformaInvoiceStatuses.Accepted;
-                }
+                    var line = entity.Items.FirstOrDefault(i => i.Id == reqItem.ItemId || (int.TryParse(i.LineKey, out var k) && k == reqItem.ItemId))
+                        ?? throw new InvalidOperationException($"Line item {reqItem.ItemId} not found on PI.");
 
-                entity.Status = ProformaInvoiceStatuses.Converted;
-                entity.ConvertedInvoiceNumber = $"SI-{DateTime.UtcNow.Year}-{entity.Id:D5}";
-                entity.ConvertedOn = now;
-                entity.Remarks = request.Remarks?.Trim() ?? entity.Remarks;
-                entity.UpdatedBy = actingUser;
-                entity.UpdatedDate = now;
-                entity.StatusHistory.Add(NewStatusHistory(
-                    old,
-                    ProformaInvoiceStatuses.Converted,
-                    request.Remarks?.Trim() ?? "Converted to sales invoice",
-                    actingUser,
-                    now));
-                await _repo.SaveChangesAsync(cancellationToken);
+                    if (reqItem.ConvertQuantity <= 0) continue;
+                    if (reqItem.ConvertQuantity > line.RemainingQuantity + 0.0001m)
+                    {
+                        throw new InvalidOperationException(
+                            $"Requested qty {reqItem.ConvertQuantity} for item '{line.ItemName}' exceeds remaining unbilled qty {line.RemainingQuantity}.");
+                    }
+
+                    line.ConvertedQuantity += reqItem.ConvertQuantity;
+                }
             }
+            else
+            {
+                // Full conversion of all remaining items
+                foreach (var line in entity.Items)
+                {
+                    line.ConvertedQuantity = line.Quantity;
+                }
+            }
+
+            bool allConverted = entity.Items.All(i => i.RemainingQuantity <= 0.0001m);
+            entity.Status = allConverted ? ProformaInvoiceStatuses.Converted : ProformaInvoiceStatuses.PartiallyConverted;
+            entity.ConvertedInvoiceNumber = $"SI-{DateTime.UtcNow.Year}-{entity.Id:D5}";
+            entity.ConvertedOn = now;
+            entity.Remarks = request.Remarks?.Trim() ?? entity.Remarks;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+
+            entity.StatusHistory.Add(NewStatusHistory(
+                old,
+                entity.Status,
+                request.Remarks?.Trim() ?? $"Converted to Tax Invoice {entity.ConvertedInvoiceNumber} ({(allConverted ? "Full" : "Partial")}).",
+                actingUser,
+                now));
+
+            await _repo.SaveChangesAsync(cancellationToken);
 
             return ProformaInvoiceMapper.ToDto(
                 await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
+        }
+
+        public async Task<ProformaInvoiceUpiDetailsDto?> GetUpiDetailsAsync(
+            int id,
+            string? companyVpa = null,
+            string? companyName = null,
+            CancellationToken cancellationToken = default)
+        {
+            var entity = await _repo.GetByIdAsync(id, false, false, cancellationToken);
+            if (entity is null) return null;
+
+            var vpa = !string.IsNullOrWhiteSpace(companyVpa) ? companyVpa : "billing@codingera";
+            var name = !string.IsNullOrWhiteSpace(companyName) ? companyName : "CodingEra Technologies Pvt Ltd";
+            decimal netDue = Math.Max(0m, entity.GrandTotal - entity.AdvanceReceivedAmount);
+
+            string uri = $"upi://pay?pa={Uri.EscapeDataString(vpa)}" +
+                         $"&pn={Uri.EscapeDataString(name)}" +
+                         $"&am={netDue:F2}" +
+                         $"&cu=INR" +
+                         $"&tn={Uri.EscapeDataString($"Payment for {entity.PiNumber}")}";
+
+            return new ProformaInvoiceUpiDetailsDto(uri, vpa, name, netDue, entity.PiNumber);
         }
 
         public async Task<IReadOnlyList<ProformaInvoiceStatusHistoryDto>?> GetStatusHistoryAsync(

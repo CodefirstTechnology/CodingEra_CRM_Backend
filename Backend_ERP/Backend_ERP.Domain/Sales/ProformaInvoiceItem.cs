@@ -28,6 +28,11 @@ namespace ERP.Domain.Sales
 
         public decimal Amount { get; set; }
 
+        /// <summary>How much of this line item has already been converted to a Sales Invoice.</summary>
+        public decimal ConvertedQuantity { get; set; } = 0m;
+
+        public decimal RemainingQuantity => Math.Max(0m, Quantity - ConvertedQuantity);
+
         public int SortOrder { get; set; }
     }
 }

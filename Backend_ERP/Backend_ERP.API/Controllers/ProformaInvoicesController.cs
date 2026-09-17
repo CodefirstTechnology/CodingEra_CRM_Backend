@@ -216,7 +216,6 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/approval")]
-        [RequirePermission(ErpPermissions.ProformaInvoices.Approve)]
         public async Task<ActionResult<ProformaInvoiceDto>> Approval(
             int id,
             [FromBody] ProformaInvoiceApprovalRequestDto request,
@@ -228,9 +227,19 @@ namespace ERP.API.Controllers
                 var existing = await _service.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_workflowAuthService.CanApproveProformaInvoice(existing.Status, existing.SalesPersonId))
+                var kind = (request.Kind ?? request.Decision ?? string.Empty).Trim().ToLowerInvariant();
+                bool authorized = kind switch
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot approve this proforma invoice in its current workflow state." });
+                    "submit" or "submitted" => _workflowAuthService.CanSubmitProformaInvoice(existing.Status, existing.SalesPersonId),
+                    "reject" or "rejected" => _workflowAuthService.CanRejectProformaInvoice(existing.Status, existing.SalesPersonId),
+                    "return" or "returned" => _workflowAuthService.CanReturnProformaInvoice(existing.Status, existing.SalesPersonId),
+                    "cancel_approval" => _authService.Authorize(ErpPermissions.ProformaInvoices.Approve) || _authService.Authorize(ErpPermissions.ProformaInvoices.Edit),
+                    _ => _workflowAuthService.CanApproveProformaInvoice(existing.Status, existing.SalesPersonId)
+                };
+
+                if (!authorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = $"You cannot {kind} this proforma invoice in its current workflow state." });
                 }
 
                 var updated = await _service.ApplyApprovalAsync(id, request, ResolveActingUser(userId), cancellationToken);
@@ -271,6 +280,18 @@ namespace ERP.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [HttpGet("{id:int}/upi-details")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.View)]
+        public async Task<ActionResult<ProformaInvoiceUpiDetailsDto>> GetUpiDetails(
+            int id,
+            [FromQuery] string? companyVpa,
+            [FromQuery] string? companyName,
+            CancellationToken cancellationToken)
+        {
+            var result = await _service.GetUpiDetailsAsync(id, companyVpa, companyName, cancellationToken);
+            return result is null ? NotFound() : Ok(result);
         }
 
         [HttpPost("from-sales-order/{salesOrderId:int}")]
@@ -356,6 +377,58 @@ namespace ERP.API.Controllers
 
             var rows = await _service.GetApprovalHistoryAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
+        }
+
+        [HttpGet("{id:int}/audit-history")]
+        public async Task<ActionResult<IReadOnlyList<object>>> AuditHistory(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            var history = await _service.GetStatusHistoryAsync(id, cancellationToken) ?? new List<ProformaInvoiceStatusHistoryDto>();
+            var audits = history.Select((h, idx) => new
+            {
+                id = $"audit-{id}-{idx}",
+                action = h.NewStatus,
+                user = h.User,
+                performedBy = h.User,
+                date = h.Date,
+                timestamp = h.Date,
+                details = h.Remarks,
+                remarks = h.Remarks
+            }).ToList();
+
+            return Ok(audits);
+        }
+
+        [HttpGet("{id:int}/communication-history")]
+        public async Task<ActionResult<IReadOnlyList<object>>> CommunicationHistory(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            return Ok(new List<object>());
+        }
+
+        [HttpGet("{id:int}/document-history")]
+        public async Task<ActionResult<IReadOnlyList<object>>> DocumentHistory(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var existing = await _service.GetByIdAsync(id, cancellationToken);
+            if (existing is null) return NotFound();
+
+            return Ok(new List<object>());
         }
 
         [HttpGet("dashboard")]

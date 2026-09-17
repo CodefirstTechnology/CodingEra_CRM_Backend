@@ -44,6 +44,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.MilestonePercentage).HasPrecision(5, 2);
             builder.Property(x => x.RequiresFinanceCreditReview).HasDefaultValue(false);
             builder.Property(x => x.CreditReviewReason);
+            builder.Property(x => x.IsProductionReleased).HasDefaultValue(false);
+            builder.Property(x => x.ProductionReleasedOn);
 
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.InvoiceDate);
@@ -92,6 +94,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Gst).HasPrecision(9, 4);
             builder.Property(x => x.TaxAmount).HasPrecision(18, 2);
             builder.Property(x => x.Amount).HasPrecision(18, 2);
+            builder.Property(x => x.ConvertedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.HasIndex(x => new { x.ProformaInvoiceId, x.SortOrder });
         }
     }

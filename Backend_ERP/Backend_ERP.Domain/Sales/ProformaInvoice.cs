@@ -84,6 +84,12 @@ namespace ERP.Domain.Sales
 
         public DateTimeOffset? ConvertedOn { get; set; }
 
+        /// <summary>True once production/dispatch has been released against this PI.</summary>
+        public bool IsProductionReleased { get; set; } = false;
+
+        /// <summary>UTC timestamp when production was released.</summary>
+        public DateTimeOffset? ProductionReleasedOn { get; set; }
+
         public ICollection<ProformaInvoiceItem> Items { get; set; } = new List<ProformaInvoiceItem>();
 
         public ICollection<ProformaInvoiceStatusHistory> StatusHistory { get; set; } = new List<ProformaInvoiceStatusHistory>();

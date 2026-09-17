@@ -21,6 +21,9 @@ namespace ERP.Application.Sales.Dtos
         public decimal Gst { get; set; }
         public decimal TaxAmount { get; set; }
         public decimal Amount { get; set; }
+        /// <summary>How much of this line has already been converted to a Sales Invoice.</summary>
+        public decimal ConvertedQuantity { get; set; } = 0m;
+        public decimal RemainingQuantity { get; set; }
     }
 
     public class ProformaInvoiceStatusHistoryDto
@@ -88,6 +91,8 @@ namespace ERP.Application.Sales.Dtos
         public List<ProformaInvoiceStatusHistoryDto> StatusHistory { get; set; } = new();
         public List<ProformaInvoiceApprovalHistoryDto> ApprovalHistory { get; set; } = new();
         public ProformaConversionDto? Conversion { get; set; }
+        public bool IsProductionReleased { get; set; }
+        public string? ProductionReleasedOn { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public string CreatedDate { get; set; } = string.Empty;
         public string UpdatedBy { get; set; } = string.Empty;
@@ -185,7 +190,33 @@ namespace ERP.Application.Sales.Dtos
     public class ProformaInvoiceConvertRequestDto
     {
         public string? Remarks { get; set; }
+        public string TargetType { get; set; } = "TaxInvoice";
+        public List<ProformaInvoiceConversionItemDto>? Items { get; set; }
     }
+
+    public record ProformaInvoiceConversionItemDto(
+        int ItemId,
+        decimal ConvertQuantity
+    );
+
+    public record ConvertProformaInvoiceRequestDto(
+        string TargetType, // "TaxInvoice" or "SalesOrder"
+        List<ProformaInvoiceConversionItemDto>? Items // Null = Full conversion (backward compatibility)
+    );
+
+    public record ProformaInvoiceUpiDetailsDto(
+        string UpiIntentString,
+        string PayeeVpa,
+        string PayeeName,
+        decimal NetPayableAmount,
+        string ReferenceNumber
+    );
+
+    public record ConversionResultDto(
+        int Id,
+        string Status,
+        string ConvertedInvoiceNumber
+    );
 
     public class GenerateProformaInvoiceFromSoRequestDto
     {

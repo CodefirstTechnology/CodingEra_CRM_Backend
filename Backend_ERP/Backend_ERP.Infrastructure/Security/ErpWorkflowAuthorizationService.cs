@@ -275,10 +275,11 @@ namespace ERP.Infrastructure.Security
         public bool CanConvertProformaInvoice(string? currentStatus, bool isAlreadyConverted)
         {
             if (!_authService.Authorize(ErpPermissions.ProformaInvoices.Convert)) return false;
-            if (isAlreadyConverted) return false;
-
             var norm = ProformaInvoiceStatusRules.Normalize(currentStatus ?? string.Empty);
-            return norm is ProformaInvoiceStatuses.Approved or ProformaInvoiceStatuses.Sent or ProformaInvoiceStatuses.Accepted;
+            if (norm == ProformaInvoiceStatuses.Converted) return false;
+            if (isAlreadyConverted && norm != ProformaInvoiceStatuses.PartiallyConverted) return false;
+
+            return norm is ProformaInvoiceStatuses.Approved or ProformaInvoiceStatuses.Sent or ProformaInvoiceStatuses.Accepted or ProformaInvoiceStatuses.PartiallyConverted;
         }
 
         public bool CanCreateProformaFromSalesOrder(string? salesOrderStatus, string? salesOrderCreatedBy)
