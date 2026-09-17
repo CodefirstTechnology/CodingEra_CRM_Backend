@@ -10,10 +10,12 @@ namespace ERP.Infrastructure.Sales.Events
     public class SalesOrderConfirmedEventHandler : INotificationHandler<SalesOrderConfirmedDomainEvent>
     {
         private readonly ERPDbContext _context;
+        private readonly IPerformanceRecalculationService? _recalcService;
 
-        public SalesOrderConfirmedEventHandler(ERPDbContext context)
+        public SalesOrderConfirmedEventHandler(ERPDbContext context, IPerformanceRecalculationService? recalcService = null)
         {
             _context = context;
+            _recalcService = recalcService;
         }
 
         public async Task Handle(SalesOrderConfirmedDomainEvent notification, CancellationToken ct)
@@ -86,6 +88,11 @@ namespace ERP.Infrastructure.Sales.Events
                 {
                     await PropagateRollUpAsync(target.ParentTargetId.Value, ct);
                 }
+            }
+
+            if (spUserId.HasValue && _recalcService != null)
+            {
+                await _recalcService.RecalculateRepPerformanceAsync(spUserId.Value, order.CreatedDate.Year, ct);
             }
         }
 

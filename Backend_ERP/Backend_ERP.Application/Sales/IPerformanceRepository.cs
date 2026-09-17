@@ -12,5 +12,6 @@ namespace ERP.Application.Sales
         IQueryable<PerformanceHistory> History();
         IQueryable<PerformanceExportHistory> ExportHistory();
         Task AddExportAsync(PerformanceExportHistory export, CancellationToken cancellationToken = default);
+        Task<IEnumerable<ERP.Application.Sales.Dtos.PerformanceLeaderboardDto>> GetLeaderboardAsync(int financialYear, CancellationToken ct = default);
     }
 }

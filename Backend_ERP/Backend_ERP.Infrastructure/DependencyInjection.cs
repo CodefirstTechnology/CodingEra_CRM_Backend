@@ -38,6 +38,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Infrastructure.Sales.Events.SalesOrderCancelledEventHandler>();
             services.AddScoped<IPerformanceRepository, PerformanceRepository>();
             services.AddScoped<IPerformanceService, PerformanceService>();
+            services.AddScoped<IPerformanceRecalculationService, PerformanceRecalculationService>();
             services.AddScoped<IPriceListNumberingService, PriceListNumberingService>();
             services.AddScoped<IPriceListRepository, PriceListRepository>();
             services.AddScoped<IPriceListService, PriceListService>();

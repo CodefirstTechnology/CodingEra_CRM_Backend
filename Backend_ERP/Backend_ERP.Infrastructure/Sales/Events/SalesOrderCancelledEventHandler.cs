@@ -10,15 +10,19 @@ namespace ERP.Infrastructure.Sales.Events
     public class SalesOrderCancelledEventHandler : INotificationHandler<SalesOrderCancelledDomainEvent>
     {
         private readonly ERPDbContext _context;
+        private readonly IPerformanceRecalculationService? _recalcService;
 
-        public SalesOrderCancelledEventHandler(ERPDbContext context)
+        public SalesOrderCancelledEventHandler(ERPDbContext context, IPerformanceRecalculationService? recalcService = null)
         {
             _context = context;
+            _recalcService = recalcService;
         }
 
         public async Task Handle(SalesOrderCancelledDomainEvent notification, CancellationToken ct)
         {
             var orderId = notification.SalesOrderId;
+
+            var order = await _context.SalesOrders.FirstOrDefaultAsync(so => so.Id == orderId, ct);
 
             var existingRealizations = await _context.SalesTargetRealizations
                 .Include(r => r.Target)
@@ -65,6 +69,11 @@ namespace ERP.Infrastructure.Sales.Events
                 {
                     await PropagateRollUpAsync(original.Target.ParentTargetId.Value, ct);
                 }
+            }
+
+            if (order != null && order.SalesPersonUserId.HasValue && _recalcService != null)
+            {
+                await _recalcService.RecalculateRepPerformanceAsync(order.SalesPersonUserId.Value, DateTime.UtcNow.Year, ct);
             }
         }
 

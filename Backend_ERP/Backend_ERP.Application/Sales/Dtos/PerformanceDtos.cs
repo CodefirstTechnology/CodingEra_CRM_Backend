@@ -47,12 +47,25 @@ namespace ERP.Application.Sales.Dtos
 
     public class PerformanceLeaderboardDto
     {
+        public int Id { get; set; }
         public int Rank { get; set; }
         public int SalesPersonUserId { get; set; }
         public string SalesPerson { get; set; } = string.Empty;
+        public string SalesPersonName { get; set; } = string.Empty;
+        public string? SalesTeam { get; set; }
+        public string? Branch { get; set; }
         public decimal AchievementPercentage { get; set; }
+        public decimal AttainmentPercentage { get; set; }
         public decimal SalesRevenue { get; set; }
+        public decimal TargetValue { get; set; }
+        public decimal AchievedValue { get; set; }
+        public decimal WeightedScore { get; set; }
+        public int ConfirmedOrderCount { get; set; }
+        public decimal ConversionRate { get; set; }
+        public decimal CalculatedCommission { get; set; }
+        public string Status { get; set; } = "Active";
         public bool IsTopPerformer { get; set; }
+        public string ActiveBadgesJson { get; set; } = "[]";
     }
 
     public class PerformanceTrendDto

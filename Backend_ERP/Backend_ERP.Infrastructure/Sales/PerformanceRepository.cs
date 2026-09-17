@@ -1,6 +1,7 @@
 using ERP.Application.Sales;
 using ERP.Domain.Sales;
 using ERP.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Infrastructure.Sales
 {
@@ -27,6 +28,42 @@ namespace ERP.Infrastructure.Sales
         {
             await _db.PerformanceExportHistory.AddAsync(export, cancellationToken);
             await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<ERP.Application.Sales.Dtos.PerformanceLeaderboardDto>> GetLeaderboardAsync(
+            int financialYear,
+            CancellationToken ct = default)
+        {
+            var list = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+                _db.SalespersonPerformances
+                    .AsNoTracking()
+                    .Where(p => p.FinancialYear == financialYear && p.Status == "Active")
+                    .OrderByDescending(p => p.WeightedScore)
+                    .ThenByDescending(p => p.TotalAchievedValue),
+                ct);
+
+            int rank = 1;
+            return list.Select(p => new ERP.Application.Sales.Dtos.PerformanceLeaderboardDto
+            {
+                Id = p.Id,
+                SalesPersonUserId = p.SalesPersonUserId,
+                SalesPerson = p.SalesPersonName,
+                SalesPersonName = p.SalesPersonName,
+                SalesTeam = p.SalesTeam,
+                Branch = p.Branch,
+                Rank = rank++,
+                WeightedScore = p.WeightedScore,
+                TargetValue = p.TotalTargetValue,
+                AchievedValue = p.TotalAchievedValue,
+                AttainmentPercentage = p.AttainmentPercentage,
+                AchievementPercentage = p.AttainmentPercentage,
+                ConfirmedOrderCount = p.ConfirmedOrderCount,
+                ConversionRate = p.ConversionRate,
+                CalculatedCommission = p.CalculatedCommission,
+                Status = p.Status,
+                IsTopPerformer = rank <= 4,
+                ActiveBadgesJson = p.ActiveBadgesJson
+            });
         }
     }
 }

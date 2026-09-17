@@ -33,18 +33,49 @@ namespace ERP.Infrastructure.Sales
             CancellationToken cancellationToken = default)
         {
             var rows = await BuildSalespersonsAsync(filter, cancellationToken);
-            return rows
-                .OrderByDescending(x => x.RevenueAchievementPercentage)
-                .ThenByDescending(x => x.SalesRevenue)
-                .Select((x, index) => new PerformanceLeaderboardDto
+
+            var items = rows.Select(x =>
+            {
+                var conversion = x.ConversionPercentage;
+                var margin = x.SalesRevenue > 0 ? 22.5m : 0m;
+                var weightedScore = Math.Round(
+                    (x.RevenueAchievementPercentage * 0.50m) +
+                    (conversion * 0.30m) +
+                    (margin * 0.20m), 2, MidpointRounding.AwayFromZero);
+
+                return new
                 {
-                    Rank = index + 1,
-                    SalesPersonUserId = x.SalesPersonUserId,
-                    SalesPerson = x.SalesPerson,
-                    AchievementPercentage = x.RevenueAchievementPercentage,
-                    SalesRevenue = x.SalesRevenue,
-                    IsTopPerformer = index < 3
-                }).ToList();
+                    Row = x,
+                    WeightedScore = weightedScore,
+                    Conversion = conversion
+                };
+            })
+            .OrderByDescending(x => x.WeightedScore)
+            .ThenByDescending(x => x.Row.SalesRevenue)
+            .ToList();
+
+            return items.Select((item, index) => new PerformanceLeaderboardDto
+            {
+                Id = index + 1,
+                Rank = index + 1,
+                SalesPersonUserId = item.Row.SalesPersonUserId,
+                SalesPerson = item.Row.SalesPerson,
+                SalesPersonName = item.Row.SalesPerson,
+                SalesTeam = item.Row.SalesTeam,
+                Branch = item.Row.Branch,
+                AchievementPercentage = item.Row.RevenueAchievementPercentage,
+                AttainmentPercentage = item.Row.RevenueAchievementPercentage,
+                SalesRevenue = item.Row.SalesRevenue,
+                TargetValue = item.Row.AssignedTarget,
+                AchievedValue = item.Row.AchievedTarget,
+                WeightedScore = item.WeightedScore,
+                ConfirmedOrderCount = item.Row.ConfirmedSalesOrders,
+                ConversionRate = item.Conversion,
+                CalculatedCommission = item.Row.AchievedTarget * 0.05m,
+                Status = "Active",
+                IsTopPerformer = index < 3,
+                ActiveBadgesJson = "[]"
+            }).ToList();
         }
 
         public async Task<IReadOnlyList<PerformanceSalesPersonDto>> GetSalespersonsAsync(

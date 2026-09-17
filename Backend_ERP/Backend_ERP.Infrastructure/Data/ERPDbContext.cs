@@ -55,6 +55,8 @@ namespace ERP.Infrastructure.Data
         public DbSet<SalesTargetRealization> SalesTargetRealizations => Set<SalesTargetRealization>();
 
         public DbSet<PerformanceSnapshot> PerformanceSnapshots => Set<PerformanceSnapshot>();
+        public DbSet<SalespersonPerformance> SalespersonPerformances => Set<SalespersonPerformance>();
+        public DbSet<SalespersonPerformanceSnapshot> SalespersonPerformanceSnapshots => Set<SalespersonPerformanceSnapshot>();
 
         public DbSet<PerformanceHistory> PerformanceHistory => Set<PerformanceHistory>();
 
