@@ -277,6 +277,7 @@ namespace ERP.API.Controllers
         [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
         public async Task<ActionResult<ProformaInvoiceDto>> GenerateFromSalesOrder(
             int salesOrderId,
+            [FromBody] GenerateProformaInvoiceFromSoRequestDto? request,
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
@@ -285,12 +286,37 @@ namespace ERP.API.Controllers
                 var created = await _service.GenerateFromSalesOrderAsync(
                     salesOrderId,
                     ResolveActingUser(userId),
+                    request?.BillingType ?? "Full",
+                    request?.MilestonePercentage,
                     cancellationToken);
                 return Ok(created);
             }
             catch (InvalidOperationException ex)
             {
                 return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("from-sales-order")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
+        public async Task<ActionResult<ProformaInvoiceDto>> CreateFromSalesOrder(
+            [FromBody] CreateProformaInvoiceFromSoDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var created = await _service.GenerateFromSalesOrderAsync(
+                    request.SalesOrderId,
+                    ResolveActingUser(userId),
+                    request.BillingType ?? "Full",
+                    request.MilestonePercentage,
+                    cancellationToken);
+                return CreatedAtAction(nameof(GetById), new { id = created.Id, userId }, created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
 

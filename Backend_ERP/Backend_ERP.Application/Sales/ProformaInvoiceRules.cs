@@ -66,10 +66,13 @@ namespace ERP.Application.Sales
             [ProformaInvoiceStatuses.Draft] =
             [
                 ProformaInvoiceStatuses.Submitted,
+                ProformaInvoiceStatuses.PendingFinanceApproval,
                 ProformaInvoiceStatuses.Cancelled
             ],
             [ProformaInvoiceStatuses.Submitted] =
             [
+                ProformaInvoiceStatuses.Approved,
+                ProformaInvoiceStatuses.Rejected,
                 ProformaInvoiceStatuses.PendingFinanceApproval,
                 ProformaInvoiceStatuses.Returned,
                 ProformaInvoiceStatuses.Cancelled

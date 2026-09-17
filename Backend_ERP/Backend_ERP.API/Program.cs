@@ -59,6 +59,7 @@ builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(Dat
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
+builder.Services.AddHostedService<ERP.Infrastructure.Sales.ProformaInvoiceExpiryWorker>();
 
 var app = builder.Build();
 

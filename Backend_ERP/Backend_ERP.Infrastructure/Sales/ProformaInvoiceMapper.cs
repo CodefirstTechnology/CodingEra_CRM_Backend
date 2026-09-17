@@ -31,6 +31,11 @@ namespace ERP.Infrastructure.Sales
             SalesPerson = e.SalesPerson,
             Currency = e.Currency,
             GrandTotal = e.GrandTotal,
+            AdvanceReceivedAmount = e.AdvanceReceivedAmount,
+            PaymentStatus = e.PaymentStatus,
+            BillingType = e.BillingType,
+            MilestonePercentage = e.MilestonePercentage,
+            RequiresFinanceCreditReview = e.RequiresFinanceCreditReview,
             Status = e.Status
         };
 
@@ -40,6 +45,12 @@ namespace ERP.Infrastructure.Sales
             PiNumber = e.PiNumber,
             InvoiceDate = FormatDate(e.InvoiceDate),
             ValidUntil = FormatDate(e.ValidUntil),
+            BillingType = e.BillingType,
+            MilestonePercentage = e.MilestonePercentage,
+            RequiresFinanceCreditReview = e.RequiresFinanceCreditReview,
+            CreditReviewReason = e.CreditReviewReason,
+            AdvanceReceivedAmount = e.AdvanceReceivedAmount,
+            PaymentStatus = e.PaymentStatus,
             Customer = new ProformaInvoiceCustomerDto
             {
                 CustomerId = e.CustomerId,

@@ -51,6 +51,25 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<ProformaInvoiceDto> GenerateFromSalesOrderAsync(
+            int salesOrderId,
+            string actingUser,
+            string? billingType,
+            decimal? milestonePercentage,
+            CancellationToken cancellationToken = default);
+
+        Task<ProformaInvoiceDto> CreateFromSalesOrderAsync(
+            int salesOrderId,
+            string actingUser,
+            string? billingType = "Full",
+            decimal? milestonePercentage = null,
+            CancellationToken cancellationToken = default);
+
+        Task<ProformaInvoiceDto?> SubmitForApprovalAsync(
+            int id,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<ProformaInvoiceStatusHistoryDto>?> GetStatusHistoryAsync(
             int id,
             CancellationToken cancellationToken = default);

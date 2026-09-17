@@ -40,11 +40,19 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.GrandTotal).HasPrecision(18, 2);
             builder.Property(x => x.AdvanceReceivedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
             builder.Property(x => x.PaymentStatus).HasMaxLength(32).HasDefaultValue("Unpaid");
+            builder.Property(x => x.BillingType).HasMaxLength(32).HasDefaultValue("Full");
+            builder.Property(x => x.MilestonePercentage).HasPrecision(5, 2);
+            builder.Property(x => x.RequiresFinanceCreditReview).HasDefaultValue(false);
+            builder.Property(x => x.CreditReviewReason);
 
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.InvoiceDate);
             builder.HasIndex(x => x.CustomerName);
             builder.HasIndex(x => x.IsDeleted);
+            builder.HasIndex(x => new { x.Status, x.ValidUntil, x.AdvanceReceivedAmount, x.IsDeleted })
+                .HasDatabaseName("IX_proforma_invoices_expiry_scan");
+            builder.HasIndex(x => new { x.SalesOrderId, x.Status, x.IsDeleted })
+                .HasDatabaseName("IX_proforma_invoices_so_lookup");
 
             builder.HasOne(x => x.SalesOrder)
                 .WithMany()

@@ -77,6 +77,12 @@ namespace ERP.Application.Sales.Dtos
         public decimal DiscountTotal { get; set; }
         public decimal TaxTotal { get; set; }
         public decimal GrandTotal { get; set; }
+        public decimal AdvanceReceivedAmount { get; set; }
+        public string PaymentStatus { get; set; } = "Unpaid";
+        public string BillingType { get; set; } = "Full";
+        public decimal? MilestonePercentage { get; set; }
+        public bool RequiresFinanceCreditReview { get; set; }
+        public string? CreditReviewReason { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public List<ProformaInvoiceStatusHistoryDto> StatusHistory { get; set; } = new();
@@ -100,6 +106,11 @@ namespace ERP.Application.Sales.Dtos
         public string SalesPerson { get; set; } = string.Empty;
         public string Currency { get; set; } = string.Empty;
         public decimal GrandTotal { get; set; }
+        public decimal AdvanceReceivedAmount { get; set; }
+        public string PaymentStatus { get; set; } = "Unpaid";
+        public string BillingType { get; set; } = "Full";
+        public decimal? MilestonePercentage { get; set; }
+        public bool RequiresFinanceCreditReview { get; set; }
         public string Status { get; set; } = string.Empty;
     }
 
@@ -121,8 +132,17 @@ namespace ERP.Application.Sales.Dtos
         public string DeliveryTerms { get; set; } = string.Empty;
         public string? CustomerNotes { get; set; }
         public string? InternalNotes { get; set; }
+        public string BillingType { get; set; } = "Full";
+        public decimal? MilestonePercentage { get; set; }
         public List<ProformaInvoiceItemDto> Items { get; set; } = new();
         public string? Status { get; set; }
+    }
+
+    public class CreateProformaInvoiceFromSoDto
+    {
+        public int SalesOrderId { get; set; }
+        public string BillingType { get; set; } = "Full";
+        public decimal? MilestonePercentage { get; set; }
     }
 
     public class ProformaInvoiceUpdateRequestDto
@@ -143,6 +163,8 @@ namespace ERP.Application.Sales.Dtos
         public string DeliveryTerms { get; set; } = string.Empty;
         public string? CustomerNotes { get; set; }
         public string? InternalNotes { get; set; }
+        public string BillingType { get; set; } = "Full";
+        public decimal? MilestonePercentage { get; set; }
         public List<ProformaInvoiceItemDto> Items { get; set; } = new();
     }
 
@@ -163,6 +185,12 @@ namespace ERP.Application.Sales.Dtos
     public class ProformaInvoiceConvertRequestDto
     {
         public string? Remarks { get; set; }
+    }
+
+    public class GenerateProformaInvoiceFromSoRequestDto
+    {
+        public string BillingType { get; set; } = "Full";
+        public decimal? MilestonePercentage { get; set; }
     }
 
     public class ProformaInvoiceListQueryDto

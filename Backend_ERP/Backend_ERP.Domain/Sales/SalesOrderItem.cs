@@ -19,6 +19,8 @@ namespace ERP.Domain.Sales
 
         public decimal Quantity { get; set; }
 
+        public decimal ProformaInvoicedQuantity { get; set; } = 0m;
+
         public string Unit { get; set; } = "Nos";
 
         public decimal Rate { get; set; }

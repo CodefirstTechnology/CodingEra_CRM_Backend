@@ -58,6 +58,14 @@ namespace ERP.Domain.Sales
 
         public string PaymentStatus { get; set; } = "Unpaid";
 
+        public string BillingType { get; set; } = "Full";
+
+        public decimal? MilestonePercentage { get; set; }
+
+        public bool RequiresFinanceCreditReview { get; set; } = false;
+
+        public string? CreditReviewReason { get; set; }
+
         public string Status { get; set; } = ProformaInvoiceStatuses.Draft;
 
         public string Remarks { get; set; } = string.Empty;

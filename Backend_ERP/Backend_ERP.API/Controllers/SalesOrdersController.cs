@@ -249,8 +249,9 @@ namespace ERP.API.Controllers
 
         [HttpPost("{id:int}/proforma-invoice")]
         [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
-        public async Task<ActionResult<ProformaInvoiceDto>> GenerateProformaInvoice(
+        public async Task<ActionResult<ProformaInvoiceDto>> GenerateProforma(
             int id,
+            [FromBody] GenerateProformaInvoiceFromSoRequestDto? request,
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
@@ -267,6 +268,8 @@ namespace ERP.API.Controllers
                 var created = await _proformaInvoices.GenerateFromSalesOrderAsync(
                     id,
                     ResolveActingUser(userId),
+                    request?.BillingType ?? "Full",
+                    request?.MilestonePercentage,
                     cancellationToken);
                 return Ok(created);
             }

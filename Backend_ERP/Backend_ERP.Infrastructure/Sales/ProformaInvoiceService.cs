@@ -69,6 +69,16 @@ namespace ERP.Infrastructure.Sales
                 throw new InvalidOperationException($"PI number '{number}' already exists.");
             }
 
+            var billingType = string.IsNullOrWhiteSpace(request.BillingType) ? "Full" : request.BillingType.Trim();
+            decimal? milestonePercentage = request.MilestonePercentage;
+            if (string.Equals(billingType, "MilestonePercentage", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!milestonePercentage.HasValue || milestonePercentage.Value <= 0 || milestonePercentage.Value > 100)
+                {
+                    throw new InvalidOperationException("Milestone percentage must be greater than 0 and at most 100.");
+                }
+            }
+
             var (salesOrderId, salesOrderNumber) = await ResolveSalesOrderAsync(
                 request.SalesOrderId,
                 request.SalesOrderNumber,
@@ -78,11 +88,38 @@ namespace ERP.Infrastructure.Sales
             var totals = ProformaInvoiceCalculator.Summarize(prepared);
             var salesPersonUserId = ParseUserId(request.SalesPersonId, actingUser);
 
+            // Ceiling validation against Sales Order
+            SalesOrder? linkedSalesOrder = null;
+            if (salesOrderId.HasValue && salesOrderId.Value > 0)
+            {
+                linkedSalesOrder = await _context.SalesOrders
+                    .FirstOrDefaultAsync(x => x.Id == salesOrderId.Value, cancellationToken);
+
+                if (linkedSalesOrder is not null)
+                {
+                    var activeExistingPiTotal = await _context.ProformaInvoices
+                        .Where(x => x.SalesOrderId == linkedSalesOrder.Id && !x.IsDeleted && 
+                                    x.Status != ProformaInvoiceStatuses.Cancelled && x.Status != ProformaInvoiceStatuses.Rejected)
+                        .SumAsync(x => x.GrandTotal, cancellationToken);
+
+                    decimal availableBalanceToInvoice = linkedSalesOrder.GrandTotal - activeExistingPiTotal;
+                    if (totals.GrandTotal > (availableBalanceToInvoice + 0.01m))
+                    {
+                        throw new InvalidOperationException(
+                            $"Cannot create PI for ₹{totals.GrandTotal:N2}. Maximum allowable unbilled balance for SO '{linkedSalesOrder.SalesOrderNumber}' is ₹{availableBalanceToInvoice:N2}.");
+                    }
+
+                    linkedSalesOrder.ProformaInvoicedAmount = activeExistingPiTotal + totals.GrandTotal;
+                }
+            }
+
             var entity = new ProformaInvoice
             {
                 PiNumber = number,
                 InvoiceDate = invoiceDate,
                 ValidUntil = validUntil,
+                BillingType = billingType,
+                MilestonePercentage = milestonePercentage,
                 CustomerId = request.Customer.CustomerId?.Trim() ?? string.Empty,
                 CustomerName = request.Customer.CustomerName.Trim(),
                 ContactPerson = request.Customer.ContactPerson?.Trim() ?? string.Empty,
@@ -244,12 +281,51 @@ namespace ERP.Infrastructure.Sales
             entity.UpdatedBy = actingUser;
             entity.UpdatedDate = DateTimeOffset.UtcNow;
             await _repo.SaveChangesAsync(cancellationToken);
+
+            if (entity.SalesOrderId.HasValue && entity.SalesOrderId.Value > 0)
+            {
+                await SyncSalesOrderProformaAmountAsync(entity.SalesOrderId.Value, entity.Id, cancellationToken);
+            }
+
             return true;
+        }
+
+        public Task<ProformaInvoiceDto> GenerateFromSalesOrderAsync(
+            int salesOrderId,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            return GenerateFromSalesOrderAsync(salesOrderId, actingUser, "Full", null, cancellationToken);
+        }
+
+        public Task<ProformaInvoiceDto> CreateFromSalesOrderAsync(
+            int salesOrderId,
+            string actingUser,
+            string? billingType = "Full",
+            decimal? milestonePercentage = null,
+            CancellationToken cancellationToken = default)
+        {
+            return GenerateFromSalesOrderAsync(salesOrderId, actingUser, billingType, milestonePercentage, cancellationToken);
+        }
+
+        public Task<ProformaInvoiceDto?> SubmitForApprovalAsync(
+            int id,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            return ApplyApprovalAsync(id, new ProformaInvoiceApprovalRequestDto
+            {
+                Decision = ProformaApprovalDecisions.Submit,
+                Kind = "submit",
+                Remarks = "Submitted for approval"
+            }, actingUser, cancellationToken);
         }
 
         public async Task<ProformaInvoiceDto> GenerateFromSalesOrderAsync(
             int salesOrderId,
             string actingUser,
+            string? billingType = "Full",
+            decimal? milestonePercentage = null,
             CancellationToken cancellationToken = default)
         {
             var salesOrder = await _repo.FindSalesOrderWithItemsAsync(salesOrderId, cancellationToken);
@@ -264,42 +340,65 @@ namespace ERP.Infrastructure.Sales
                     $"Cannot generate Proforma Invoice from Sales Order in status '{salesOrder.Status}'.");
             }
 
-            var existingPi = await _repo.Query().AsNoTracking()
-                .FirstOrDefaultAsync(x => x.SalesOrderId == salesOrderId && x.Status != ProformaInvoiceStatuses.Cancelled, cancellationToken);
-            if (existingPi is not null)
+            var activeExistingPiTotal = await _context.ProformaInvoices
+                .Where(x => x.SalesOrderId == salesOrderId && !x.IsDeleted && 
+                            x.Status != ProformaInvoiceStatuses.Cancelled && x.Status != ProformaInvoiceStatuses.Rejected)
+                .SumAsync(x => x.GrandTotal, cancellationToken);
+
+            decimal availableBalanceToInvoice = salesOrder.GrandTotal - activeExistingPiTotal;
+            if (availableBalanceToInvoice <= 0.01m)
             {
                 throw new InvalidOperationException(
-                    $"Proforma Invoice '{existingPi.PiNumber}' already exists for Sales Order '{salesOrder.SalesOrderNumber}'.");
+                    $"Sales Order '{salesOrder.SalesOrderNumber}' is already fully invoiced under Proforma Invoices (Total: ₹{salesOrder.GrandTotal:N2}, Invoiced: ₹{activeExistingPiTotal:N2}).");
             }
 
-            var items = salesOrder.Items.Select(item => new ProformaInvoiceItemDto
+            billingType = string.IsNullOrWhiteSpace(billingType) ? "Full" : billingType.Trim();
+            var isMilestone = string.Equals(billingType, "MilestonePercentage", StringComparison.OrdinalIgnoreCase);
+            decimal scaleFactor = 1m;
+            if (isMilestone)
             {
-                Id = Guid.NewGuid().ToString("N"),
-                ItemName = item.ItemName,
-                Description = item.Description ?? string.Empty,
-                Quantity = item.Quantity,
-                Unit = item.Unit ?? "Nos",
-                Rate = item.Rate,
-                Discount = item.Discount,
-                Gst = item.Gst,
-                TaxAmount = item.Amount * (item.Gst / 100m),
-                Amount = item.Amount
+                if (!milestonePercentage.HasValue || milestonePercentage.Value <= 0 || milestonePercentage.Value > 100)
+                {
+                    throw new InvalidOperationException("Milestone percentage must be between 1 and 100.");
+                }
+                scaleFactor = milestonePercentage.Value / 100m;
+            }
+
+            var items = salesOrder.Items.Select(item =>
+            {
+                var effectiveRate = Math.Round(item.Rate * scaleFactor, 4);
+                var effectiveAmount = Math.Round(item.Amount * scaleFactor, 2);
+                var effectiveTax = Math.Round(effectiveAmount * (item.Gst / 100m), 2);
+                return new ProformaInvoiceItemDto
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    ItemName = isMilestone ? $"{item.ItemName} ({milestonePercentage:0.#}% Milestone)" : item.ItemName,
+                    Description = item.Description ?? string.Empty,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit ?? "Nos",
+                    Rate = effectiveRate,
+                    Discount = item.Discount,
+                    Gst = item.Gst,
+                    TaxAmount = effectiveTax,
+                    Amount = effectiveAmount
+                };
             }).ToList();
 
             if (items.Count == 0)
             {
+                var baseAmount = Math.Round(salesOrder.GrandTotal * scaleFactor, 2);
                 items.Add(new ProformaInvoiceItemDto
                 {
                     Id = Guid.NewGuid().ToString("N"),
-                    ItemName = $"Sales Order #{salesOrder.SalesOrderNumber} Items",
+                    ItemName = isMilestone ? $"Sales Order #{salesOrder.SalesOrderNumber} ({milestonePercentage:0.#}% Milestone)" : $"Sales Order #{salesOrder.SalesOrderNumber} Items",
                     Description = salesOrder.Remarks ?? "Sales Order Items",
                     Quantity = 1m,
                     Unit = "Set",
-                    Rate = salesOrder.GrandTotal,
+                    Rate = baseAmount,
                     Discount = 0m,
                     Gst = 18m,
-                    TaxAmount = salesOrder.GrandTotal * 0.18m,
-                    Amount = salesOrder.GrandTotal
+                    TaxAmount = Math.Round(baseAmount * 0.18m, 2),
+                    Amount = baseAmount
                 });
             }
 
@@ -326,7 +425,9 @@ namespace ERP.Infrastructure.Sales
                 PaymentTerms = string.IsNullOrWhiteSpace(salesOrder.PaymentTerms) ? "Net 30" : salesOrder.PaymentTerms,
                 DeliveryTerms = string.IsNullOrWhiteSpace(salesOrder.DeliveryTerms) ? "Standard Delivery" : salesOrder.DeliveryTerms,
                 CustomerNotes = salesOrder.Notes ?? string.Empty,
-                InternalNotes = $"Generated from Sales Order {salesOrder.SalesOrderNumber}",
+                InternalNotes = $"Generated from Sales Order {salesOrder.SalesOrderNumber}{(isMilestone ? $" [{milestonePercentage:0.#}% Milestone]" : string.Empty)}",
+                BillingType = isMilestone ? "MilestonePercentage" : "Full",
+                MilestonePercentage = isMilestone ? milestonePercentage : null,
                 Items = items,
                 Status = ProformaInvoiceStatuses.Submitted
             };
@@ -424,6 +525,12 @@ namespace ERP.Infrastructure.Sales
             entity.StatusHistory.Add(NewStatusHistory(old, target, request.Remarks?.Trim() ?? string.Empty, actingUser, now));
             await _repo.SaveChangesAsync(cancellationToken);
 
+            if ((target == ProformaInvoiceStatuses.Cancelled || target == ProformaInvoiceStatuses.Rejected)
+                && entity.SalesOrderId.HasValue && entity.SalesOrderId.Value > 0)
+            {
+                await SyncSalesOrderProformaAmountAsync(entity.SalesOrderId.Value, entity.Id, cancellationToken);
+            }
+
             return ProformaInvoiceMapper.ToDto(
                 await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
         }
@@ -460,30 +567,43 @@ namespace ERP.Infrastructure.Sales
                 return null;
             }
 
-            if (decision == ProformaApprovalDecisions.Submit
-                && entity.Status == ProformaInvoiceStatuses.Draft)
+            if (decision == ProformaApprovalDecisions.Submit)
             {
-                targetStatus = ProformaInvoiceStatuses.Submitted;
-            }
-            else if (decision == ProformaApprovalDecisions.Submit
-                && entity.Status == ProformaInvoiceStatuses.Submitted)
-            {
-                targetStatus = ProformaInvoiceStatuses.PendingFinanceApproval;
+                var exposure = await CheckCustomerExposureBreachAsync(entity, cancellationToken);
+                if (exposure.Breached)
+                {
+                    entity.RequiresFinanceCreditReview = true;
+                    entity.CreditReviewReason = exposure.Reason;
+                    targetStatus = ProformaInvoiceStatuses.PendingFinanceApproval;
+                }
+                else if (entity.Status == ProformaInvoiceStatuses.Draft)
+                {
+                    targetStatus = ProformaInvoiceStatuses.Submitted;
+                }
+                else if (entity.Status == ProformaInvoiceStatuses.Submitted)
+                {
+                    targetStatus = ProformaInvoiceStatuses.PendingFinanceApproval;
+                }
             }
 
             var level = string.IsNullOrWhiteSpace(request.ApprovalLevel)
                 ? (entity.Status == ProformaInvoiceStatuses.PendingFinanceApproval
+                    || targetStatus == ProformaInvoiceStatuses.PendingFinanceApproval
                     || targetStatus == ProformaInvoiceStatuses.Approved
                     ? ProformaApprovalLevels.Finance
                     : ProformaApprovalLevels.Manager)
                 : request.ApprovalLevel.Trim();
+
+            var approvalRemarks = entity.RequiresFinanceCreditReview && targetStatus == ProformaInvoiceStatuses.PendingFinanceApproval
+                ? (string.IsNullOrWhiteSpace(request.Remarks) ? $"Automatic routing to Finance: {entity.CreditReviewReason}" : $"{request.Remarks} | Credit hold: {entity.CreditReviewReason}")
+                : request.Remarks;
 
             var updated = await UpdateStatusAsync(
                 id,
                 new ProformaInvoiceStatusUpdateRequestDto
                 {
                     Status = targetStatus,
-                    Remarks = request.Remarks
+                    Remarks = approvalRemarks
                 },
                 actingUser,
                 cancellationToken);
@@ -961,5 +1081,66 @@ namespace ERP.Infrastructure.Sales
             ApprovedBy = approvedBy,
             ApprovedOn = approvedOn
         };
+
+        private async Task SyncSalesOrderProformaAmountAsync(int salesOrderId, int excludedPiId, CancellationToken cancellationToken)
+        {
+            var so = await _context.SalesOrders.FirstOrDefaultAsync(x => x.Id == salesOrderId, cancellationToken);
+            if (so != null)
+            {
+                var activeTotal = await _context.ProformaInvoices
+                    .Where(x => x.SalesOrderId == salesOrderId && x.Id != excludedPiId && !x.IsDeleted &&
+                                x.Status != ProformaInvoiceStatuses.Cancelled && x.Status != ProformaInvoiceStatuses.Rejected)
+                    .SumAsync(x => x.GrandTotal, cancellationToken);
+                so.ProformaInvoicedAmount = activeTotal;
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        private async Task<(bool Breached, string Reason)> CheckCustomerExposureBreachAsync(
+            ProformaInvoice entity,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                int? custId = int.TryParse(entity.CustomerId, out var cid) ? cid : null;
+                var query = _context.CustomerLedgerEntries.AsNoTracking().Where(x => !x.IsDeleted);
+                if (custId.HasValue)
+                {
+                    query = query.Where(x => x.CustomerId == custId.Value);
+                }
+                else if (!string.IsNullOrWhiteSpace(entity.CustomerName))
+                {
+                    query = query.Where(x => x.CustomerName.ToLower() == entity.CustomerName.ToLower());
+                }
+                else
+                {
+                    return (false, string.Empty);
+                }
+
+                var now = DateTime.UtcNow;
+                var overdueEntries = await query
+                    .Where(x => x.Outstanding > 0 && x.DueDate.HasValue && x.DueDate.Value < now)
+                    .ToListAsync(cancellationToken);
+
+                if (overdueEntries.Count > 0)
+                {
+                    var overdueSum = overdueEntries.Sum(x => x.Outstanding);
+                    return (true, $"Customer has {overdueEntries.Count} overdue invoice(s) totaling ₹{overdueSum:N2}. Finance credit review required.");
+                }
+
+                var totalOutstanding = await query.SumAsync(x => x.Outstanding, cancellationToken);
+                decimal defaultCreditLimit = 500000m;
+                if ((totalOutstanding + entity.GrandTotal) > defaultCreditLimit)
+                {
+                    return (true, $"Customer total exposure (₹{totalOutstanding + entity.GrandTotal:N2}) exceeds credit limit of ₹{defaultCreditLimit:N2}. Finance credit review required.");
+                }
+
+                return (false, string.Empty);
+            }
+            catch
+            {
+                return (false, string.Empty);
+            }
+        }
     }
 }

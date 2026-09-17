@@ -36,6 +36,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.GstTotal).HasPrecision(18, 2);
             builder.Property(x => x.GrandTotal).HasPrecision(18, 2);
             builder.Property(x => x.AdvanceAllocatedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+            builder.Property(x => x.ProformaInvoicedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
 
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.OrderDate);
@@ -70,6 +71,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Description).HasMaxLength(2000);
             builder.Property(x => x.Unit).HasMaxLength(32);
             builder.Property(x => x.Quantity).HasPrecision(18, 4);
+            builder.Property(x => x.ProformaInvoicedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.Rate).HasPrecision(18, 4);
             builder.Property(x => x.Discount).HasPrecision(9, 4);
             builder.Property(x => x.Gst).HasPrecision(9, 4);
