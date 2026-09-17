@@ -34,7 +34,13 @@ namespace ERP.Domain.Sales
 
         public decimal RemainingValue { get; set; }
 
+        public decimal OverAchievementValue { get; set; } = 0m;
+
         public decimal AchievementPercentage { get; set; }
+
+        public bool IsLocked { get; set; } = false;
+
+        public int RevisionNumber { get; set; } = 1;
 
         public string Currency { get; set; } = "INR";
 
@@ -60,5 +66,8 @@ namespace ERP.Domain.Sales
 
         public ICollection<SalesTargetStatusHistory> StatusHistory { get; set; } =
             new List<SalesTargetStatusHistory>();
+
+        public ICollection<SalesTargetRealization> Realizations { get; set; } =
+            new List<SalesTargetRealization>();
     }
 }

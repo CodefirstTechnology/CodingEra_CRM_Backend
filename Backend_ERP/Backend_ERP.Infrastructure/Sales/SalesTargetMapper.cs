@@ -36,9 +36,24 @@ namespace ERP.Infrastructure.Sales
             TargetValue = e.TargetValue,
             AchievedValue = e.AchievedValue,
             RemainingValue = e.RemainingValue,
+            OverAchievementValue = e.OverAchievementValue,
             AchievementPercentage = e.AchievementPercentage,
+            IsLocked = e.IsLocked,
             Currency = e.Currency,
             Status = e.Status
+        };
+
+        public static SalesTargetRealizationDto ToRealizationDto(SalesTargetRealization r) => new()
+        {
+            Id = r.Id,
+            SalesTargetId = r.SalesTargetId,
+            SalesOrderId = r.SalesOrderId,
+            InvoiceId = r.InvoiceId,
+            TransactionType = r.TransactionType,
+            RealizedAmount = r.RealizedAmount,
+            IsReversal = r.IsReversal,
+            AppliedOn = FormatDateTime(r.AppliedOn),
+            AppliedBy = r.AppliedBy
         };
 
         public static SalesTargetAssignmentDto ToAssignmentDto(SalesTargetAssignment a) => new()
@@ -94,7 +109,10 @@ namespace ERP.Infrastructure.Sales
             TargetValue = e.TargetValue,
             AchievedValue = e.AchievedValue,
             RemainingValue = e.RemainingValue,
+            OverAchievementValue = e.OverAchievementValue,
             AchievementPercentage = e.AchievementPercentage,
+            IsLocked = e.IsLocked,
+            RevisionNumber = e.RevisionNumber,
             Currency = e.Currency,
             Status = e.Status,
             Remarks = e.Remarks,
@@ -104,7 +122,8 @@ namespace ERP.Infrastructure.Sales
             UpdatedDate = FormatDateTime(e.UpdatedDate),
             Assignments = e.Assignments.OrderBy(a => a.AssignedDate).Select(ToAssignmentDto).ToList(),
             ProgressHistory = e.ProgressHistory.OrderBy(p => p.UpdatedOn).Select(ToProgressDto).ToList(),
-            StatusHistory = e.StatusHistory.OrderBy(h => h.ChangedOn).Select(ToHistoryDto).ToList()
+            StatusHistory = e.StatusHistory.OrderBy(h => h.ChangedOn).Select(ToHistoryDto).ToList(),
+            Realizations = e.Realizations.OrderByDescending(r => r.AppliedOn).Select(ToRealizationDto).ToList()
         };
     }
 }

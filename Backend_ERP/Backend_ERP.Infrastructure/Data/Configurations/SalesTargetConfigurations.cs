@@ -29,7 +29,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Status).HasMaxLength(64).IsRequired();
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.CreatedBy).HasMaxLength(64);
-            builder.Property(x => x.UpdatedBy).HasMaxLength(64);
+            builder.Property(x => x.OverAchievementValue).HasPrecision(18, 2);
+            builder.Property(x => x.IsLocked).HasDefaultValue(false);
+            builder.Property(x => x.RevisionNumber).HasDefaultValue(1);
 
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.TargetCategory);
@@ -38,6 +40,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.StartDate);
             builder.HasIndex(x => x.EndDate);
             builder.HasIndex(x => x.IsDeleted);
+            builder.HasIndex(x => new { x.Status, x.SalesPersonUserId, x.TargetCategory, x.StartDate, x.EndDate, x.IsDeleted })
+                .HasDatabaseName("IX_sales_targets_active_window");
 
             builder.HasMany(x => x.Assignments)
                 .WithOne(x => x.SalesTarget)
@@ -51,6 +55,11 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.HasMany(x => x.StatusHistory)
                 .WithOne(x => x.SalesTarget)
+                .HasForeignKey(x => x.SalesTargetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.Realizations)
+                .WithOne(x => x.Target)
                 .HasForeignKey(x => x.SalesTargetId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
@@ -117,6 +126,22 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasKey(x => x.Id);
             builder.Property(x => x.Prefix).HasMaxLength(16).IsRequired();
             builder.HasIndex(x => new { x.FinancialYear, x.Prefix }).IsUnique();
+        }
+    }
+
+    public class SalesTargetRealizationConfiguration : IEntityTypeConfiguration<SalesTargetRealization>
+    {
+        public void Configure(EntityTypeBuilder<SalesTargetRealization> builder)
+        {
+            builder.ToTable("sales_target_realizations");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.TransactionType).HasMaxLength(32).IsRequired();
+            builder.Property(x => x.RealizedAmount).HasPrecision(18, 2);
+            builder.Property(x => x.AppliedBy).HasMaxLength(100).IsRequired();
+
+            builder.HasIndex(x => new { x.SalesTargetId, x.SalesOrderId, x.IsReversal })
+                .HasDatabaseName("IX_sales_target_realizations_lookup");
         }
     }
 }

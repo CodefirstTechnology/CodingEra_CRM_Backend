@@ -21,17 +21,30 @@ namespace ERP.Application.Sales
         }
 
         public static bool WouldExceedTarget(decimal targetValue, decimal achievedValue) =>
-            Round2(achievedValue) > Round2(targetValue);
+            achievedValue > targetValue;
+
+        public static void RecalculateProgress(SalesTarget target)
+        {
+            target.RemainingValue = Math.Max(0m, target.TargetValue - target.AchievedValue);
+            target.OverAchievementValue = Math.Max(0m, target.AchievedValue - target.TargetValue);
+
+            target.AchievementPercentage = target.TargetValue > 0
+                ? Math.Round((target.AchievedValue / target.TargetValue) * 100m, 2, MidpointRounding.AwayFromZero)
+                : 0m;
+        }
 
         public static string ResolveStatusAfterProgress(string currentStatus, decimal achievementPercentage)
         {
-            if (achievementPercentage >= 100m
-                && currentStatus is SalesTargetStatuses.Active or SalesTargetStatuses.Completed)
-            {
-                return SalesTargetStatuses.Completed;
-            }
-
+            // Do NOT prematurely complete; targets stay Active until EndDate lapses to track over-achievement
             return currentStatus;
+        }
+    }
+
+    public static class SalesTargetRules
+    {
+        public static void RecalculateProgress(SalesTarget target)
+        {
+            SalesTargetCalculator.RecalculateProgress(target);
         }
     }
 
@@ -48,11 +61,13 @@ namespace ERP.Application.Sales
             [
                 SalesTargetStatuses.Completed,
                 SalesTargetStatuses.Expired,
-                SalesTargetStatuses.Cancelled
+                SalesTargetStatuses.Cancelled,
+                SalesTargetStatuses.Closed
             ],
-            [SalesTargetStatuses.Completed] = [],
-            [SalesTargetStatuses.Expired] = [],
-            [SalesTargetStatuses.Cancelled] = []
+            [SalesTargetStatuses.Completed] = [SalesTargetStatuses.Closed],
+            [SalesTargetStatuses.Expired] = [SalesTargetStatuses.Closed],
+            [SalesTargetStatuses.Cancelled] = [],
+            [SalesTargetStatuses.Closed] = []
         };
 
         public static string? Normalize(string? status)

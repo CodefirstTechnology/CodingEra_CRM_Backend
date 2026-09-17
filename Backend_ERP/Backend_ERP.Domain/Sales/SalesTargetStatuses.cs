@@ -7,6 +7,7 @@ namespace ERP.Domain.Sales
         public const string Completed = "Completed";
         public const string Expired = "Expired";
         public const string Cancelled = "Cancelled";
+        public const string Closed = "Closed";
 
         public static readonly string[] All =
         [
@@ -14,7 +15,8 @@ namespace ERP.Domain.Sales
             Active,
             Completed,
             Expired,
-            Cancelled
+            Cancelled,
+            Closed
         ];
     }
 

@@ -18,10 +18,10 @@ public class SalesTargetContractTests
     }
 
     [Fact]
-    public void Achievement_at_100_percent_resolves_to_completed_from_active()
+    public void Achievement_at_100_percent_remains_active_to_track_overachievement()
     {
         Assert.Equal(
-            SalesTargetStatuses.Completed,
+            SalesTargetStatuses.Active,
             SalesTargetCalculator.ResolveStatusAfterProgress(SalesTargetStatuses.Active, 100m));
         Assert.Equal(
             SalesTargetStatuses.Active,

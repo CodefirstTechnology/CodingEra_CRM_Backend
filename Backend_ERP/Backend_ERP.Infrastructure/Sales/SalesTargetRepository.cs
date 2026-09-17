@@ -40,7 +40,8 @@ namespace ERP.Infrastructure.Sales
             {
                 q = q.Include(x => x.Assignments)
                     .Include(x => x.ProgressHistory)
-                    .Include(x => x.StatusHistory);
+                    .Include(x => x.StatusHistory)
+                    .Include(x => x.Realizations);
             }
 
             if (!asTracking)

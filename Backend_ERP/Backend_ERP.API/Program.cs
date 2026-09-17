@@ -60,6 +60,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddErpJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
 builder.Services.AddHostedService<ERP.Infrastructure.Sales.ProformaInvoiceExpiryWorker>();
+builder.Services.AddHostedService<ERP.Infrastructure.Sales.Workers.SalesTargetEvaluationWorker>();
 
 var app = builder.Build();
 

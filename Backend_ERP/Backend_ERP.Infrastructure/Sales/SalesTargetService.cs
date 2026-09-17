@@ -62,16 +62,9 @@ namespace ERP.Infrastructure.Sales
 
             var targetValue = SalesTargetCalculator.Round2(request.TargetValue);
             var achieved = SalesTargetCalculator.Round2(Math.Max(0, request.AchievedValue ?? 0m));
-            if (SalesTargetCalculator.WouldExceedTarget(targetValue, achieved))
-            {
-                throw new InvalidOperationException("Achieved value cannot exceed target value.");
-            }
-
+            var remaining = Math.Max(0m, targetValue - achieved);
+            var overAchievement = Math.Max(0m, achieved - targetValue);
             var pct = SalesTargetCalculator.CalcAchievementPercentage(targetValue, achieved);
-            if (pct >= 100m && status == SalesTargetStatuses.Active)
-            {
-                status = SalesTargetStatuses.Completed;
-            }
 
             var now = DateTimeOffset.UtcNow;
             var entity = new SalesTarget
@@ -90,7 +83,8 @@ namespace ERP.Infrastructure.Sales
                 EndDate = end,
                 TargetValue = targetValue,
                 AchievedValue = achieved,
-                RemainingValue = SalesTargetCalculator.CalcRemaining(targetValue, achieved),
+                RemainingValue = remaining,
+                OverAchievementValue = overAchievement,
                 AchievementPercentage = pct,
                 Currency = request.Currency.Trim().ToUpperInvariant(),
                 Status = status,
@@ -489,17 +483,11 @@ namespace ERP.Infrastructure.Sales
                 throw new InvalidOperationException("Achieved value cannot be negative.");
             }
 
-            if (SalesTargetCalculator.WouldExceedTarget(entity.TargetValue, achieved))
-            {
-                throw new InvalidOperationException("Achieved value cannot exceed target value.");
-            }
-
             var now = DateTimeOffset.UtcNow;
             var oldAchieved = entity.AchievedValue;
-            var pct = SalesTargetCalculator.CalcAchievementPercentage(entity.TargetValue, achieved);
             entity.AchievedValue = achieved;
-            entity.RemainingValue = SalesTargetCalculator.CalcRemaining(entity.TargetValue, achieved);
-            entity.AchievementPercentage = pct;
+            SalesTargetCalculator.RecalculateProgress(entity);
+            var pct = entity.AchievementPercentage;
             entity.UpdatedBy = actingUser;
             entity.UpdatedDate = now;
             entity.ProgressHistory.Add(NewProgress(

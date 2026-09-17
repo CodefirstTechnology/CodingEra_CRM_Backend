@@ -32,6 +32,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ISalesTargetNumberingService, SalesTargetNumberingService>();
             services.AddScoped<ISalesTargetRepository, SalesTargetRepository>();
             services.AddScoped<ISalesTargetService, SalesTargetService>();
+            services.AddScoped<ERP.Application.Common.Events.INotificationHandler<ERP.Domain.Sales.Events.SalesOrderConfirmedDomainEvent>, ERP.Infrastructure.Sales.Events.SalesOrderConfirmedEventHandler>();
+            services.AddScoped<ERP.Application.Common.Events.INotificationHandler<ERP.Domain.Sales.Events.SalesOrderCancelledDomainEvent>, ERP.Infrastructure.Sales.Events.SalesOrderCancelledEventHandler>();
+            services.AddScoped<ERP.Infrastructure.Sales.Events.SalesOrderConfirmedEventHandler>();
+            services.AddScoped<ERP.Infrastructure.Sales.Events.SalesOrderCancelledEventHandler>();
             services.AddScoped<IPerformanceRepository, PerformanceRepository>();
             services.AddScoped<IPerformanceService, PerformanceService>();
             services.AddScoped<IPriceListNumberingService, PriceListNumberingService>();

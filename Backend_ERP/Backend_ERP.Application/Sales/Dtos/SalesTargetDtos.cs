@@ -18,7 +18,10 @@ namespace ERP.Application.Sales.Dtos
         public decimal TargetValue { get; set; }
         public decimal AchievedValue { get; set; }
         public decimal RemainingValue { get; set; }
+        public decimal OverAchievementValue { get; set; }
         public decimal AchievementPercentage { get; set; }
+        public bool IsLocked { get; set; }
+        public int RevisionNumber { get; set; } = 1;
         public string Currency { get; set; } = "INR";
         public string Status { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
@@ -29,6 +32,7 @@ namespace ERP.Application.Sales.Dtos
         public List<SalesTargetAssignmentDto> Assignments { get; set; } = new();
         public List<SalesTargetProgressDto> ProgressHistory { get; set; } = new();
         public List<SalesTargetHistoryDto> StatusHistory { get; set; } = new();
+        public List<SalesTargetRealizationDto> Realizations { get; set; } = new();
     }
 
     public class SalesTargetListItemDto
@@ -48,9 +52,24 @@ namespace ERP.Application.Sales.Dtos
         public decimal TargetValue { get; set; }
         public decimal AchievedValue { get; set; }
         public decimal RemainingValue { get; set; }
+        public decimal OverAchievementValue { get; set; }
         public decimal AchievementPercentage { get; set; }
+        public bool IsLocked { get; set; }
         public string Currency { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+    }
+
+    public class SalesTargetRealizationDto
+    {
+        public int Id { get; set; }
+        public int SalesTargetId { get; set; }
+        public int? SalesOrderId { get; set; }
+        public int? InvoiceId { get; set; }
+        public string TransactionType { get; set; } = "SalesOrder";
+        public decimal RealizedAmount { get; set; }
+        public bool IsReversal { get; set; }
+        public string AppliedOn { get; set; } = string.Empty;
+        public string AppliedBy { get; set; } = "SYSTEM_EVENT";
     }
 
     public class SalesTargetAssignmentDto

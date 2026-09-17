@@ -26,6 +26,8 @@ namespace ERP.Domain.Sales
 
         public string SalesPerson { get; set; } = string.Empty;
 
+        public int? SalesPersonUserId { get; set; }
+
         public string Notes { get; set; } = string.Empty;
 
         public DateOnly OrderDate { get; set; }
