@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HRMS.Models;
 
-[Table("designations")]
-public class Designation : ITenantEntity, IAuditableEntity
+[Table("holidays")]
+public class Holiday : ITenantEntity, IAuditableEntity
 {
     [Key]
     [Column("id")]
@@ -17,35 +17,33 @@ public class Designation : ITenantEntity, IAuditableEntity
     [ForeignKey(nameof(TenantId))]
     public Tenant? Tenant { get; set; }
 
-    [Column("department_id")]
-    public int? DepartmentId { get; set; }
-
-    [ForeignKey(nameof(DepartmentId))]
-    public Department? Department { get; set; }
-
-    [Column("grade_id")]
-    public int? GradeId { get; set; }
-
-    [ForeignKey(nameof(GradeId))]
-    public Grade? Grade { get; set; }
-
-    [Column("name")]
+    [Column("holiday_name")]
     [MaxLength(128)]
-    public string Name { get; set; } = string.Empty;
+    public string HolidayName { get; set; } = string.Empty;
 
-    [Column("code")]
-    [MaxLength(32)]
-    public string? Code { get; set; }
+    [Column("holiday_date")]
+    public DateOnly HolidayDate { get; set; }
+
+    [Column("holiday_type")]
+    [MaxLength(64)]
+    public string HolidayType { get; set; } = "Public Holiday"; // Company Holiday, Public Holiday, Optional Holiday
+
+    [Column("branch_id")]
+    public int? BranchId { get; set; }
+
+    [ForeignKey(nameof(BranchId))]
+    public Branch? Branch { get; set; }
+
+    [Column("is_optional")]
+    public bool IsOptional { get; set; } = false;
 
     [Column("description")]
     [MaxLength(256)]
     public string? Description { get; set; }
 
-    [Column("min_experience_years")]
-    public decimal? MinExperienceYears { get; set; }
-
-    [Column("is_active")]
-    public bool IsActive { get; set; } = true;
+    [Column("status")]
+    [MaxLength(32)]
+    public string Status { get; set; } = "Active";
 
     [Column("created_by")]
     public int? CreatedBy { get; set; }

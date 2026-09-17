@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HRMS.Models;
 
-[Table("designations")]
-public class Designation : ITenantEntity, IAuditableEntity
+[Table("grades")]
+public class Grade : ITenantEntity, IAuditableEntity
 {
     [Key]
     [Column("id")]
@@ -17,32 +17,26 @@ public class Designation : ITenantEntity, IAuditableEntity
     [ForeignKey(nameof(TenantId))]
     public Tenant? Tenant { get; set; }
 
-    [Column("department_id")]
-    public int? DepartmentId { get; set; }
-
-    [ForeignKey(nameof(DepartmentId))]
-    public Department? Department { get; set; }
-
-    [Column("grade_id")]
-    public int? GradeId { get; set; }
-
-    [ForeignKey(nameof(GradeId))]
-    public Grade? Grade { get; set; }
-
-    [Column("name")]
-    [MaxLength(128)]
-    public string Name { get; set; } = string.Empty;
-
-    [Column("code")]
+    [Column("grade_code")]
     [MaxLength(32)]
-    public string? Code { get; set; }
+    public string GradeCode { get; set; } = string.Empty;
+
+    [Column("grade_name")]
+    [MaxLength(128)]
+    public string GradeName { get; set; } = string.Empty;
+
+    [Column("level")]
+    public int Level { get; set; } = 1;
 
     [Column("description")]
     [MaxLength(256)]
     public string? Description { get; set; }
 
-    [Column("min_experience_years")]
-    public decimal? MinExperienceYears { get; set; }
+    [Column("min_salary")]
+    public decimal? MinSalary { get; set; }
+
+    [Column("max_salary")]
+    public decimal? MaxSalary { get; set; }
 
     [Column("is_active")]
     public bool IsActive { get; set; } = true;

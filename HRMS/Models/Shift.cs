@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HRMS.Models;
 
-[Table("designations")]
-public class Designation : ITenantEntity, IAuditableEntity
+[Table("shifts")]
+public class Shift : ITenantEntity, IAuditableEntity
 {
     [Key]
     [Column("id")]
@@ -17,32 +17,30 @@ public class Designation : ITenantEntity, IAuditableEntity
     [ForeignKey(nameof(TenantId))]
     public Tenant? Tenant { get; set; }
 
-    [Column("department_id")]
-    public int? DepartmentId { get; set; }
-
-    [ForeignKey(nameof(DepartmentId))]
-    public Department? Department { get; set; }
-
-    [Column("grade_id")]
-    public int? GradeId { get; set; }
-
-    [ForeignKey(nameof(GradeId))]
-    public Grade? Grade { get; set; }
-
-    [Column("name")]
-    [MaxLength(128)]
-    public string Name { get; set; } = string.Empty;
-
-    [Column("code")]
+    [Column("shift_code")]
     [MaxLength(32)]
-    public string? Code { get; set; }
+    public string ShiftCode { get; set; } = string.Empty;
 
-    [Column("description")]
-    [MaxLength(256)]
-    public string? Description { get; set; }
+    [Column("shift_name")]
+    [MaxLength(128)]
+    public string ShiftName { get; set; } = string.Empty;
 
-    [Column("min_experience_years")]
-    public decimal? MinExperienceYears { get; set; }
+    [Column("start_time")]
+    [MaxLength(16)]
+    public string StartTime { get; set; } = "09:00";
+
+    [Column("end_time")]
+    [MaxLength(16)]
+    public string EndTime { get; set; } = "18:00";
+
+    [Column("grace_period_minutes")]
+    public int GracePeriodMinutes { get; set; } = 15;
+
+    [Column("break_duration_minutes")]
+    public int BreakDurationMinutes { get; set; } = 60;
+
+    [Column("working_hours")]
+    public decimal WorkingHours { get; set; } = 8.0m;
 
     [Column("is_active")]
     public bool IsActive { get; set; } = true;

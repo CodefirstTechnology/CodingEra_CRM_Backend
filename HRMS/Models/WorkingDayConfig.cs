@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HRMS.Models;
 
-[Table("departments")]
-public class Department : ITenantEntity, IAuditableEntity
+[Table("working_day_configs")]
+public class WorkingDayConfig : ITenantEntity, IAuditableEntity
 {
     [Key]
     [Column("id")]
@@ -23,32 +23,18 @@ public class Department : ITenantEntity, IAuditableEntity
     [ForeignKey(nameof(BranchId))]
     public Branch? Branch { get; set; }
 
-    [Column("name")]
-    [MaxLength(128)]
-    public string Name { get; set; } = string.Empty;
+    [Column("day_of_week")]
+    public int DayOfWeek { get; set; } // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
-    [Column("code")]
+    [Column("day_name")]
     [MaxLength(32)]
-    public string? Code { get; set; }
+    public string DayName { get; set; } = string.Empty;
 
-    [Column("description")]
-    [MaxLength(256)]
-    public string? Description { get; set; }
+    [Column("is_working_day")]
+    public bool IsWorkingDay { get; set; } = true;
 
-    [Column("department_head_id")]
-    public int? DepartmentHeadId { get; set; }
-
-    [ForeignKey(nameof(DepartmentHeadId))]
-    public Employee? DepartmentHead { get; set; }
-
-    [Column("parent_department_id")]
-    public int? ParentDepartmentId { get; set; }
-
-    [ForeignKey(nameof(ParentDepartmentId))]
-    public Department? ParentDepartment { get; set; }
-
-    [Column("is_active")]
-    public bool IsActive { get; set; } = true;
+    [Column("is_half_day")]
+    public bool IsHalfDay { get; set; } = false;
 
     [Column("created_by")]
     public int? CreatedBy { get; set; }

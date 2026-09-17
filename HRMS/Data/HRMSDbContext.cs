@@ -21,14 +21,28 @@ public class HRMSDbContext : DbContext
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<CompanyAsset> CompanyAssets => Set<CompanyAsset>();
-    public DbSet<Department> Departments => Set<Department>();
+    public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Department> Departments => Set<Department>();
     public DbSet<Designation> Designations => Set<Designation>();
+    public DbSet<Grade> Grades => Set<Grade>();
+    public DbSet<CostCenter> CostCenters => Set<CostCenter>();
+    public DbSet<Shift> Shifts => Set<Shift>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
+    public DbSet<WorkingDayConfig> WorkingDayConfigs => Set<WorkingDayConfig>();
+    public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeTransfer> EmployeeTransfers => Set<EmployeeTransfer>();
+    public DbSet<EmployeePromotion> EmployeePromotions => Set<EmployeePromotion>();
+    public DbSet<SalaryRevisionRequest> SalaryRevisionRequests => Set<SalaryRevisionRequest>();
+    public DbSet<EmployeeExit> EmployeeExits => Set<EmployeeExit>();
+    public DbSet<EmployeeLifecycleHistory> EmployeeLifecycleHistories => Set<EmployeeLifecycleHistory>();
+    public DbSet<JobRequisition> JobRequisitions => Set<JobRequisition>();
+    public DbSet<Candidate> Candidates => Set<Candidate>();
+    public DbSet<OnboardingTask> OnboardingTasks => Set<OnboardingTask>();
+    public DbSet<CompanyAsset> CompanyAssets => Set<CompanyAsset>();
     public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
     public DbSet<LeaveRejectionReason> LeaveRejectionReasons => Set<LeaveRejectionReason>();
     public DbSet<DocumentCategory> DocumentCategories => Set<DocumentCategory>();
-    public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<LeaveAllocation> LeaveAllocations => Set<LeaveAllocation>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
@@ -56,17 +70,9 @@ public class HRMSDbContext : DbContext
             entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId || e.TenantId == null);
         });
 
-        modelBuilder.Entity<CompanyAsset>(entity =>
+        modelBuilder.Entity<CompanyProfile>(entity =>
         {
-            entity.HasIndex(e => new { e.TenantId, e.AssetCode }).IsUnique();
-            entity.HasIndex(e => e.Status);
-            entity.HasIndex(e => e.AssignedToEmployeeId);
-            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
-        });
-
-        modelBuilder.Entity<Department>(entity =>
-        {
-            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasIndex(e => e.TenantId).IsUnique();
             entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
@@ -76,9 +82,118 @@ public class HRMSDbContext : DbContext
             entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
+        modelBuilder.Entity<Department>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
         modelBuilder.Entity<Designation>(entity =>
         {
             entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<Grade>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.GradeCode });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<CostCenter>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.CostCenterCode });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<Shift>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.ShiftCode });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.HolidayDate });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<WorkingDayConfig>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.DayOfWeek });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<Employee>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.Email }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeCode });
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.DepartmentId);
+            entity.HasIndex(e => e.BranchId);
+            entity.HasIndex(e => e.ReportingManagerId);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<EmployeeTransfer>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId });
+            entity.HasIndex(e => e.Status);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<EmployeePromotion>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId });
+            entity.HasIndex(e => e.Status);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<SalaryRevisionRequest>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId });
+            entity.HasIndex(e => e.Status);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<EmployeeExit>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId });
+            entity.HasIndex(e => e.Status);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<EmployeeLifecycleHistory>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId });
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<JobRequisition>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<Candidate>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+            entity.HasIndex(e => e.Email);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<OnboardingTask>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.EmployeeId });
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<CompanyAsset>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.AssetCode }).IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.AssignedToEmployeeId);
             entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
@@ -97,16 +212,6 @@ public class HRMSDbContext : DbContext
         modelBuilder.Entity<DocumentCategory>(entity =>
         {
             entity.HasIndex(e => new { e.TenantId, e.Name });
-            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
-        });
-
-        modelBuilder.Entity<Employee>(entity =>
-        {
-            entity.HasIndex(e => new { e.TenantId, e.Email }).IsUnique();
-            entity.HasIndex(e => new { e.TenantId, e.EmployeeCode });
-            entity.HasIndex(e => e.Status);
-            entity.HasIndex(e => e.DepartmentId);
-            entity.HasIndex(e => e.BranchId);
             entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 

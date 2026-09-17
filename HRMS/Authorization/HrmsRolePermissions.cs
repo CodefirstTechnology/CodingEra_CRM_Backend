@@ -16,10 +16,12 @@ public static class HrmsRolePermissions
                 HrmsPermissions.PlatformReportsView,
                 HrmsPermissions.SystemSettings,
                 HrmsPermissions.HealthView,
-                HrmsPermissions.ManageHrAdmins
+                HrmsPermissions.ManageHrAdmins,
+                HrmsPermissions.OrganizationManage
             },
             [UserRole.HR_ADMIN] = new(StringComparer.OrdinalIgnoreCase)
             {
+                HrmsPermissions.OrganizationManage,
                 HrmsPermissions.ManageEmployees,
                 HrmsPermissions.EmployeesViewAll,
                 HrmsPermissions.EmployeesViewOwn,

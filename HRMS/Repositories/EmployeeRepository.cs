@@ -21,6 +21,10 @@ public class EmployeeRepository : IEmployeeRepository
             .Include(e => e.Department)
             .Include(e => e.Designation)
             .Include(e => e.Branch)
+            .Include(e => e.Grade)
+            .Include(e => e.CostCenter)
+            .Include(e => e.Shift)
+            .Include(e => e.ReportingManager)
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -32,6 +36,10 @@ public class EmployeeRepository : IEmployeeRepository
             .Include(e => e.Department)
             .Include(e => e.Designation)
             .Include(e => e.Branch)
+            .Include(e => e.Grade)
+            .Include(e => e.CostCenter)
+            .Include(e => e.Shift)
+            .Include(e => e.ReportingManager)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
 
@@ -66,20 +74,45 @@ public class EmployeeRepository : IEmployeeRepository
         }
 
         existing.EmployeeCode = employee.EmployeeCode;
+        existing.FirstName = employee.FirstName;
+        existing.MiddleName = employee.MiddleName;
+        existing.LastName = employee.LastName;
         existing.FullName = employee.FullName;
         existing.Email = employee.Email;
+        existing.WorkEmail = employee.WorkEmail;
         existing.PhoneNumber = employee.PhoneNumber;
+        existing.AlternatePhone = employee.AlternatePhone;
         existing.DepartmentId = employee.DepartmentId;
         existing.DesignationId = employee.DesignationId;
         existing.BranchId = employee.BranchId;
+        existing.GradeId = employee.GradeId;
+        existing.CostCenterId = employee.CostCenterId;
+        existing.ShiftId = employee.ShiftId;
+        existing.ReportingManagerId = employee.ReportingManagerId;
+        existing.WorkLocation = employee.WorkLocation;
+        existing.EmploymentType = employee.EmploymentType;
         existing.Status = employee.Status;
         existing.JoiningDate = employee.JoiningDate;
         existing.DateOfBirth = employee.DateOfBirth;
         existing.Gender = employee.Gender;
         existing.BloodGroup = employee.BloodGroup;
+        existing.MaritalStatus = employee.MaritalStatus;
+        existing.ProfilePhotoUrl = employee.ProfilePhotoUrl;
+        existing.CurrentAddress = employee.CurrentAddress;
+        existing.PermanentAddress = employee.PermanentAddress;
+        existing.EmergencyContactName = employee.EmergencyContactName;
+        existing.EmergencyContactPhone = employee.EmergencyContactPhone;
+        existing.Pan = employee.Pan;
+        existing.Aadhaar = employee.Aadhaar;
+        existing.PassportNumber = employee.PassportNumber;
+        existing.DrivingLicense = employee.DrivingLicense;
+        existing.Uan = employee.Uan;
+        existing.EsicNumber = employee.EsicNumber;
         existing.BankName = employee.BankName;
         existing.AccountNumber = employee.AccountNumber;
         existing.IfscCode = employee.IfscCode;
+        existing.AccountHolderName = employee.AccountHolderName;
+        existing.CurrentCtc = employee.CurrentCtc;
         existing.UpdatedAt = employee.UpdatedAt;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -96,7 +129,9 @@ public class EmployeeRepository : IEmployeeRepository
             return false;
         }
 
-        _context.Employees.Remove(existing);
+        // Soft deactivation instead of hard delete if historical records or active references exist
+        existing.Status = "Inactive";
+        existing.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }

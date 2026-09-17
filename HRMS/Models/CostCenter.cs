@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace HRMS.Models;
 
-[Table("designations")]
-public class Designation : ITenantEntity, IAuditableEntity
+[Table("cost_centers")]
+public class CostCenter : ITenantEntity, IAuditableEntity
 {
     [Key]
     [Column("id")]
@@ -17,32 +17,35 @@ public class Designation : ITenantEntity, IAuditableEntity
     [ForeignKey(nameof(TenantId))]
     public Tenant? Tenant { get; set; }
 
+    [Column("cost_center_code")]
+    [MaxLength(32)]
+    public string CostCenterCode { get; set; } = string.Empty;
+
+    [Column("cost_center_name")]
+    [MaxLength(128)]
+    public string CostCenterName { get; set; } = string.Empty;
+
     [Column("department_id")]
     public int? DepartmentId { get; set; }
 
     [ForeignKey(nameof(DepartmentId))]
     public Department? Department { get; set; }
 
-    [Column("grade_id")]
-    public int? GradeId { get; set; }
+    [Column("branch_id")]
+    public int? BranchId { get; set; }
 
-    [ForeignKey(nameof(GradeId))]
-    public Grade? Grade { get; set; }
+    [ForeignKey(nameof(BranchId))]
+    public Branch? Branch { get; set; }
 
-    [Column("name")]
-    [MaxLength(128)]
-    public string Name { get; set; } = string.Empty;
+    [Column("manager_id")]
+    public int? ManagerId { get; set; }
 
-    [Column("code")]
-    [MaxLength(32)]
-    public string? Code { get; set; }
+    [ForeignKey(nameof(ManagerId))]
+    public Employee? Manager { get; set; }
 
     [Column("description")]
     [MaxLength(256)]
     public string? Description { get; set; }
-
-    [Column("min_experience_years")]
-    public decimal? MinExperienceYears { get; set; }
 
     [Column("is_active")]
     public bool IsActive { get; set; } = true;

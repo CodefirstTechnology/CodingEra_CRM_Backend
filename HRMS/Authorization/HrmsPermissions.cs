@@ -11,9 +11,10 @@ public static class HrmsPermissions
     public const string SystemSettings = "system.settings";
     public const string HealthView = "health.view";
 
-    // User Administration
+    // User Administration & Org
     public const string ManageHrAdmins = "users.manage_hr_admins";
     public const string ManageEmployees = "users.manage_employees";
+    public const string OrganizationManage = "organization.manage";
 
     // Employee Master
     public const string EmployeesViewAll = "employees.view_all";
