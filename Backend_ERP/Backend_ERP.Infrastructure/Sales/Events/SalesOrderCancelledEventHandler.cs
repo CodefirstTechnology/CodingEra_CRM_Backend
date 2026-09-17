@@ -58,6 +58,39 @@ namespace ERP.Infrastructure.Sales.Events
             }
 
             await _context.SaveChangesAsync(ct);
+
+            foreach (var original in existingRealizations)
+            {
+                if (original.Target.ParentTargetId.HasValue)
+                {
+                    await PropagateRollUpAsync(original.Target.ParentTargetId.Value, ct);
+                }
+            }
+        }
+
+        private async Task PropagateRollUpAsync(int parentTargetId, CancellationToken ct)
+        {
+            var parent = await _context.SalesTargets
+                .Include(t => t.ChildTargets)
+                .FirstOrDefaultAsync(t => t.Id == parentTargetId && !t.IsDeleted, ct);
+
+            if (parent == null || !parent.IsAutoAggregated) return;
+
+            var activeChildren = parent.ChildTargets
+                .Where(c => !c.IsDeleted && c.Status != SalesTargetStatuses.Cancelled)
+                .ToList();
+
+            parent.TargetValue = activeChildren.Sum(c => c.TargetValue);
+            parent.AchievedValue = activeChildren.Sum(c => c.AchievedValue);
+            SalesTargetRules.RecalculateProgress(parent);
+            parent.CalculatedCommissionAmount = SalesTargetAnalyticsService.CalculateCommission(parent.TargetValue, parent.AchievedValue);
+
+            await _context.SaveChangesAsync(ct);
+
+            if (parent.ParentTargetId.HasValue)
+            {
+                await PropagateRollUpAsync(parent.ParentTargetId.Value, ct);
+            }
         }
     }
 }

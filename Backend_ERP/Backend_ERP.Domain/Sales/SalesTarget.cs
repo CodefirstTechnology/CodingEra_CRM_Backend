@@ -58,6 +58,15 @@ namespace ERP.Domain.Sales
 
         public bool IsDeleted { get; set; }
 
+        public int? ParentTargetId { get; set; }
+        public SalesTarget? ParentTarget { get; set; }
+        public ICollection<SalesTarget> ChildTargets { get; set; } = new List<SalesTarget>();
+
+        public bool IsAutoAggregated { get; set; } = false;
+        public decimal? OriginalTargetValue { get; set; }
+        public decimal ProrationFactor { get; set; } = 1.0m;
+        public decimal CalculatedCommissionAmount { get; set; } = 0m;
+
         public ICollection<SalesTargetAssignment> Assignments { get; set; } =
             new List<SalesTargetAssignment>();
 

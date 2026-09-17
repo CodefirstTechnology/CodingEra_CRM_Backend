@@ -29,6 +29,13 @@ namespace ERP.Application.Sales.Dtos
         public string CreatedDate { get; set; } = string.Empty;
         public string UpdatedBy { get; set; } = string.Empty;
         public string UpdatedDate { get; set; } = string.Empty;
+        public int? ParentTargetId { get; set; }
+        public bool IsAutoAggregated { get; set; }
+        public decimal? OriginalTargetValue { get; set; }
+        public decimal ProrationFactor { get; set; } = 1.0m;
+        public decimal CalculatedCommissionAmount { get; set; }
+        public ForecastMetricsDto? Forecast { get; set; }
+        public List<SalesTargetListItemDto> ChildTargets { get; set; } = new();
         public List<SalesTargetAssignmentDto> Assignments { get; set; } = new();
         public List<SalesTargetProgressDto> ProgressHistory { get; set; } = new();
         public List<SalesTargetHistoryDto> StatusHistory { get; set; } = new();
@@ -126,6 +133,8 @@ namespace ERP.Application.Sales.Dtos
         public string Currency { get; set; } = "INR";
         public string? Status { get; set; }
         public string? Remarks { get; set; }
+        public int? ParentTargetId { get; set; }
+        public bool? IsAutoAggregated { get; set; }
         public List<SalesTargetAssignmentRequestDto>? Assignments { get; set; }
     }
 
@@ -146,6 +155,8 @@ namespace ERP.Application.Sales.Dtos
         public decimal TargetValue { get; set; }
         public string Currency { get; set; } = "INR";
         public string? Remarks { get; set; }
+        public int? ParentTargetId { get; set; }
+        public bool? IsAutoAggregated { get; set; }
         public List<SalesTargetAssignmentRequestDto>? Assignments { get; set; }
     }
 
@@ -200,6 +211,7 @@ namespace ERP.Application.Sales.Dtos
         public string? Status { get; set; }
         public string? TargetType { get; set; }
         public string? TargetCategory { get; set; }
+        public string? Branch { get; set; }
         public int? SalesPersonUserId { get; set; }
         public int? FinancialYear { get; set; }
         public string? DateFrom { get; set; }
@@ -250,4 +262,28 @@ namespace ERP.Application.Sales.Dtos
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
     }
+
+    public record CommissionCalculationResultDto(
+        int TargetId,
+        string TargetNumber,
+        string SalesPersonName,
+        decimal AchievedValue,
+        decimal AchievementPercentage,
+        decimal CommissionAmount,
+        string AppliedBracket,
+        decimal AcceleratorRate
+    );
+
+    public record ProrateTargetRequestDto(
+        int ActiveWorkingDays,
+        int TotalWorkingDays,
+        string Reason
+    );
+
+    public record ForecastMetricsDto(
+        decimal RequiredDailyRunRate,
+        decimal CurrentDailyRunRate,
+        decimal ProjectedAttainmentPercentage,
+        string HealthStatus // "OnTrack", "AtRisk", "Critical"
+    );
 }

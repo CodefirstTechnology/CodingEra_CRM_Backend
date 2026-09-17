@@ -94,6 +94,7 @@ namespace ERP.Shared.Security
             public const string Delete = "sales-targets.delete";
             public const string Duplicate = "sales-targets.duplicate";
             public const string DashboardView = "sales-targets.dashboard.view";
+            public const string ReportsView = "sales-targets.reports.view";
         }
 
         public static class Performance

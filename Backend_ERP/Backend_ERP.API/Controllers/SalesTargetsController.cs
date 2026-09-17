@@ -33,6 +33,7 @@ namespace ERP.API.Controllers
             [FromQuery] string? status,
             [FromQuery] string? targetType,
             [FromQuery] string? targetCategory,
+            [FromQuery] string? branch,
             [FromQuery] int? salesPersonUserId,
             [FromQuery] int? financialYear,
             [FromQuery] string? dateFrom,
@@ -51,6 +52,7 @@ namespace ERP.API.Controllers
                 Status = status,
                 TargetType = targetType,
                 TargetCategory = targetCategory,
+                Branch = branch,
                 SalesPersonUserId = effectiveSalesPersonUserId,
                 FinancialYear = financialYear,
                 DateFrom = dateFrom,
@@ -73,7 +75,10 @@ namespace ERP.API.Controllers
         public async Task<ActionResult<SalesTargetReportDto>> Reports(
             [FromQuery] string? search,
             [FromQuery] string? status,
+            [FromQuery] string? targetType,
             [FromQuery] string? targetCategory,
+            [FromQuery] string? branch,
+            [FromQuery] int? salesPersonUserId,
             [FromQuery] int? financialYear,
             [FromQuery] int? userId,
             [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] SalesTargetListQueryDto? bodyFilter,
@@ -84,7 +89,10 @@ namespace ERP.API.Controllers
             {
                 Search = search,
                 Status = status,
+                TargetType = targetType,
                 TargetCategory = targetCategory,
+                Branch = branch,
+                SalesPersonUserId = salesPersonUserId,
                 FinancialYear = financialYear
             };
             return Ok(await _service.GetReportsAsync(filter, cancellationToken));
@@ -336,6 +344,42 @@ namespace ERP.API.Controllers
             _ = userId;
             var rows = await _service.GetHistoryAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
+        }
+
+        [HttpPost("{id:int}/prorate")]
+        [RequirePermission(ErpPermissions.SalesTargets.Edit)]
+        public async Task<ActionResult<SalesTargetDto>> ProrateTarget(
+            int id,
+            [FromBody] ProrateTargetRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            var actingUser = ResolveActingUser(userId);
+            var updated = await _service.ProrateTargetAsync(id, request, actingUser, cancellationToken);
+            if (updated == null)
+            {
+                return BadRequest("Target is locked or not found.");
+            }
+            return Ok(updated);
+        }
+
+        [HttpGet("{id:int}/forecast")]
+        [RequirePermission(ErpPermissions.SalesTargets.View)]
+        public async Task<ActionResult<ForecastMetricsDto>> GetForecast(int id, CancellationToken cancellationToken)
+        {
+            var forecast = await _service.GetForecastAsync(id, cancellationToken);
+            if (forecast == null) return NotFound();
+            return Ok(forecast);
+        }
+
+        [HttpGet("commissions/report")]
+        [RequirePermission(ErpPermissions.SalesTargets.ReportsView)]
+        public async Task<ActionResult<IEnumerable<CommissionCalculationResultDto>>> GetCommissionReport(
+            [FromQuery] int financialYear,
+            CancellationToken cancellationToken)
+        {
+            var report = await _service.GetCommissionReportAsync(financialYear, cancellationToken);
+            return Ok(report);
         }
 
         private async Task<ActionResult<SalesTargetDto>> Workflow(

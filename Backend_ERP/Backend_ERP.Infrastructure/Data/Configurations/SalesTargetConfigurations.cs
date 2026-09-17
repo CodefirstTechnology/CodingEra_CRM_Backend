@@ -43,6 +43,19 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => new { x.Status, x.SalesPersonUserId, x.TargetCategory, x.StartDate, x.EndDate, x.IsDeleted })
                 .HasDatabaseName("IX_sales_targets_active_window");
 
+            builder.Property(x => x.IsAutoAggregated).HasDefaultValue(false);
+            builder.Property(x => x.OriginalTargetValue).HasPrecision(18, 2);
+            builder.Property(x => x.ProrationFactor).HasPrecision(5, 4).HasDefaultValue(1.0000m);
+            builder.Property(x => x.CalculatedCommissionAmount).HasPrecision(18, 2).HasDefaultValue(0.00m);
+
+            builder.HasIndex(x => new { x.ParentTargetId, x.Status, x.IsDeleted })
+                .HasDatabaseName("IX_sales_targets_parent_hierarchy");
+
+            builder.HasOne(x => x.ParentTarget)
+                .WithMany(x => x.ChildTargets)
+                .HasForeignKey(x => x.ParentTargetId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             builder.HasMany(x => x.Assignments)
                 .WithOne(x => x.SalesTarget)
                 .HasForeignKey(x => x.SalesTargetId)

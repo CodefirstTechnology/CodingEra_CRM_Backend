@@ -41,7 +41,9 @@ namespace ERP.Infrastructure.Sales
                 q = q.Include(x => x.Assignments)
                     .Include(x => x.ProgressHistory)
                     .Include(x => x.StatusHistory)
-                    .Include(x => x.Realizations);
+                    .Include(x => x.Realizations)
+                    .Include(x => x.ChildTargets)
+                    .Include(x => x.ParentTarget);
             }
 
             if (!asTracking)
@@ -208,6 +210,12 @@ namespace ERP.Infrastructure.Sales
                 q = q.Where(x => x.TargetCategory == category);
             }
 
+            if (!string.IsNullOrWhiteSpace(query.Branch))
+            {
+                var b = query.Branch.Trim().ToLower();
+                q = q.Where(x => x.Branch != null && x.Branch.ToLower().Contains(b));
+            }
+
             if (query.SalesPersonUserId is int sp and > 0)
             {
                 q = q.Where(x => x.SalesPersonUserId == sp);
@@ -221,13 +229,13 @@ namespace ERP.Infrastructure.Sales
             var from = SalesTargetMapper.ParseOptionalDate(query.DateFrom);
             if (from is not null)
             {
-                q = q.Where(x => x.StartDate >= from);
+                q = q.Where(x => x.EndDate >= from);
             }
 
             var to = SalesTargetMapper.ParseOptionalDate(query.DateTo);
             if (to is not null)
             {
-                q = q.Where(x => x.EndDate <= to);
+                q = q.Where(x => x.StartDate <= to);
             }
 
             if (!string.IsNullOrWhiteSpace(query.Search))

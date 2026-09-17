@@ -89,5 +89,19 @@ namespace ERP.Application.Sales
 
         Task<IReadOnlyList<SalesTargetLookupDto>> LookupRegionalManagersAsync(
             CancellationToken cancellationToken = default);
+
+        Task PropagateRollUpAsync(int? parentTargetId, CancellationToken ct = default);
+
+        Task<SalesTargetDto?> ProrateTargetAsync(
+            int id,
+            ProrateTargetRequestDto request,
+            string actingUser,
+            CancellationToken ct = default);
+
+        Task<ForecastMetricsDto?> GetForecastAsync(int id, CancellationToken ct = default);
+
+        Task<IEnumerable<CommissionCalculationResultDto>> GetCommissionReportAsync(
+            int financialYear,
+            CancellationToken ct = default);
     }
 }

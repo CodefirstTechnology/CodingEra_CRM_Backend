@@ -1,3 +1,4 @@
+using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
 using ERP.Shared.Helpers;
@@ -113,6 +114,13 @@ namespace ERP.Infrastructure.Sales
             AchievementPercentage = e.AchievementPercentage,
             IsLocked = e.IsLocked,
             RevisionNumber = e.RevisionNumber,
+            ParentTargetId = e.ParentTargetId,
+            IsAutoAggregated = e.IsAutoAggregated,
+            OriginalTargetValue = e.OriginalTargetValue,
+            ProrationFactor = e.ProrationFactor,
+            CalculatedCommissionAmount = e.CalculatedCommissionAmount,
+            Forecast = SalesTargetAnalyticsService.ComputeForecast(e, DateOnly.FromDateTime(DateTime.UtcNow)),
+            ChildTargets = e.ChildTargets?.Where(c => !c.IsDeleted).Select(ToListItem).ToList() ?? new(),
             Currency = e.Currency,
             Status = e.Status,
             Remarks = e.Remarks,

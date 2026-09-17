@@ -1,7 +1,9 @@
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
+using ERP.Infrastructure.Data;
 using ERP.Shared.Helpers;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Infrastructure.Sales
 {
@@ -9,13 +11,16 @@ namespace ERP.Infrastructure.Sales
     {
         private readonly ISalesTargetRepository _repo;
         private readonly ISalesTargetNumberingService _numbering;
+        private readonly ERPDbContext _db;
 
         public SalesTargetService(
             ISalesTargetRepository repo,
-            ISalesTargetNumberingService numbering)
+            ISalesTargetNumberingService numbering,
+            ERPDbContext db)
         {
             _repo = repo;
             _numbering = numbering;
+            _db = db;
         }
 
         public async Task<IReadOnlyList<SalesTargetListItemDto>> GetAllAsync(
@@ -93,6 +98,8 @@ namespace ERP.Infrastructure.Sales
                 CreatedDate = now,
                 UpdatedBy = actingUser,
                 UpdatedDate = now,
+                ParentTargetId = request.ParentTargetId,
+                IsAutoAggregated = request.IsAutoAggregated ?? false,
                 Assignments = BuildAssignments(request.Assignments, status, actingUser, now),
                 StatusHistory =
                 [
@@ -108,6 +115,10 @@ namespace ERP.Infrastructure.Sales
             };
 
             await _repo.CreateAsync(entity, cancellationToken);
+            if (entity.ParentTargetId.HasValue)
+            {
+                await PropagateRollUpAsync(entity.ParentTargetId, cancellationToken);
+            }
             return SalesTargetMapper.ToDto(
                 await _repo.GetByIdAsync(entity.Id, true, false, cancellationToken) ?? entity);
         }
@@ -203,6 +214,14 @@ namespace ERP.Infrastructure.Sales
                 targetValue, entity.AchievedValue);
             entity.Currency = request.Currency.Trim().ToUpperInvariant();
             entity.Remarks = request.Remarks?.Trim() ?? string.Empty;
+            if (request.ParentTargetId.HasValue)
+            {
+                entity.ParentTargetId = request.ParentTargetId;
+            }
+            if (request.IsAutoAggregated.HasValue)
+            {
+                entity.IsAutoAggregated = request.IsAutoAggregated.Value;
+            }
             entity.UpdatedBy = actingUser;
             entity.UpdatedDate = now;
 
@@ -217,6 +236,10 @@ namespace ERP.Infrastructure.Sales
             }
 
             await _repo.UpdateAsync(entity, cancellationToken);
+            if (entity.ParentTargetId.HasValue)
+            {
+                await PropagateRollUpAsync(entity.ParentTargetId, cancellationToken);
+            }
             return SalesTargetMapper.ToDto(
                 await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
         }
@@ -507,6 +530,10 @@ namespace ERP.Infrastructure.Sales
             }
 
             await _repo.UpdateProgressAsync(entity, cancellationToken);
+            if (entity.ParentTargetId.HasValue)
+            {
+                await PropagateRollUpAsync(entity.ParentTargetId, cancellationToken);
+            }
             return SalesTargetMapper.ToDto(
                 await _repo.GetByIdAsync(id, true, false, cancellationToken) ?? entity);
         }
@@ -933,5 +960,114 @@ namespace ERP.Infrastructure.Sales
             UpdatedBy = updatedBy,
             UpdatedOn = updatedOn
         };
+
+        public async Task PropagateRollUpAsync(int? parentTargetId, CancellationToken ct = default)
+        {
+            if (!parentTargetId.HasValue) return;
+
+            var parent = await _db.SalesTargets
+                .Include(t => t.ChildTargets)
+                .FirstOrDefaultAsync(t => t.Id == parentTargetId.Value && !t.IsDeleted, ct);
+
+            if (parent == null || !parent.IsAutoAggregated) return;
+
+            var activeChildren = parent.ChildTargets
+                .Where(c => !c.IsDeleted && c.Status != SalesTargetStatuses.Cancelled)
+                .ToList();
+
+            parent.TargetValue = activeChildren.Sum(c => c.TargetValue);
+            parent.AchievedValue = activeChildren.Sum(c => c.AchievedValue);
+            SalesTargetRules.RecalculateProgress(parent);
+            parent.CalculatedCommissionAmount = SalesTargetAnalyticsService.CalculateCommission(parent.TargetValue, parent.AchievedValue);
+
+            await _db.SaveChangesAsync(ct);
+
+            // Recursively roll up to grandparent (e.g. Branch -> CompanyWide)
+            if (parent.ParentTargetId.HasValue)
+            {
+                await PropagateRollUpAsync(parent.ParentTargetId, ct);
+            }
+        }
+
+        public async Task<SalesTargetDto?> ProrateTargetAsync(
+            int id,
+            ProrateTargetRequestDto request,
+            string actingUser,
+            CancellationToken ct = default)
+        {
+            var target = await _repo.GetByIdAsync(id, true, true, ct);
+            if (target == null || target.IsLocked)
+            {
+                return null;
+            }
+
+            target.OriginalTargetValue ??= target.TargetValue;
+            target.ProrationFactor = Math.Clamp((decimal)request.ActiveWorkingDays / Math.Max(1, request.TotalWorkingDays), 0.01m, 1.0m);
+            target.TargetValue = Math.Round(target.OriginalTargetValue.Value * target.ProrationFactor, 2, MidpointRounding.AwayFromZero);
+
+            SalesTargetRules.RecalculateProgress(target);
+            target.UpdatedBy = actingUser;
+            target.UpdatedDate = DateTimeOffset.UtcNow;
+
+            target.ProgressHistory.Add(new SalesTargetProgressHistory
+            {
+                SalesTargetId = target.Id,
+                OldAchievedValue = target.AchievedValue,
+                NewAchievedValue = target.AchievedValue,
+                AchievementPercentage = target.AchievementPercentage,
+                Action = "Proration",
+                Remarks = $"Prorated {request.ActiveWorkingDays}/{request.TotalWorkingDays} days: {request.Reason}",
+                UpdatedBy = actingUser,
+                UpdatedOn = DateTimeOffset.UtcNow
+            });
+
+            await _repo.UpdateProgressAsync(target, ct);
+
+            if (target.ParentTargetId.HasValue)
+            {
+                await PropagateRollUpAsync(target.ParentTargetId, ct);
+            }
+
+            return SalesTargetMapper.ToDto(target);
+        }
+
+        public async Task<ForecastMetricsDto?> GetForecastAsync(int id, CancellationToken ct = default)
+        {
+            var target = await _repo.GetByIdAsync(id, false, false, ct);
+            if (target == null) return null;
+            return SalesTargetAnalyticsService.ComputeForecast(target, DateOnly.FromDateTime(DateTime.UtcNow));
+        }
+
+        public async Task<IEnumerable<CommissionCalculationResultDto>> GetCommissionReportAsync(
+            int financialYear,
+            CancellationToken ct = default)
+        {
+            var targets = await _repo.Query()
+                .Where(t => !t.IsDeleted && (financialYear == 0 || t.FinancialYear == financialYear))
+                .ToListAsync(ct);
+
+            var list = new List<CommissionCalculationResultDto>();
+            foreach (var target in targets)
+            {
+                var commission = SalesTargetAnalyticsService.CalculateCommission(target.TargetValue, target.AchievedValue);
+                var (bracket, rate) = SalesTargetAnalyticsService.GetCommissionBracket(target.TargetValue, target.AchievedValue);
+                var repName = !string.IsNullOrWhiteSpace(target.SalesTeam)
+                    ? target.SalesTeam
+                    : (target.SalesPersonUserId.HasValue ? $"Rep #{target.SalesPersonUserId}" : target.TargetName);
+
+                list.Add(new CommissionCalculationResultDto(
+                    target.Id,
+                    target.TargetNumber,
+                    repName,
+                    target.AchievedValue,
+                    target.AchievementPercentage,
+                    commission,
+                    bracket,
+                    rate
+                ));
+            }
+
+            return list;
+        }
     }
 }
