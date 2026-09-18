@@ -102,6 +102,7 @@ namespace ERP.Shared.Security
             public const string View = "performance.view";
             public const string LeaderboardView = "performance.leaderboard.view";
             public const string Export = "performance.export";
+            public const string ReportView = "performance.reports.view";
         }
 
         public static class DispatchLogistics

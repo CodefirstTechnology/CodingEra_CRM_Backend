@@ -68,6 +68,19 @@ namespace ERP.Application.Sales.Dtos
         public string ActiveBadgesJson { get; set; } = "[]";
     }
 
+    public record SalesIncentiveStatementRowDto(
+        int SalesPersonUserId,
+        string SalesPersonName,
+        string? Branch,
+        string? SalesTeam,
+        decimal QuotaValue,
+        decimal AchievedRevenue,
+        decimal AttainmentPercentage,
+        decimal BaseIncentiveAmount,
+        decimal SuperAchieverKickerAmount,
+        decimal TotalCommissionPayable
+    );
+
     public class PerformanceTrendDto
     {
         public string Period { get; set; } = string.Empty;

@@ -6,6 +6,9 @@ using ERP.Domain.Enums;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
+using ERP.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
 namespace ERP.API.Controllers
 {
     [Route("api/performance-dashboard")]
@@ -16,15 +19,18 @@ namespace ERP.API.Controllers
         private readonly IPerformanceService _service;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
+        private readonly ERPDbContext _context;
 
         public PerformanceDashboardController(
             IPerformanceService service,
             ICurrentUser currentUser,
-            IErpAuthorizationService authService)
+            IErpAuthorizationService authService,
+            ERPDbContext context)
         {
             _service = service;
             _currentUser = currentUser;
             _authService = authService;
+            _context = context;
         }
 
         [HttpGet("dashboard")]
@@ -154,6 +160,44 @@ namespace ERP.API.Controllers
             var filter = bodyFilter ?? queryFilter ?? new PerformanceFilterDto();
             ApplyOwnScopeFilter(filter);
             return Execute(() => _service.GetReportsAsync(filter, cancellationToken));
+        }
+
+        [HttpGet("reports/incentives")]
+        [RequirePermission(ErpPermissions.Performance.ReportView)]
+        public async Task<ActionResult<IEnumerable<SalesIncentiveStatementRowDto>>> GetIncentiveStatement(
+            [FromQuery] int financialYear = 2026,
+            CancellationToken ct = default)
+        {
+            var targets = await _context.SalesTargets
+                .Include(t => t.ChildTargets)
+                .Where(t => t.FinancialYear == financialYear && !t.IsDeleted && t.Status != "Cancelled" && t.SalesPersonUserId.HasValue)
+                .ToListAsync(ct);
+
+            var reps = await _context.SalespersonPerformances
+                .Where(p => p.FinancialYear == financialYear)
+                .ToDictionaryAsync(p => p.SalesPersonUserId, ct);
+
+            var rows = targets.Select(t =>
+            {
+                reps.TryGetValue(t.SalesPersonUserId!.Value, out var rep);
+                decimal baseIncentive = t.AchievementPercentage >= 100m ? (t.TargetValue * 0.015m) : (t.AchievementPercentage >= 80m ? t.AchievedValue * 0.005m : 0m);
+                decimal kicker = t.AchievementPercentage >= 120m ? ((t.AchievedValue - t.TargetValue) * 0.025m) : 0m;
+
+                return new SalesIncentiveStatementRowDto(
+                    t.SalesPersonUserId!.Value,
+                    rep?.SalesPersonName ?? $"User {t.SalesPersonUserId}",
+                    rep?.Branch ?? t.Branch,
+                    rep?.SalesTeam ?? t.SalesTeam,
+                    t.TargetValue,
+                    t.AchievedValue,
+                    t.AchievementPercentage,
+                    Math.Round(baseIncentive, 2, MidpointRounding.AwayFromZero),
+                    Math.Round(kicker, 2, MidpointRounding.AwayFromZero),
+                    t.CalculatedCommissionAmount
+                );
+            }).OrderByDescending(x => x.TotalCommissionPayable).ToList();
+
+            return Ok(rows);
         }
 
         [HttpPost("reports/export")]

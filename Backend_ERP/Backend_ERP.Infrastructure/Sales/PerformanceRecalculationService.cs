@@ -61,12 +61,41 @@ namespace ERP.Infrastructure.Sales
             // Defaults to 22.5% if orders exist
             perf.GrossMarginPercentage = orders.Any() ? 22.5m : 0m;
 
-            // 4. Compute Balanced Multi-Factor Score
+            // 4. Compute Average Deal Velocity
+            if (orders.Any())
+            {
+                double totalDays = 0;
+                int evaluatedCount = 0;
+                foreach (var order in orders)
+                {
+                    var days = Math.Max(0.5, (order.CreatedDate.UtcDateTime - order.OrderDate.ToDateTime(TimeOnly.MinValue)).TotalDays);
+                    totalDays += days;
+                    evaluatedCount++;
+                }
+                perf.AvgDealVelocityDays = evaluatedCount > 0
+                    ? Math.Round((decimal)(totalDays / evaluatedCount), 1, MidpointRounding.AwayFromZero)
+                    : 0m;
+            }
+
+            // 5. Compute Balanced Multi-Factor Score
             // Formula: (Attainment% * 0.50) + (ConversionRate% * 0.30) + (GrossMargin% * 0.20)
             perf.WeightedScore = Math.Round(
                 (perf.AttainmentPercentage * 0.50m) +
                 (perf.ConversionRate * 0.30m) +
                 (perf.GrossMarginPercentage * 0.20m), 2, MidpointRounding.AwayFromZero);
+
+            // 6. Determine Rank
+            int currentRank = await _context.SalespersonPerformances
+                .CountAsync(p => p.FinancialYear == financialYear && p.WeightedScore > perf.WeightedScore && p.Status == "Active", ct) + 1;
+
+            // 7. Evaluate & Serialize Badges
+            var earnedBadges = PerformanceBadgeService.EvaluateBadges(
+                perf.AttainmentPercentage,
+                perf.GrossMarginPercentage,
+                perf.AvgDealVelocityDays,
+                currentRank);
+
+            perf.ActiveBadgesJson = System.Text.Json.JsonSerializer.Serialize(earnedBadges);
 
             perf.UpdatedDate = DateTimeOffset.UtcNow;
             await _context.SaveChangesAsync(ct);
