@@ -26,11 +26,17 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.PurchaseOrderId);
+            builder.HasIndex(x => x.VendorId);
 
             builder.HasOne(x => x.PurchaseOrder)
                 .WithMany()
                 .HasForeignKey(x => x.PurchaseOrderId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.Vendor)
+                .WithMany()
+                .HasForeignKey(x => x.VendorId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             builder.HasMany(x => x.Items)
                 .WithOne(x => x.GoodsReceipt)
@@ -59,11 +65,17 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.PreviouslyReceivedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.RemainingQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.ReceivedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.AcceptedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.RejectedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
 
             builder.HasIndex(x => x.GoodsReceiptId);
             builder.HasIndex(x => x.PurchaseOrderLineId);
+
+            builder.HasOne(x => x.PurchaseOrderLine)
+                .WithMany()
+                .HasForeignKey(x => x.PurchaseOrderLineId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 

@@ -193,6 +193,81 @@ namespace ERP.Application.Procurement.Dtos
         public int PurchaseOrderCount { get; set; }
     }
 
+    public class VendorPerformanceMetricsDto
+    {
+        [JsonPropertyName("vendorId")]
+        public int VendorId { get; set; }
+
+        [JsonPropertyName("vendorCode")]
+        public string VendorCode { get; set; } = string.Empty;
+
+        [JsonPropertyName("vendorName")]
+        public string VendorName { get; set; } = string.Empty;
+
+        [JsonPropertyName("onTimeDeliveryPercent")]
+        public decimal OnTimeDeliveryPercent { get; set; }
+
+        [JsonPropertyName("purchaseValue")]
+        public decimal PurchaseValue { get; set; }
+
+        [JsonPropertyName("orderCount")]
+        public int OrderCount { get; set; }
+
+        [JsonPropertyName("grnSuccessPercent")]
+        public decimal GrnSuccessPercent { get; set; }
+
+        [JsonPropertyName("invoiceAccuracyPercent")]
+        public decimal InvoiceAccuracyPercent { get; set; }
+
+        [JsonPropertyName("qualityRating")]
+        public decimal QualityRating { get; set; }
+
+        [JsonPropertyName("averageRating")]
+        public decimal AverageRating { get; set; }
+
+        [JsonPropertyName("responseTimeHours")]
+        public decimal ResponseTimeHours { get; set; }
+
+        [JsonPropertyName("vendorScore")]
+        public decimal VendorScore { get; set; }
+
+        [JsonPropertyName("preferredVendorScore")]
+        public decimal PreferredVendorScore { get; set; }
+
+        [JsonPropertyName("currency")]
+        public string Currency { get; set; } = "INR";
+    }
+
+    public class VendorPerformanceDashboardDto
+    {
+        [JsonPropertyName("generatedOn")]
+        public string GeneratedOn { get; set; } = string.Empty;
+
+        [JsonPropertyName("averageOnTimeDelivery")]
+        public decimal AverageOnTimeDelivery { get; set; }
+
+        [JsonPropertyName("totalPurchaseValue")]
+        public decimal TotalPurchaseValue { get; set; }
+
+        [JsonPropertyName("totalOrders")]
+        public int TotalOrders { get; set; }
+
+        [JsonPropertyName("averageGrnSuccess")]
+        public decimal AverageGrnSuccess { get; set; }
+
+        [JsonPropertyName("averageInvoiceAccuracy")]
+        public decimal AverageInvoiceAccuracy { get; set; }
+
+        [JsonPropertyName("averageQualityRating")]
+        public decimal AverageQualityRating { get; set; }
+
+        [JsonPropertyName("averageVendorScore")]
+        public decimal AverageVendorScore { get; set; }
+
+        [JsonPropertyName("rows")]
+        public List<VendorPerformanceMetricsDto> Rows { get; set; } = new();
+    }
+
     public class ProcurementReportFilterQueryDto
     {
         public string? Search { get; set; }

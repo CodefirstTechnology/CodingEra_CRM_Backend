@@ -78,6 +78,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.ItemName).HasMaxLength(256).IsRequired();
             builder.Property(x => x.Description).HasMaxLength(1000);
             builder.Property(x => x.Quantity).HasPrecision(18, 4).IsRequired();
+            builder.Property(x => x.ReceivedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.BilledQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.Unit).HasMaxLength(64).HasDefaultValue("Nos");
             builder.Property(x => x.Rate).HasPrecision(18, 4).IsRequired();
             builder.Property(x => x.Discount).HasPrecision(5, 2).HasDefaultValue(0m);

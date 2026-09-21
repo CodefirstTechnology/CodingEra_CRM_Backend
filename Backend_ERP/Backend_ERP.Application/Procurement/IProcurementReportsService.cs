@@ -15,5 +15,7 @@ namespace ERP.Application.Procurement
         Task<List<StatusSummaryRowDto>> GetStatusSummaryAsync(ProcurementReportFilterQueryDto query, CancellationToken cancellationToken = default);
         Task<List<MonthlyTrendRowDto>> GetMonthlyTrendAsync(ProcurementReportFilterQueryDto query, CancellationToken cancellationToken = default);
         Task<List<TopVendorRowDto>> GetTopVendorsAsync(ProcurementReportFilterQueryDto query, int? limit, CancellationToken cancellationToken = default);
+        Task<VendorPerformanceDashboardDto> GetVendorPerformanceAsync(ProcurementReportFilterQueryDto query, CancellationToken cancellationToken = default);
+        IAsyncEnumerable<string> StreamPurchaseOrdersCsvAsync(ProcurementReportFilterQueryDto query, CancellationToken cancellationToken = default);
     }
 }

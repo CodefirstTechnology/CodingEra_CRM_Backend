@@ -152,6 +152,33 @@ namespace ERP.API.Controllers
             return Ok(await _reportsService.GetTopVendorsAsync(query, limit, cancellationToken));
         }
 
+        [HttpGet("vendor-performance")]
+        public async Task<ActionResult<VendorPerformanceDashboardDto>> GetVendorPerformance(
+            [FromQuery] string? search,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? status,
+            [FromQuery] string? dateFrom,
+            [FromQuery] string? dateTo,
+            CancellationToken cancellationToken = default)
+        {
+            var query = BuildQuery(search, vendorName, status, dateFrom, dateTo, null, null, null, null);
+            return Ok(await _reportsService.GetVendorPerformanceAsync(query, cancellationToken));
+        }
+
+        [HttpGet("export/csv")]
+        public IActionResult ExportCsv(
+            [FromQuery] string? search,
+            [FromQuery] string? vendorName,
+            [FromQuery] string? status,
+            [FromQuery] string? dateFrom,
+            [FromQuery] string? dateTo,
+            CancellationToken cancellationToken = default)
+        {
+            var query = BuildQuery(search, vendorName, status, dateFrom, dateTo, null, null, null, null);
+            Response.Headers.Append("Content-Disposition", "attachment; filename=\"procurement_report.csv\"");
+            return Ok(_reportsService.StreamPurchaseOrdersCsvAsync(query, cancellationToken));
+        }
+
         private static ProcurementReportFilterQueryDto BuildQuery(
             string? search, string? vendorName, string? status, string? dateFrom, string? dateTo,
             string? purchaseOrderNumber, string? goodsReceiptNumber, string? createdBy, string? approvalStatus)

@@ -17,6 +17,10 @@ namespace ERP.Domain.Procurement
 
         public string VendorName { get; set; } = string.Empty;
 
+        public int? VendorId { get; set; }
+
+        public Vendor? Vendor { get; set; }
+
         public DateTime ReceiptDate { get; set; } = DateTime.UtcNow;
 
         public string Warehouse { get; set; } = "Main Store — Sanand";

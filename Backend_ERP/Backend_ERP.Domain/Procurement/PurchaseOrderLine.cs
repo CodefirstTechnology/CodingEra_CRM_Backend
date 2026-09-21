@@ -8,11 +8,19 @@ namespace ERP.Domain.Procurement
 
         public PurchaseOrder? PurchaseOrder { get; set; }
 
+        public int? ItemId { get; set; }
+
+        public int? UomId { get; set; }
+
         public string ItemName { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;
 
         public decimal Quantity { get; set; }
+
+        public decimal ReceivedQuantity { get; set; }
+
+        public decimal BilledQuantity { get; set; }
 
         public string Unit { get; set; } = "Nos";
 

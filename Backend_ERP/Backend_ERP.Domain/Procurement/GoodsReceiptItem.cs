@@ -12,6 +12,8 @@ namespace ERP.Domain.Procurement
 
         public PurchaseOrderLine? PurchaseOrderLine { get; set; }
 
+        public int? ItemId { get; set; }
+
         public string ItemName { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;
@@ -25,6 +27,8 @@ namespace ERP.Domain.Procurement
         public decimal RemainingQuantity { get; set; }
 
         public decimal ReceivedQuantity { get; set; }
+
+        public decimal AcceptedQuantity { get; set; }
 
         public decimal RejectedQuantity { get; set; }
 
