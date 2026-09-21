@@ -275,10 +275,60 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Accounting.AccountingAttachment> AccountingAttachments => Set<ERP.Domain.Accounting.AccountingAttachment>();
         public DbSet<ERP.Domain.Accounting.AccountingTimelineEvent> AccountingTimelineEvents => Set<ERP.Domain.Accounting.AccountingTimelineEvent>();
 
+        // ERP Auth Users & Roles DbSets
+        public DbSet<ERP.Domain.Entities.User> Users => Set<ERP.Domain.Entities.User>();
+        public DbSet<ERP.Domain.Entities.Role> Roles => Set<ERP.Domain.Entities.Role>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(ERPDbContext).Assembly);
+
+            modelBuilder.Entity<ERP.Domain.Entities.Role>(entity =>
+            {
+                entity.ToTable("erp_roles");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(128).IsRequired();
+                entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(256);
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasIndex(e => e.Name).IsUnique();
+
+                entity.HasData(new ERP.Domain.Entities.Role
+                {
+                    Id = 1,
+                    Name = "Admin",
+                    Description = "System Administrator",
+                    IsActive = true,
+                    CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                });
+            });
+
+            modelBuilder.Entity<ERP.Domain.Entities.User>(entity =>
+            {
+                entity.ToTable("users");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.FullName).HasColumnName("full_name").IsRequired();
+                entity.Property(e => e.Email).HasColumnName("email").IsRequired();
+                entity.Property(e => e.Phone).HasColumnName("phone");
+                entity.Property(e => e.PasswordHash).HasColumnName("password_hash").IsRequired();
+                entity.Property(e => e.RoleId).HasColumnName("role_id");
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.IsOnline).HasColumnName("is_online").HasDefaultValue(false);
+                entity.Property(e => e.LastActiveAt).HasColumnName("last_active_at");
+                entity.Property(e => e.FirstLoginAt).HasColumnName("first_login_at");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasOne(u => u.Role)
+                    .WithMany()
+                    .HasForeignKey(u => u.RoleId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
         }
     }
 }
