@@ -17,7 +17,9 @@ public static class HrmsRolePermissions
                 HrmsPermissions.SystemSettings,
                 HrmsPermissions.HealthView,
                 HrmsPermissions.ManageHrAdmins,
-                HrmsPermissions.OrganizationManage
+                HrmsPermissions.OrganizationManage,
+                HrmsPermissions.DocumentsConfigure,
+                HrmsPermissions.DocumentsAudit
             },
             [UserRole.HR_ADMIN] = new(StringComparer.OrdinalIgnoreCase)
             {
@@ -43,6 +45,17 @@ public static class HrmsRolePermissions
                 HrmsPermissions.PayslipsViewOwn,
                 HrmsPermissions.DocumentsManageAll,
                 HrmsPermissions.DocumentsManageOwn,
+                HrmsPermissions.DocumentsView,
+                HrmsPermissions.DocumentsCreate,
+                HrmsPermissions.DocumentsUpdate,
+                HrmsPermissions.DocumentsUpload,
+                HrmsPermissions.DocumentsVerify,
+                HrmsPermissions.DocumentsReject,
+                HrmsPermissions.DocumentsDownload,
+                HrmsPermissions.DocumentsConfigure,
+                HrmsPermissions.DocumentsExpiry,
+                HrmsPermissions.DocumentsReport,
+                HrmsPermissions.DocumentsAudit,
                 HrmsPermissions.PerformanceManageAll,
                 HrmsPermissions.PerformanceSelfReview,
                 HrmsPermissions.AssetsManage,
@@ -62,6 +75,10 @@ public static class HrmsRolePermissions
                 HrmsPermissions.LeaveApply,
                 HrmsPermissions.PayslipsViewOwn,
                 HrmsPermissions.DocumentsManageOwn,
+                HrmsPermissions.DocumentsSelfView,
+                HrmsPermissions.DocumentsSelfUpload,
+                HrmsPermissions.DocumentsSelfDownload,
+                HrmsPermissions.DocumentsSelfReplace,
                 HrmsPermissions.PerformanceSelfReview,
                 HrmsPermissions.AssetsViewOwn
             }

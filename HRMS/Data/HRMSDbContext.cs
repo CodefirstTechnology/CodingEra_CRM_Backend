@@ -42,6 +42,9 @@ public class HRMSDbContext : DbContext
     public DbSet<CompanyAsset> CompanyAssets => Set<CompanyAsset>();
     public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
     public DbSet<LeaveRejectionReason> LeaveRejectionReasons => Set<LeaveRejectionReason>();
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
+    public DbSet<DocumentRequirement> DocumentRequirements => Set<DocumentRequirement>();
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
     public DbSet<DocumentCategory> DocumentCategories => Set<DocumentCategory>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<LeaveAllocation> LeaveAllocations => Set<LeaveAllocation>();
@@ -256,11 +259,35 @@ public class HRMSDbContext : DbContext
             entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 
+        modelBuilder.Entity<DocumentType>(entity =>
+        {
+            entity.HasIndex(e => new { e.TenantId, e.Code });
+            entity.HasIndex(e => e.Category);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<DocumentRequirement>(entity =>
+        {
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.DocumentTypeId);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
         modelBuilder.Entity<EmployeeDocument>(entity =>
         {
             entity.HasIndex(e => e.TenantId);
             entity.HasIndex(e => e.EmployeeId);
-            entity.HasIndex(e => e.DocumentCategoryId);
+            entity.HasIndex(e => e.DocumentTypeId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ExpiryDate);
+            entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
+        });
+
+        modelBuilder.Entity<DocumentVersion>(entity =>
+        {
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.EmployeeDocumentId);
+            entity.HasIndex(e => e.EmployeeId);
             entity.HasQueryFilter(e => _tenantAccessor == null || !_tenantAccessor.HasTenant || e.TenantId == _tenantAccessor.TenantId);
         });
 

@@ -333,6 +333,72 @@ public static class MultiTenantBootstrap
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+
+            CREATE TABLE IF NOT EXISTS document_types (
+                id SERIAL PRIMARY KEY,
+                tenant_id INT NOT NULL DEFAULT 1,
+                name VARCHAR(128) NOT NULL,
+                code VARCHAR(64) NOT NULL,
+                category VARCHAR(64) NOT NULL DEFAULT 'Other',
+                description VARCHAR(512),
+                is_required BOOLEAN NOT NULL DEFAULT TRUE,
+                is_mandatory_during_onboarding BOOLEAN NOT NULL DEFAULT FALSE,
+                requires_verification BOOLEAN NOT NULL DEFAULT TRUE,
+                has_expiry BOOLEAN NOT NULL DEFAULT FALSE,
+                default_validity_period_months INT,
+                allowed_file_types VARCHAR(128) NOT NULL DEFAULT 'pdf,jpg,jpeg,png',
+                maximum_file_size_mb INT NOT NULL DEFAULT 5,
+                status VARCHAR(32) NOT NULL DEFAULT 'Active',
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_by INT,
+                updated_by INT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS document_requirements (
+                id SERIAL PRIMARY KEY,
+                tenant_id INT NOT NULL DEFAULT 1,
+                document_type_id INT NOT NULL,
+                employment_type VARCHAR(64),
+                department_id INT,
+                designation_id INT,
+                branch_id INT,
+                gender VARCHAR(32),
+                is_mandatory BOOLEAN NOT NULL DEFAULT TRUE,
+                is_onboarding_mandatory BOOLEAN NOT NULL DEFAULT TRUE,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                remarks VARCHAR(512),
+                created_by INT,
+                updated_by INT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS document_versions (
+                id SERIAL PRIMARY KEY,
+                tenant_id INT NOT NULL DEFAULT 1,
+                employee_document_id INT NOT NULL,
+                employee_id INT NOT NULL,
+                document_type_id INT,
+                version_number INT NOT NULL DEFAULT 1,
+                file_path VARCHAR(512) NOT NULL,
+                file_name VARCHAR(256) NOT NULL,
+                file_size BIGINT NOT NULL DEFAULT 0,
+                mime_type VARCHAR(128),
+                document_number VARCHAR(128),
+                issue_date DATE,
+                expiry_date DATE,
+                status VARCHAR(64) NOT NULL DEFAULT 'Uploaded',
+                rejection_reason VARCHAR(512),
+                uploaded_by_user_id INT,
+                uploaded_by_name VARCHAR(128),
+                uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                verified_by_user_id INT,
+                verified_by_name VARCHAR(128),
+                verified_at TIMESTAMPTZ,
+                remarks VARCHAR(512)
+            );
         ");
 
         // 2. Add columns to existing tables
@@ -381,6 +447,26 @@ public static class MultiTenantBootstrap
             ALTER TABLE designations ADD COLUMN IF NOT EXISTS grade_id INT;
             ALTER TABLE designations ADD COLUMN IF NOT EXISTS description VARCHAR(256);
             ALTER TABLE designations ADD COLUMN IF NOT EXISTS min_experience_years NUMERIC(4,1);
+
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS document_type_id INT;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS document_number VARCHAR(128);
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS issue_date DATE;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS expiry_date DATE;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS file_name VARCHAR(256);
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS mime_type VARCHAR(128);
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS version_number INT DEFAULT 1;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT TRUE;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS status VARCHAR(64) DEFAULT 'Pending Verification';
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(512);
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verified_by_user_id INT;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verified_by_name VARCHAR(128);
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS remarks VARCHAR(512);
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS updated_by INT;
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+            ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
         ");
 
         // 3. Seed Default Company Profiles, Grades, Shifts, Working Days for Tenant 1 & Tenant 2
@@ -487,6 +573,43 @@ public static class MultiTenantBootstrap
                 new OnboardingTask { TenantId = 1, TaskName = "Acknowledge Code of Conduct & NDA", Category = "Policy Agreement", IsMandatory = true, CreatedAt = now, UpdatedAt = now },
                 new OnboardingTask { TenantId = 1, TaskName = "IT Laptop & Hardware Handover Acknowledgment", Category = "Asset Allocation", IsMandatory = true, CreatedAt = now, UpdatedAt = now },
                 new OnboardingTask { TenantId = 1, TaskName = "Assign Work Email & VPN System Access", Category = "System Access", IsMandatory = true, CreatedAt = now, UpdatedAt = now }
+            );
+            await db.SaveChangesAsync();
+        }
+
+        // 5. Seed Default Document Types for Tenant 1
+        if (!await db.DocumentTypes.IgnoreQueryFilters().AnyAsync(x => x.TenantId == 1))
+        {
+            var docTypes = new List<DocumentType>
+            {
+                new DocumentType { TenantId = 1, Name = "Aadhaar Card", Code = "AADHAAR", Category = "Identity", Description = "Government issued 12-digit unique identity card", IsRequired = true, IsMandatoryDuringOnboarding = true, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 5, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "PAN Card", Code = "PAN", Category = "Tax", Description = "Permanent Account Number issued by Income Tax Department", IsRequired = true, IsMandatoryDuringOnboarding = true, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 5, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Passport", Code = "PASSPORT", Category = "Identity", Description = "National passport for international travel & identity proof", IsRequired = false, IsMandatoryDuringOnboarding = false, RequiresVerification = true, HasExpiry = true, DefaultValidityPeriodMonths = 120, MaximumFileSizeMb = 5, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Driving License", Code = "DL", Category = "Identity", Description = "State transport motor vehicle driving license", IsRequired = false, IsMandatoryDuringOnboarding = false, RequiresVerification = true, HasExpiry = true, DefaultValidityPeriodMonths = 240, MaximumFileSizeMb = 5, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Degree / Graduation Certificate", Code = "DEGREE_CERT", Category = "Education", Description = "Final Degree / Diploma graduation certificate", IsRequired = true, IsMandatoryDuringOnboarding = true, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 10, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Previous Employment Relieving Letter", Code = "RELIEVING_LETTER", Category = "Employment", Description = "Formal relieving letter from last employer", IsRequired = true, IsMandatoryDuringOnboarding = true, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 10, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Experience / Service Certificate", Code = "EXP_CERT", Category = "Employment", Description = "Work experience certificate from prior companies", IsRequired = true, IsMandatoryDuringOnboarding = false, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 10, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Company Offer & Appointment Letter", Code = "APPOINTMENT_LTR", Category = "Joining", Description = "Signed offer and employment appointment letter", IsRequired = true, IsMandatoryDuringOnboarding = true, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 10, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Bank Account Proof / Cancelled Cheque", Code = "BANK_PROOF", Category = "Banking", Description = "Bank passbook copy or cancelled cheque for salary credit", IsRequired = true, IsMandatoryDuringOnboarding = true, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 5, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now },
+                new DocumentType { TenantId = 1, Name = "Last 3 Months Payslips / Form 16", Code = "SALARY_PROOF", Category = "Tax", Description = "Salary payslips from previous employer or tax Form 16", IsRequired = false, IsMandatoryDuringOnboarding = false, RequiresVerification = true, HasExpiry = false, MaximumFileSizeMb = 10, Status = "Active", IsActive = true, CreatedAt = now, UpdatedAt = now }
+            };
+
+            db.DocumentTypes.AddRange(docTypes);
+            await db.SaveChangesAsync();
+
+            // Seed Document Requirements
+            var aadhaarType = docTypes.First(d => d.Code == "AADHAAR");
+            var panType = docTypes.First(d => d.Code == "PAN");
+            var degreeType = docTypes.First(d => d.Code == "DEGREE_CERT");
+            var bankType = docTypes.First(d => d.Code == "BANK_PROOF");
+            var relievingType = docTypes.First(d => d.Code == "RELIEVING_LETTER");
+
+            db.DocumentRequirements.AddRange(
+                new DocumentRequirement { TenantId = 1, DocumentTypeId = aadhaarType.Id, EmploymentType = null, IsMandatory = true, IsOnboardingMandatory = true, IsActive = true, Remarks = "Mandatory KYC proof for all employees", CreatedAt = now, UpdatedAt = now },
+                new DocumentRequirement { TenantId = 1, DocumentTypeId = panType.Id, EmploymentType = null, IsMandatory = true, IsOnboardingMandatory = true, IsActive = true, Remarks = "Mandatory for tax deduction and PF compliance", CreatedAt = now, UpdatedAt = now },
+                new DocumentRequirement { TenantId = 1, DocumentTypeId = degreeType.Id, EmploymentType = null, IsMandatory = true, IsOnboardingMandatory = true, IsActive = true, Remarks = "Highest qualification degree proof", CreatedAt = now, UpdatedAt = now },
+                new DocumentRequirement { TenantId = 1, DocumentTypeId = bankType.Id, EmploymentType = null, IsMandatory = true, IsOnboardingMandatory = true, IsActive = true, Remarks = "Required for monthly payroll disbursement", CreatedAt = now, UpdatedAt = now },
+                new DocumentRequirement { TenantId = 1, DocumentTypeId = relievingType.Id, EmploymentType = "Full Time", IsMandatory = true, IsOnboardingMandatory = true, IsActive = true, Remarks = "Required for experienced hires", CreatedAt = now, UpdatedAt = now }
             );
             await db.SaveChangesAsync();
         }

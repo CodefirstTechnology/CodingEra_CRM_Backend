@@ -42,9 +42,24 @@ public static class HrmsPermissions
     public const string PayslipsViewAll = "payslips.view_all";
     public const string PayslipsViewOwn = "payslips.view_own";
 
-    // Employee Documents
+    // Employee Documents & Vault
     public const string DocumentsManageAll = "documents.manage_all";
     public const string DocumentsManageOwn = "documents.manage_own";
+    public const string DocumentsView = "documents.view";
+    public const string DocumentsCreate = "documents.create";
+    public const string DocumentsUpdate = "documents.update";
+    public const string DocumentsUpload = "documents.upload";
+    public const string DocumentsVerify = "documents.verify";
+    public const string DocumentsReject = "documents.reject";
+    public const string DocumentsDownload = "documents.download";
+    public const string DocumentsConfigure = "documents.configure";
+    public const string DocumentsExpiry = "documents.expiry";
+    public const string DocumentsReport = "documents.report";
+    public const string DocumentsAudit = "documents.audit";
+    public const string DocumentsSelfView = "documents.self.view";
+    public const string DocumentsSelfUpload = "documents.self.upload";
+    public const string DocumentsSelfDownload = "documents.self.download";
+    public const string DocumentsSelfReplace = "documents.self.replace";
 
     // Performance Reviews
     public const string PerformanceManageAll = "performance.manage_all";
