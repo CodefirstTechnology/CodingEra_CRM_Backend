@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ERP.Application.Procurement;
 using ERP.Application.Procurement.Dtos;
+using ERP.Domain.Procurement;
 using ERP.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -71,6 +72,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpGet("build-items/{purchaseOrderId:int}")]
+        [HttpGet("build-draft/{purchaseOrderId:int}")]
         public async Task<ActionResult<List<GoodsReceiptItemDto>>> BuildDraftItems(
             int purchaseOrderId,
             [FromQuery] int? excludeGrnId,
@@ -162,6 +164,27 @@ namespace ERP.API.Controllers
             var updated = await _grService.UpdateStatusAsync(
                 id,
                 request,
+                ResolveActingUser(userId),
+                cancellationToken);
+
+            if (updated is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(updated);
+        }
+
+        [HttpPost("{id:int}/complete")]
+        public async Task<ActionResult<GoodsReceiptDto>> Complete(
+            int id,
+            [FromBody] GoodsReceiptStatusUpdateRequestDto? request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            var updated = await _grService.UpdateStatusAsync(
+                id,
+                new GoodsReceiptStatusUpdateRequestDto { Status = GoodsReceiptStatus.Completed, Remarks = request?.Remarks ?? "Goods receipt completed." },
                 ResolveActingUser(userId),
                 cancellationToken);
 

@@ -16,6 +16,7 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.Property(x => x.PurchaseOrderNumber).HasMaxLength(64).IsRequired();
             builder.Property(x => x.VendorName).HasMaxLength(256).IsRequired();
+            builder.Property(x => x.WarehouseId);
             builder.Property(x => x.Warehouse).HasMaxLength(256).HasDefaultValue("Main Store — Sanand");
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsRequired();
             builder.Property(x => x.Remarks).HasMaxLength(2000);
@@ -27,6 +28,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.PurchaseOrderId);
             builder.HasIndex(x => x.VendorId);
+            builder.HasIndex(x => x.WarehouseId);
+            builder.HasIndex(x => new { x.VendorId, x.Status, x.ReceiptDate });
+            builder.HasIndex(x => new { x.Status, x.IsDeleted, x.ReceiptDate });
 
             builder.HasOne(x => x.PurchaseOrder)
                 .WithMany()
@@ -71,6 +75,7 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.HasIndex(x => x.GoodsReceiptId);
             builder.HasIndex(x => x.PurchaseOrderLineId);
+            builder.HasIndex(x => x.ItemId);
 
             builder.HasOne(x => x.PurchaseOrderLine)
                 .WithMany()

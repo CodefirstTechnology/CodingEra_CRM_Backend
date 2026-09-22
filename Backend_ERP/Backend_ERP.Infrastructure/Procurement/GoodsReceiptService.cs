@@ -107,6 +107,8 @@ namespace ERP.Infrastructure.Procurement
                 var prev = prevReceivedMap.TryGetValue(l.Id, out var pQty) ? pQty : 0m;
                 var remaining = Math.Max(0m, Math.Round(l.Quantity - prev, 4));
 
+                if (remaining <= 0) continue;
+
                 result.Add(new GoodsReceiptItemDto
                 {
                     Id = $"tmp-{l.Id}",
@@ -177,6 +179,7 @@ namespace ERP.Infrastructure.Procurement
                 var ordered = draftInfo?.OrderedQuantity ?? reqItem.OrderedQuantity;
                 var prev = draftInfo?.PreviouslyReceivedQuantity ?? reqItem.PreviouslyReceivedQuantity;
                 var remaining = Math.Max(0m, Math.Round(ordered - prev, 4));
+                var accepted = Math.Max(0m, Math.Round(reqItem.ReceivedQuantity - reqItem.RejectedQuantity, 4));
 
                 gr.Items.Add(new GoodsReceiptItem
                 {
@@ -188,6 +191,7 @@ namespace ERP.Infrastructure.Procurement
                     PreviouslyReceivedQuantity = prev,
                     RemainingQuantity = remaining,
                     ReceivedQuantity = reqItem.ReceivedQuantity,
+                    AcceptedQuantity = accepted,
                     RejectedQuantity = reqItem.RejectedQuantity,
                     Remarks = reqItem.Remarks?.Trim() ?? string.Empty
                 });
@@ -197,6 +201,23 @@ namespace ERP.Infrastructure.Procurement
             if (valErr != null)
             {
                 throw new InvalidOperationException(valErr);
+            }
+
+            // Concurrency protection: validate line by line cumulative received quantities
+            foreach (var item in gr.Items)
+            {
+                var poLine = po.Lines.FirstOrDefault(l => l.Id == item.PurchaseOrderLineId);
+                if (poLine != null && gr.Status == GoodsReceiptStatus.Completed)
+                {
+                    var existingReceived = await _db.GoodsReceiptItems
+                        .Where(gri => gri.PurchaseOrderLineId == poLine.Id && gri.GoodsReceipt!.Status == GoodsReceiptStatus.Completed && !gri.GoodsReceipt.IsDeleted)
+                        .SumAsync(gri => gri.ReceivedQuantity, cancellationToken);
+
+                    if (existingReceived + item.ReceivedQuantity > poLine.Quantity * 1.05m)
+                    {
+                        throw new InvalidOperationException($"Over-receiving blocked for item '{item.ItemName}'. Ordered: {poLine.Quantity}, Already Received: {existingReceived}, Attempted: {item.ReceivedQuantity}. Simultaneous intake concurrency limit reached.");
+                    }
+                }
             }
 
             gr.History.Add(new GoodsReceiptStatusHistory
@@ -209,12 +230,24 @@ namespace ERP.Infrastructure.Procurement
                 Label = "Created"
             });
 
-            _db.GoodsReceipts.Add(gr);
-            await _db.SaveChangesAsync(cancellationToken);
-
-            if (gr.Status == GoodsReceiptStatus.Completed)
+            using (var tx = await _db.Database.BeginTransactionAsync(cancellationToken))
             {
-                await SyncPurchaseOrderReceivingStatusAsync(po.Id, actingUser, cancellationToken);
+                _db.GoodsReceipts.Add(gr);
+                try
+                {
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateConcurrencyException ex)
+                {
+                    throw new InvalidOperationException("Simultaneous intake detected. Concurrency error while updating purchase order lines. Please refresh and try again.", ex);
+                }
+
+                if (gr.Status == GoodsReceiptStatus.Completed)
+                {
+                    await SyncPurchaseOrderReceivingStatusAsync(po.Id, actingUser, cancellationToken);
+                }
+
+                await tx.CommitAsync(cancellationToken);
             }
 
             return (await GetByIdAsync(gr.Id, cancellationToken))!;
@@ -407,6 +440,12 @@ namespace ERP.Infrastructure.Procurement
                               !gri.GoodsReceipt.IsDeleted)
                 .ToListAsync(cancellationToken);
 
+            foreach (var line in po.Lines)
+            {
+                var receivedForLine = grnItems.Where(gri => gri.PurchaseOrderLineId == line.Id).Sum(x => x.ReceivedQuantity);
+                line.ReceivedQuantity = receivedForLine;
+            }
+
             var totalOrdered = po.Lines.Sum(l => l.Quantity);
             var totalReceived = grnItems.Sum(gri => gri.ReceivedQuantity);
 
@@ -415,22 +454,25 @@ namespace ERP.Infrastructure.Procurement
             var now = DateTime.UtcNow;
             var targetPoStatus = totalReceived >= totalOrdered ? PurchaseOrderStatus.Completed : PurchaseOrderStatus.PartiallyReceived;
 
-            if (po.Status != targetPoStatus && (po.Status == PurchaseOrderStatus.Ordered || po.Status == PurchaseOrderStatus.Approved || po.Status == PurchaseOrderStatus.PartiallyReceived))
+            if (po.Status != targetPoStatus || po.Lines.Any())
             {
                 var prevPoStatus = po.Status;
-                po.Status = targetPoStatus;
+                if (po.Status == PurchaseOrderStatus.Ordered || po.Status == PurchaseOrderStatus.Approved || po.Status == PurchaseOrderStatus.PartiallyReceived)
+                {
+                    po.Status = targetPoStatus;
+                }
                 po.UpdatedAt = now;
                 po.UpdatedBy = actingUser;
 
                 _db.PurchaseOrderStatusHistories.Add(new PurchaseOrderStatusHistory
                 {
                     PurchaseOrderId = po.Id,
-                    Status = targetPoStatus,
+                    Status = po.Status,
                     PreviousStatus = prevPoStatus,
                     Date = now,
                     User = actingUser,
                     Remarks = $"Automatic status update from Goods Receipt completion. Received: {totalReceived} / {totalOrdered}.",
-                    Label = targetPoStatus.ToString()
+                    Label = po.Status.ToString()
                 });
 
                 await _db.SaveChangesAsync(cancellationToken);

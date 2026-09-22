@@ -32,6 +32,8 @@ namespace ERP.Domain.Procurement
 
         public decimal RejectedQuantity { get; set; }
 
+        public string RejectionReasonCode { get; set; } = string.Empty;
+
         public string Remarks { get; set; } = string.Empty;
     }
 }

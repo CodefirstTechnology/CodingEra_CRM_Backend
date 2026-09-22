@@ -154,6 +154,10 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.PurchaseOrderDocumentSequence> PurchaseOrderDocumentSequences => Set<ERP.Domain.Procurement.PurchaseOrderDocumentSequence>();
 
+        public DbSet<ERP.Domain.Procurement.ApprovalRule> ApprovalRules => Set<ERP.Domain.Procurement.ApprovalRule>();
+
+        public DbSet<ERP.Domain.Procurement.ApprovalRuleTier> ApprovalRuleTiers => Set<ERP.Domain.Procurement.ApprovalRuleTier>();
+
         // Procurement Phase 5 Goods Receipt (GRN) DbSets
         public DbSet<ERP.Domain.Procurement.GoodsReceipt> GoodsReceipts => Set<ERP.Domain.Procurement.GoodsReceipt>();
 

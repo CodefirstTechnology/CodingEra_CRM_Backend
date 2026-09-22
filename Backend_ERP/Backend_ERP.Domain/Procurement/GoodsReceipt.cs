@@ -23,6 +23,8 @@ namespace ERP.Domain.Procurement
 
         public DateTime ReceiptDate { get; set; } = DateTime.UtcNow;
 
+        public int? WarehouseId { get; set; }
+
         public string Warehouse { get; set; } = "Main Store — Sanand";
 
         public GoodsReceiptStatus Status { get; set; } = GoodsReceiptStatus.Draft;

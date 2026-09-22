@@ -200,6 +200,27 @@ namespace ERP.API.Controllers
             return Ok(updated);
         }
 
+        [HttpPost("{id:int}/submit")]
+        public async Task<ActionResult<PurchaseOrderDto>> Submit(
+            int id,
+            [FromBody] PurchaseOrderApprovalActionRequestDto? request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            var updated = await _poService.UpdateStatusAsync(
+                id,
+                new PurchaseOrderStatusUpdateRequestDto { Status = ERP.Domain.Procurement.PurchaseOrderStatus.Submitted, Remarks = request?.Remarks ?? "Submitted for approval." },
+                ResolveActingUser(userId),
+                cancellationToken);
+
+            if (updated is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(updated);
+        }
+
         [HttpPost("{id:int}/cancel")]
         public async Task<ActionResult<PurchaseOrderDto>> Cancel(
             int id,

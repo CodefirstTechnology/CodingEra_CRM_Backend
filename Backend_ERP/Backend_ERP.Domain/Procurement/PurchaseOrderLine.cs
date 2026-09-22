@@ -31,5 +31,7 @@ namespace ERP.Domain.Procurement
         public decimal Tax { get; set; }
 
         public decimal Amount { get; set; }
+
+        public uint Version { get; set; }
     }
 }

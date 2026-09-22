@@ -45,6 +45,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.Priority);
             builder.HasIndex(x => x.VendorId);
+            builder.HasIndex(x => new { x.VendorId, x.Status, x.OrderDate });
+            builder.HasIndex(x => new { x.Status, x.IsDeleted, x.OrderDate });
 
             builder.HasOne(x => x.Vendor)
                 .WithMany()
@@ -85,8 +87,11 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Discount).HasPrecision(5, 2).HasDefaultValue(0m);
             builder.Property(x => x.Tax).HasPrecision(5, 2).HasDefaultValue(0m);
             builder.Property(x => x.Amount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.Version).IsRowVersion();
 
             builder.HasIndex(x => x.PurchaseOrderId);
+            builder.HasIndex(x => x.ItemId);
+            builder.HasIndex(x => x.UomId);
         }
     }
 
