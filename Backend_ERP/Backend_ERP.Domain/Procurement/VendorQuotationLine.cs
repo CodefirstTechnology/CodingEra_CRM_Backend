@@ -8,6 +8,14 @@ namespace ERP.Domain.Procurement
 
         public VendorQuotation? VendorQuotation { get; set; }
 
+        public int? ItemId { get; set; }
+
+        public int? UomId { get; set; }
+
+        public int? RequestForQuotationLineId { get; set; }
+
+        public RequestForQuotationLine? RequestForQuotationLine { get; set; }
+
         public string ItemName { get; set; } = string.Empty;
 
         public decimal Quantity { get; set; }

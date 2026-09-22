@@ -8,6 +8,10 @@ namespace ERP.Domain.Procurement
 
         public PurchaseRequisition? PurchaseRequisition { get; set; }
 
+        public int? ItemId { get; set; }
+
+        public int? UomId { get; set; }
+
         public string ItemName { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;

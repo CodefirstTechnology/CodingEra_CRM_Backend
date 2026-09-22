@@ -49,5 +49,43 @@ namespace ERP.Application.Procurement
                 ordered[i].Ranking = i + 1;
             }
         }
+
+        public static void EvaluateLineMatrix(VendorComparison vc)
+        {
+            if (vc == null || vc.Entries == null || vc.Entries.Count == 0) return;
+
+            vc.ComparisonLines.Clear();
+
+            var allLines = vc.Entries
+                .SelectMany(e => e.Lines.Select(l => new { VendorEntry = e, Line = l }))
+                .ToList();
+
+            if (!allLines.Any()) return;
+
+            var groupedByItem = allLines
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.Line.ItemName) ? "Unspecified" : x.Line.ItemName.Trim(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in groupedByItem)
+            {
+                var itemName = group.Key;
+                var lowest = group.OrderBy(x => x.Line.UnitPrice).First();
+                var firstLine = lowest.Line;
+
+                vc.ComparisonLines.Add(new VendorComparisonLine
+                {
+                    VendorComparisonId = vc.Id,
+                    ItemId = firstLine.ItemId,
+                    ItemName = itemName,
+                    RequestForQuotationLineId = firstLine.RequestForQuotationLineId,
+                    Quantity = firstLine.Quantity,
+                    Uom = firstLine.Uom,
+                    LowestUnitPrice = lowest.Line.UnitPrice,
+                    LowestVendorId = lowest.VendorEntry.VendorId,
+                    LowestVendorName = lowest.VendorEntry.VendorName,
+                    IsSplitAwarded = group.Select(g => g.VendorEntry.VendorId).Distinct().Count() > 1,
+                    Remarks = $"Line L1: {lowest.VendorEntry.VendorName} @ ₹{lowest.Line.UnitPrice}"
+                });
+            }
+        }
     }
 }

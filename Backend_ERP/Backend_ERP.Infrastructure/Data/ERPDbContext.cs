@@ -137,6 +137,8 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.VendorComparisonEntry> VendorComparisonEntries => Set<ERP.Domain.Procurement.VendorComparisonEntry>();
 
+        public DbSet<ERP.Domain.Procurement.VendorComparisonLine> VendorComparisonLines => Set<ERP.Domain.Procurement.VendorComparisonLine>();
+
         public DbSet<ERP.Domain.Procurement.VendorComparisonStatusHistory> VendorComparisonStatusHistories => Set<ERP.Domain.Procurement.VendorComparisonStatusHistory>();
 
         public DbSet<ERP.Domain.Procurement.VendorComparisonDocumentSequence> VendorComparisonDocumentSequences => Set<ERP.Domain.Procurement.VendorComparisonDocumentSequence>();

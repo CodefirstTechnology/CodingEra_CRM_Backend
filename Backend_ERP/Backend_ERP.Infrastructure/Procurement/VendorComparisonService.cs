@@ -150,6 +150,7 @@ namespace ERP.Infrastructure.Procurement
             }
 
             VendorComparisonRules.EvaluateMetrics(vc.Entries);
+            VendorComparisonRules.EvaluateLineMatrix(vc);
 
             if (vc.RecommendedVendorId <= 0 && vc.Entries.Count > 0)
             {

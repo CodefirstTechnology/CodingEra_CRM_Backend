@@ -45,6 +45,8 @@ namespace ERP.Domain.Procurement
 
         public List<VendorComparisonEntry> Entries { get; set; } = new();
 
+        public List<VendorComparisonLine> ComparisonLines { get; set; } = new();
+
         public List<VendorComparisonStatusHistory> History { get; set; } = new();
     }
 }
