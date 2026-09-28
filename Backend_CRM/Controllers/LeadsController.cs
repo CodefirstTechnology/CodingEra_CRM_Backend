@@ -450,6 +450,16 @@ namespace CRM.Controllers
                 return direct;
             }
 
+            var reqLower = req.ToLowerInvariant();
+            if (reqLower == "follow-up" || reqLower == "follow up" || reqLower == "followup")
+            {
+                var fId = await _context.LeadStatuses.AsNoTracking()
+                    .Where(s => (!requireActive || s.IsActive) && (s.Name.ToLower() == "follow-up" || s.Name.ToLower() == "follow up" || s.Name.ToLower() == "followup"))
+                    .Select(s => (int?)s.Id)
+                    .FirstOrDefaultAsync();
+                if (fId is > 0) return fId;
+            }
+
             // Legacy aliases ("Converted" / "Moved to Deal") → flagged conversion status.
             if (!LeadStatusMovedToDealSeed.IsConversionStatusName(req))
             {
