@@ -44,14 +44,18 @@ namespace CRM.Controllers
             [FromQuery] string? leadSource = null,
             [FromQuery] string? status = null,
             [FromQuery] int? leadOwnerId = null,
-            [FromQuery] string? search = null)
+            [FromQuery] string? search = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
         {
             var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
             if (permErr != null) return permErr;
             IQueryable<Lead> q = QueryWithMasters(_context.Leads.AsNoTracking());
             q = await RbacRecordScopeHelper.ApplyLeadOwnerScopeAsync(_context, _rbac, userId, "leads", q);
+            DateOnly? dFrom = fromDate.HasValue ? DateOnly.FromDateTime(fromDate.Value) : null;
+            DateOnly? dTo = toDate.HasValue ? DateOnly.FromDateTime(toDate.Value) : null;
             q = await LeadQueryFilterHelper.ApplyListFiltersAsync(
-                _context, _rbac, userId, q, leadSource, status, leadOwnerId, search);
+                _context, _rbac, userId, q, leadSource, status, leadOwnerId, search, dFrom, dTo);
 
             return Ok(await q.OrderByDescending(l => l.UpdatedAt).AsSplitQuery().ToListAsync());
         }
