@@ -44,6 +44,12 @@ namespace ERP.Domain.Procurement
 
         public string CreatedBy { get; set; } = string.Empty;
 
+        public Guid IdempotencyKey { get; set; } = Guid.NewGuid();
+
+        public decimal? SecondaryQty { get; set; }
+
+        public decimal UnitCost { get; set; }
+
         public bool IsDeleted { get; set; }
     }
 }

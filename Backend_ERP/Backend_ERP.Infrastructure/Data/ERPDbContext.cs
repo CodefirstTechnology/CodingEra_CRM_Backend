@@ -292,6 +292,7 @@ namespace ERP.Infrastructure.Data
         // ERP Auth Users & Roles DbSets
         public DbSet<ERP.Domain.Entities.User> Users => Set<ERP.Domain.Entities.User>();
         public DbSet<ERP.Domain.Entities.Role> Roles => Set<ERP.Domain.Entities.Role>();
+        public DbSet<Backend_ERP.Domain.Entities.OutboxMessageEntity> OutboxMessages => Set<Backend_ERP.Domain.Entities.OutboxMessageEntity>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

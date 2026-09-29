@@ -66,6 +66,10 @@ namespace ERP.Domain.Procurement
 
         public string UpdatedBy { get; set; } = string.Empty;
 
+        public decimal CatchWeightTolerancePercent { get; set; } = 3.00m;
+
+        public uint RowVersion { get; set; }
+
         public bool IsDeleted { get; set; }
     }
 }
