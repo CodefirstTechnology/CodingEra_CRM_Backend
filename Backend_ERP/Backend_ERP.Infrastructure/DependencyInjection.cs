@@ -87,6 +87,8 @@ namespace ERP.Infrastructure
             // Procurement Phase 8 Purchase Bills & 3-Way Matching Services
             services.AddScoped<ERP.Infrastructure.Procurement.PurchaseBillNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IPurchaseBillService, ERP.Infrastructure.Procurement.PurchaseBillService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorLedgerService, ERP.Infrastructure.Procurement.VendorLedgerService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorPaymentService, ERP.Infrastructure.Procurement.VendorPaymentService>();
 
             // Procurement Reports & Audit Trail Services
             services.AddScoped<ERP.Application.Procurement.IProcurementAuditTrailService, ERP.Infrastructure.Procurement.ProcurementAuditTrailService>();

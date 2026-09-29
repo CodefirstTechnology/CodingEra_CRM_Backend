@@ -58,6 +58,13 @@ namespace ERP.API.Controllers
             return item is null ? NotFound() : Ok(item);
         }
 
+        [HttpPost("validate-3way-match")]
+        public async Task<ActionResult<PurchaseBill3WayMatchResultDto>> Validate3WayMatch([FromBody] PurchaseBillCreateRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var result = await _billService.Validate3WayMatchAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpPost]
         public async Task<ActionResult<PurchaseBillDto>> CreatePurchaseBill([FromBody] PurchaseBillCreateRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {

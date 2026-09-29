@@ -49,6 +49,24 @@ namespace ERP.Domain.Procurement
 
         public PurchaseBillStatus Status { get; set; } = PurchaseBillStatus.Draft;
 
+        public decimal CgstAmount { get; set; }
+
+        public decimal SgstAmount { get; set; }
+
+        public decimal IgstAmount { get; set; }
+
+        public string? TdsSection { get; set; }
+
+        public decimal TdsPercentage { get; set; }
+
+        public decimal TdsAmount { get; set; }
+
+        public string? VarianceReason { get; set; }
+
+        public DateTime? PostedAt { get; set; }
+
+        public int? PostedByUserId { get; set; }
+
         public string Remarks { get; set; } = string.Empty;
 
         public int AttachmentsCount { get; set; }

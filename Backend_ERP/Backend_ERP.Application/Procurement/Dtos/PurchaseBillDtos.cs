@@ -10,6 +10,15 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
+        [JsonPropertyName("purchaseOrderLineId")]
+        public int? PurchaseOrderLineId { get; set; }
+
+        [JsonPropertyName("goodsReceiptItemId")]
+        public int? GoodsReceiptItemId { get; set; }
+
+        [JsonPropertyName("itemId")]
+        public int? ItemId { get; set; }
+
         [JsonPropertyName("itemName")]
         public string ItemName { get; set; } = string.Empty;
 
@@ -100,6 +109,33 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("taxTotal")]
         public decimal TaxTotal { get; set; }
 
+        [JsonPropertyName("cgstAmount")]
+        public decimal CgstAmount { get; set; }
+
+        [JsonPropertyName("sgstAmount")]
+        public decimal SgstAmount { get; set; }
+
+        [JsonPropertyName("igstAmount")]
+        public decimal IgstAmount { get; set; }
+
+        [JsonPropertyName("tdsSection")]
+        public string? TdsSection { get; set; }
+
+        [JsonPropertyName("tdsPercentage")]
+        public decimal TdsPercentage { get; set; }
+
+        [JsonPropertyName("tdsAmount")]
+        public decimal TdsAmount { get; set; }
+
+        [JsonPropertyName("varianceReason")]
+        public string? VarianceReason { get; set; }
+
+        [JsonPropertyName("postedAt")]
+        public DateTime? PostedAt { get; set; }
+
+        [JsonPropertyName("postedByUserId")]
+        public int? PostedByUserId { get; set; }
+
         [JsonPropertyName("roundOff")]
         public decimal RoundOff { get; set; }
 
@@ -181,6 +217,24 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("paymentTerms")]
         public string? PaymentTerms { get; set; }
 
+        [JsonPropertyName("cgstAmount")]
+        public decimal CgstAmount { get; set; }
+
+        [JsonPropertyName("sgstAmount")]
+        public decimal SgstAmount { get; set; }
+
+        [JsonPropertyName("igstAmount")]
+        public decimal IgstAmount { get; set; }
+
+        [JsonPropertyName("tdsSection")]
+        public string? TdsSection { get; set; }
+
+        [JsonPropertyName("tdsPercentage")]
+        public decimal TdsPercentage { get; set; }
+
+        [JsonPropertyName("tdsAmount")]
+        public decimal TdsAmount { get; set; }
+
         [JsonPropertyName("remarks")]
         public string? Remarks { get; set; }
 
@@ -192,6 +246,15 @@ namespace ERP.Application.Procurement.Dtos
     {
         [JsonPropertyName("id")]
         public string? Id { get; set; }
+
+        [JsonPropertyName("purchaseOrderLineId")]
+        public int? PurchaseOrderLineId { get; set; }
+
+        [JsonPropertyName("goodsReceiptItemId")]
+        public int? GoodsReceiptItemId { get; set; }
+
+        [JsonPropertyName("itemId")]
+        public int? ItemId { get; set; }
 
         [JsonPropertyName("itemName")]
         public string ItemName { get; set; } = string.Empty;
@@ -210,6 +273,30 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("taxPercent")]
         public decimal TaxPercent { get; set; }
+    }
+
+    public class PurchaseBill3WayMatchResultDto
+    {
+        public bool IsMatched { get; set; }
+        public bool HasVarianceWarning { get; set; }
+        public bool IsBlocked { get; set; }
+        public string Status { get; set; } = "Matched"; // Matched, Warning, Blocked
+        public string DiagnosticRemarks { get; set; } = string.Empty;
+        public List<PurchaseBillLineMatchResultDto> LineResults { get; set; } = new();
+    }
+
+    public class PurchaseBillLineMatchResultDto
+    {
+        public string ItemName { get; set; } = string.Empty;
+        public decimal PoRate { get; set; }
+        public decimal BillRate { get; set; }
+        public decimal RateVariancePercent { get; set; }
+        public decimal GrnAcceptedQuantity { get; set; }
+        public decimal BillQuantity { get; set; }
+        public decimal QuantityVariancePercent { get; set; }
+        public bool ExceedsBilledLimit { get; set; }
+        public string Status { get; set; } = "Matched"; // Matched, Warning, Blocked
+        public string Remarks { get; set; } = string.Empty;
     }
 
     public class PurchaseBillDashboardDto

@@ -8,6 +8,7 @@ namespace ERP.Application.Procurement
 {
     public interface IPurchaseBillService
     {
+        Task<PurchaseBill3WayMatchResultDto> Validate3WayMatchAsync(PurchaseBillCreateRequestDto request, CancellationToken cancellationToken = default);
         Task<PagedResult<PurchaseBillDto>> GetPurchaseBillsAsync(PurchaseBillFilterQueryDto query, CancellationToken cancellationToken = default);
         Task<PurchaseBillDto?> GetPurchaseBillByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<PurchaseBillDto> CreatePurchaseBillAsync(PurchaseBillCreateRequestDto request, string currentUser, CancellationToken cancellationToken = default);

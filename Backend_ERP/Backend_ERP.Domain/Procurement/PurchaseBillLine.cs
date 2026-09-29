@@ -8,6 +8,12 @@ namespace ERP.Domain.Procurement
 
         public PurchaseBill? PurchaseBill { get; set; }
 
+        public int? PurchaseOrderLineId { get; set; }
+
+        public int? GoodsReceiptItemId { get; set; }
+
+        public int? ItemId { get; set; }
+
         public string ItemName { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;

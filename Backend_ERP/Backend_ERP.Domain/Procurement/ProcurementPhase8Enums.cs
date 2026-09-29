@@ -3,6 +3,8 @@ namespace ERP.Domain.Procurement
     public enum PurchaseBillStatus
     {
         Draft,
+        PendingApproval,
+        VarianceHold,
         Approved,
         Posted,
         Paid,
@@ -12,7 +14,7 @@ namespace ERP.Domain.Procurement
     public enum PurchaseBillPaymentStatus
     {
         Unpaid,
-        Partial,
+        PartiallyPaid,
         Paid
     }
 }
