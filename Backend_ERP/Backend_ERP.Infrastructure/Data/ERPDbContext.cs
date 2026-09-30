@@ -294,6 +294,14 @@ namespace ERP.Infrastructure.Data
         public DbSet<ERP.Domain.Entities.Role> Roles => Set<ERP.Domain.Entities.Role>();
         public DbSet<Backend_ERP.Domain.Entities.OutboxMessageEntity> OutboxMessages => Set<Backend_ERP.Domain.Entities.OutboxMessageEntity>();
 
+        // Group 3 Control & Auditing DbSets
+        public DbSet<Backend_ERP.Domain.Entities.StockAlertThresholdEntity> StockAlertThresholds => Set<Backend_ERP.Domain.Entities.StockAlertThresholdEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.StockAlertLogEntity> StockAlertLogs => Set<Backend_ERP.Domain.Entities.StockAlertLogEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.ItemValuationLayerEntity> ItemValuationLayers => Set<Backend_ERP.Domain.Entities.ItemValuationLayerEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.ItemWacBalanceEntity> ItemWacBalances => Set<Backend_ERP.Domain.Entities.ItemWacBalanceEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.PhysicalCountSheetEntity> PhysicalCountSheets => Set<Backend_ERP.Domain.Entities.PhysicalCountSheetEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.PhysicalCountLineEntity> PhysicalCountLines => Set<Backend_ERP.Domain.Entities.PhysicalCountLineEntity>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

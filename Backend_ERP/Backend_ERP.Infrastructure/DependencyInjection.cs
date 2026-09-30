@@ -127,7 +127,16 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Accounting.IReceiptService, ERP.Infrastructure.Accounting.ReceiptService>();
             services.AddScoped<ERP.Application.Accounting.IGstService, ERP.Infrastructure.Accounting.GstService>();
             services.AddScoped<ERP.Application.Accounting.IBankReconciliationService, ERP.Infrastructure.Accounting.BankReconciliationService>();
-            services.AddScoped<ERP.Application.Accounting.IFinancialReportService, ERP.Infrastructure.Accounting.FinancialReportService>();
+            // Group 1, 2, 3 Inventory Hardening & Control Services
+            services.AddScoped<Backend_ERP.Infrastructure.Services.IHardenedStockTransactionService, Backend_ERP.Infrastructure.Services.HardenedStockTransactionService>();
+            services.AddScoped<Backend_ERP.Infrastructure.Services.IBatchAllocationService, Backend_ERP.Infrastructure.Services.BatchAllocationService>();
+            services.AddScoped<Backend_ERP.Infrastructure.Services.IStockTransferService, Backend_ERP.Infrastructure.Services.StockTransferService>();
+            services.AddScoped<Backend_ERP.Infrastructure.Services.IStockValuationService, Backend_ERP.Infrastructure.Services.StockValuationService>();
+            services.AddScoped<Backend_ERP.Infrastructure.Services.IPhysicalStockVerificationService, Backend_ERP.Infrastructure.Services.PhysicalStockVerificationService>();
+
+            // Background Workers
+            services.AddHostedService<Backend_ERP.Infrastructure.BackgroundServices.OutboxProcessorBackgroundService>();
+            services.AddHostedService<Backend_ERP.Infrastructure.BackgroundServices.StockAlertMonitoringWorker>();
 
             return services;
         }
