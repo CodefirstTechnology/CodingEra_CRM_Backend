@@ -19,5 +19,21 @@ namespace ERP.Domain.Procurement
         public decimal Quantity { get; set; }
 
         public string? BatchNumber { get; set; }
+
+        public Guid BatchId { get; set; }
+
+        public Guid OriginBinId { get; set; }
+
+        public Guid? DestinationBinId { get; set; }
+
+        public decimal RequestedQty { get; set; }
+
+        public decimal DispatchedQty { get; set; }
+
+        public decimal ReceivedQty { get; set; }
+
+        public decimal DamagedQty { get; set; }
+
+        public string? VarianceReason { get; set; }
     }
 }

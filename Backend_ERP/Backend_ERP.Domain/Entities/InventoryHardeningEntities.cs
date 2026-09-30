@@ -1,9 +1,11 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace Backend_ERP.Domain.Entities
 {
     public class OutboxMessageEntity
     {
+        [Key]
         public Guid OutboxId { get; set; } = Guid.NewGuid();
         public string EventType { get; set; } = null!;
         public string PayloadJson { get; set; } = null!;

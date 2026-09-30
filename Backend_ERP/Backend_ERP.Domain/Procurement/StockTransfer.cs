@@ -39,6 +39,20 @@ namespace ERP.Domain.Procurement
 
         public string UpdatedBy { get; set; } = string.Empty;
 
+        public DateTime? DispatchDate { get; set; }
+
+        public DateTime? ReceiptDate { get; set; }
+
+        public string? EwayBillNumber { get; set; }
+
+        public string? CarrierName { get; set; }
+
+        public string? VehicleNumber { get; set; }
+
+        public Guid CreatedByUserId { get; set; }
+
+        public uint RowVersion { get; set; }
+
         public bool IsDeleted { get; set; }
 
         public List<StockTransferItem> Items { get; set; } = new();

@@ -42,8 +42,11 @@ namespace ERP.Domain.Procurement
     public enum TransferStatus
     {
         Draft,
+        Requested,
         Approved,
+        Dispatched,
         Transferred,
+        Received,
         Completed,
         Cancelled
     }

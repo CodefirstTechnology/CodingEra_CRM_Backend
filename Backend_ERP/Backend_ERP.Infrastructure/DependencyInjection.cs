@@ -127,8 +127,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Accounting.IReceiptService, ERP.Infrastructure.Accounting.ReceiptService>();
             services.AddScoped<ERP.Application.Accounting.IGstService, ERP.Infrastructure.Accounting.GstService>();
             services.AddScoped<ERP.Application.Accounting.IBankReconciliationService, ERP.Infrastructure.Accounting.BankReconciliationService>();
-            services.AddScoped<Backend_ERP.Infrastructure.Services.IHardenedStockTransactionService, Backend_ERP.Infrastructure.Services.HardenedStockTransactionService>();
-            services.AddHostedService<Backend_ERP.Infrastructure.BackgroundServices.OutboxProcessorBackgroundService>();
+            services.AddScoped<ERP.Application.Accounting.IFinancialReportService, ERP.Infrastructure.Accounting.FinancialReportService>();
 
             return services;
         }
