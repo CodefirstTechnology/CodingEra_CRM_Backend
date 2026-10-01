@@ -61,6 +61,7 @@ namespace ERP.Infrastructure.Procurement
         {
             var entity = await _db.IncomingInspections
                 .Include(x => x.Checklist)
+                .ThenInclude(c => c.Samples)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
 
@@ -69,63 +70,110 @@ namespace ERP.Infrastructure.Procurement
 
         public async Task<IncomingDto> CreateIncomingAsync(IncomingCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
         {
-            var valErr = QualityControlRules.ValidateIncomingQuantities(request.SamplingQuantity, request.AcceptedQuantity, request.RejectedQuantity, request.PendingQuantity);
+            var valErr = QualityControlRules.ValidateIncomingQuantities(request.SamplingQuantity, request.AcceptedQuantity, request.RejectedQuantity, request.PendingQuantity, request.ReworkQuantity, request.ScrapQuantity, request.RtvQuantity);
             if (valErr != null) throw new InvalidOperationException(valErr);
 
-            var now = DateTime.UtcNow;
-            var num = await _numberingService.NextNumberAsync("INSP", cancellationToken);
-
-            var entity = new IncomingInspection
+            using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+            try
             {
-                InspectionNumber = num,
-                InspectionDate = request.InspectionDate.ToUniversalTime(),
-                SupplierId = request.SupplierId,
-                SupplierName = request.SupplierName.Trim(),
-                VendorId = request.VendorId,
-                VendorName = request.VendorName.Trim(),
-                PurchaseOrderId = request.PurchaseOrderId,
-                PurchaseOrderNumber = request.PurchaseOrderNumber.Trim(),
-                GRNId = request.GRNId,
-                GRNNumber = request.GRNNumber.Trim(),
-                MaterialId = request.MaterialId,
-                MaterialCode = request.MaterialCode.Trim(),
-                MaterialName = request.MaterialName.Trim(),
-                BatchNumber = request.BatchNumber.Trim(),
-                WarehouseId = request.WarehouseId,
-                WarehouseName = request.WarehouseName.Trim(),
-                Inspector = request.Inspector.Trim(),
-                InspectionType = request.InspectionType,
-                InspectionMethod = request.InspectionMethod,
-                SamplingQuantity = request.SamplingQuantity,
-                AcceptedQuantity = request.AcceptedQuantity,
-                RejectedQuantity = request.RejectedQuantity,
-                PendingQuantity = request.PendingQuantity,
-                InspectionResult = ResolveIncomingResult(request.AcceptedQuantity, request.RejectedQuantity, request.SamplingQuantity),
-                Remarks = request.Remarks?.Trim() ?? string.Empty,
-                Notes = request.Notes?.Trim() ?? string.Empty,
-                Status = IncomingInspectionStatus.Draft,
-                CreatedAt = now,
-                CreatedBy = actingUser,
-                UpdatedAt = now,
-                UpdatedBy = actingUser
-            };
+                var now = DateTime.UtcNow;
+                var num = await _numberingService.NextNumberAsync("INSP", cancellationToken);
 
-            foreach (var chk in request.Checklist ?? new())
-            {
-                entity.Checklist.Add(new IncomingChecklistItem
+                var entity = new IncomingInspection
                 {
-                    Parameter = chk.Parameter.Trim(),
-                    Specification = chk.Specification.Trim(),
-                    ActualValue = chk.ActualValue.Trim(),
-                    Result = chk.Result,
-                    Remarks = chk.Remarks?.Trim() ?? string.Empty
-                });
+                    InspectionNumber = num,
+                    InspectionDate = request.InspectionDate.ToUniversalTime(),
+                    SupplierId = request.SupplierId,
+                    SupplierName = request.SupplierName.Trim(),
+                    VendorId = request.VendorId,
+                    VendorName = request.VendorName.Trim(),
+                    PurchaseOrderId = request.PurchaseOrderId,
+                    PurchaseOrderNumber = request.PurchaseOrderNumber.Trim(),
+                    GRNId = request.GRNId,
+                    GRNNumber = request.GRNNumber.Trim(),
+                    MaterialId = request.MaterialId,
+                    MaterialCode = request.MaterialCode.Trim(),
+                    MaterialName = request.MaterialName.Trim(),
+                    BatchNumber = request.BatchNumber.Trim(),
+                    WarehouseId = request.WarehouseId,
+                    WarehouseName = request.WarehouseName.Trim(),
+                    Inspector = request.Inspector.Trim(),
+                    InspectionType = request.InspectionType,
+                    InspectionMethod = request.InspectionMethod,
+                    SamplingQuantity = request.SamplingQuantity,
+                    AcceptedQuantity = request.AcceptedQuantity,
+                    ReworkQuantity = request.ReworkQuantity,
+                    ScrapQuantity = request.ScrapQuantity,
+                    RtvQuantity = request.RtvQuantity,
+                    RejectedQuantity = request.RejectedQuantity > 0 ? request.RejectedQuantity : (request.ReworkQuantity + request.ScrapQuantity + request.RtvQuantity),
+                    PendingQuantity = request.PendingQuantity,
+                    InspectionResult = ResolveIncomingResult(request.AcceptedQuantity, request.RejectedQuantity, request.SamplingQuantity),
+                    Remarks = request.Remarks?.Trim() ?? string.Empty,
+                    Notes = request.Notes?.Trim() ?? string.Empty,
+                    Status = IncomingInspectionStatus.Draft,
+                    CreatedAt = now,
+                    CreatedBy = actingUser,
+                    UpdatedAt = now,
+                    UpdatedBy = actingUser
+                };
+
+                foreach (var chk in request.Checklist ?? new())
+                {
+                    var chkItem = new IncomingChecklistItem
+                    {
+                        Parameter = chk.Parameter.Trim(),
+                        Specification = chk.Specification.Trim(),
+                        ActualValue = chk.ActualValue.Trim(),
+                        UoM = string.IsNullOrWhiteSpace(chk.UoM) ? "mm" : chk.UoM.Trim(),
+                        TargetValue = chk.TargetValue,
+                        MinTolerance = chk.MinTolerance,
+                        MaxTolerance = chk.MaxTolerance,
+                        Result = chk.Result,
+                        Remarks = chk.Remarks?.Trim() ?? string.Empty
+                    };
+
+                    if (chk.Samples != null && chk.Samples.Count > 0)
+                    {
+                        var sampleVals = chk.Samples.Select(s => s.ObservedNumericValue).ToList();
+                        var (mean, stdDev, isCompliant) = QualityControlRules.EvaluateSampleStatistics(sampleVals, chk.MinTolerance, chk.MaxTolerance);
+                        chkItem.MeanValue = mean;
+                        chkItem.StdDeviation = stdDev;
+                        if (!isCompliant && chkItem.Result == QcCheckResult.Pass)
+                        {
+                            chkItem.Result = QcCheckResult.Fail;
+                        }
+
+                        foreach (var sInput in chk.Samples)
+                        {
+                            bool inLimits = true;
+                            if (chk.MinTolerance.HasValue && sInput.ObservedNumericValue < chk.MinTolerance.Value) inLimits = false;
+                            if (chk.MaxTolerance.HasValue && sInput.ObservedNumericValue > chk.MaxTolerance.Value) inLimits = false;
+
+                            chkItem.Samples.Add(new IncomingInspectionSample
+                            {
+                                SampleIndex = sInput.SampleIndex,
+                                ObservedNumericValue = sInput.ObservedNumericValue,
+                                IsWithinLimits = inLimits,
+                                MeasurementToolId = sInput.MeasurementToolId?.Trim() ?? string.Empty,
+                                CapturedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+
+                    entity.Checklist.Add(chkItem);
+                }
+
+                _db.IncomingInspections.Add(entity);
+                await _db.SaveChangesAsync(cancellationToken);
+                await tx.CommitAsync(cancellationToken);
+
+                return (await GetIncomingByIdAsync(entity.Id, cancellationToken))!;
             }
-
-            _db.IncomingInspections.Add(entity);
-            await _db.SaveChangesAsync(cancellationToken);
-
-            return (await GetIncomingByIdAsync(entity.Id, cancellationToken))!;
+            catch
+            {
+                await tx.RollbackAsync(cancellationToken);
+                throw;
+            }
         }
 
         public async Task<IncomingDto?> UpdateIncomingAsync(int id, IncomingCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default)
@@ -713,8 +761,38 @@ namespace ERP.Infrastructure.Procurement
                     Name = p.Name.Trim(),
                     Expected = p.Expected.Trim(),
                     Actual = p.Actual.Trim(),
+                    UoM = string.IsNullOrWhiteSpace(p.UoM) ? "mm" : p.UoM.Trim(),
+                    TargetValue = p.TargetValue,
+                    MinTolerance = p.MinTolerance,
+                    MaxTolerance = p.MaxTolerance,
+                    ActualNumericValue = p.ActualNumericValue,
                     Result = p.Result
                 });
+            }
+
+            // Inter-submodule linkage: Inherit in-process checks for this Production Entry
+            var inprocChecks = await _db.InProcessChecks
+                .AsNoTracking()
+                .Where(x => x.ProductionEntryId == entry.Id && !x.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            foreach (var ipc in inprocChecks)
+            {
+                if (!entity.Parameters.Any(p => p.Name.Equals(ipc.Parameter, StringComparison.OrdinalIgnoreCase)))
+                {
+                    entity.Parameters.Add(new FinalInspectionParameter
+                    {
+                        Name = $"[In-Process Check] {ipc.Parameter}",
+                        Expected = ipc.ExpectedValue,
+                        Actual = ipc.ActualValue,
+                        UoM = ipc.UoM,
+                        TargetValue = ipc.TargetValue,
+                        MinTolerance = ipc.MinTolerance,
+                        MaxTolerance = ipc.MaxTolerance,
+                        ActualNumericValue = ipc.ActualNumericValue,
+                        Result = ipc.Result
+                    });
+                }
             }
 
             _db.FinalInspections.Add(entity);
@@ -1556,6 +1634,9 @@ namespace ERP.Infrastructure.Procurement
             InspectionMethod = x.InspectionMethod,
             SamplingQuantity = x.SamplingQuantity,
             AcceptedQuantity = x.AcceptedQuantity,
+            ReworkQuantity = x.ReworkQuantity,
+            ScrapQuantity = x.ScrapQuantity,
+            RtvQuantity = x.RtvQuantity,
             RejectedQuantity = x.RejectedQuantity,
             PendingQuantity = x.PendingQuantity,
             InspectionResult = x.InspectionResult,
@@ -1565,6 +1646,19 @@ namespace ERP.Infrastructure.Procurement
                 Parameter = c.Parameter,
                 Specification = c.Specification,
                 ActualValue = c.ActualValue,
+                UoM = c.UoM,
+                TargetValue = c.TargetValue,
+                MinTolerance = c.MinTolerance,
+                MaxTolerance = c.MaxTolerance,
+                MeanValue = c.MeanValue,
+                StdDeviation = c.StdDeviation,
+                Samples = c.Samples?.Select(s => new QcSampleInputDto
+                {
+                    SampleIndex = s.SampleIndex,
+                    ObservedNumericValue = s.ObservedNumericValue,
+                    IsWithinLimits = s.IsWithinLimits,
+                    MeasurementToolId = s.MeasurementToolId
+                }).ToList() ?? new(),
                 Result = c.Result,
                 Remarks = c.Remarks
             }).ToList() ?? new(),

@@ -44,6 +44,16 @@ namespace ERP.Domain.Procurement
 
         public string ActualValue { get; set; } = string.Empty;
 
+        public string UoM { get; set; } = "mm";
+
+        public decimal? TargetValue { get; set; }
+
+        public decimal? MinTolerance { get; set; }
+
+        public decimal? MaxTolerance { get; set; }
+
+        public decimal? ActualNumericValue { get; set; }
+
         public QcCheckResult Result { get; set; } = QcCheckResult.Pending;
 
         public string Remarks { get; set; } = string.Empty;

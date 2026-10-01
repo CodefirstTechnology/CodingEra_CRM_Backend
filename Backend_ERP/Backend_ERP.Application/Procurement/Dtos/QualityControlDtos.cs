@@ -50,6 +50,21 @@ namespace ERP.Application.Procurement.Dtos
         public string? Remarks { get; set; }
     }
 
+    public class QcSampleInputDto
+    {
+        [JsonPropertyName("sampleIndex")]
+        public int SampleIndex { get; set; }
+
+        [JsonPropertyName("observedNumericValue")]
+        public decimal ObservedNumericValue { get; set; }
+
+        [JsonPropertyName("isWithinLimits")]
+        public bool IsWithinLimits { get; set; } = true;
+
+        [JsonPropertyName("measurementToolId")]
+        public string MeasurementToolId { get; set; } = string.Empty;
+    }
+
     public class QcChecklistItemDto
     {
         [JsonPropertyName("id")]
@@ -63,6 +78,27 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("actualValue")]
         public string ActualValue { get; set; } = string.Empty;
+
+        [JsonPropertyName("uom")]
+        public string UoM { get; set; } = "mm";
+
+        [JsonPropertyName("targetValue")]
+        public decimal? TargetValue { get; set; }
+
+        [JsonPropertyName("minTolerance")]
+        public decimal? MinTolerance { get; set; }
+
+        [JsonPropertyName("maxTolerance")]
+        public decimal? MaxTolerance { get; set; }
+
+        [JsonPropertyName("meanValue")]
+        public decimal? MeanValue { get; set; }
+
+        [JsonPropertyName("stdDeviation")]
+        public decimal? StdDeviation { get; set; }
+
+        [JsonPropertyName("samples")]
+        public List<QcSampleInputDto> Samples { get; set; } = new();
 
         [JsonPropertyName("result")]
         public QcCheckResult Result { get; set; }
@@ -215,6 +251,15 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("acceptedQuantity")]
         public decimal AcceptedQuantity { get; set; }
 
+        [JsonPropertyName("reworkQuantity")]
+        public decimal ReworkQuantity { get; set; }
+
+        [JsonPropertyName("scrapQuantity")]
+        public decimal ScrapQuantity { get; set; }
+
+        [JsonPropertyName("rtvQuantity")]
+        public decimal RtvQuantity { get; set; }
+
         [JsonPropertyName("rejectedQuantity")]
         public decimal RejectedQuantity { get; set; }
 
@@ -319,6 +364,15 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("acceptedQuantity")]
         public decimal AcceptedQuantity { get; set; }
+
+        [JsonPropertyName("reworkQuantity")]
+        public decimal ReworkQuantity { get; set; }
+
+        [JsonPropertyName("scrapQuantity")]
+        public decimal ScrapQuantity { get; set; }
+
+        [JsonPropertyName("rtvQuantity")]
+        public decimal RtvQuantity { get; set; }
 
         [JsonPropertyName("rejectedQuantity")]
         public decimal RejectedQuantity { get; set; }
@@ -584,6 +638,21 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("actual")]
         public string Actual { get; set; } = string.Empty;
+
+        [JsonPropertyName("uom")]
+        public string UoM { get; set; } = "mm";
+
+        [JsonPropertyName("targetValue")]
+        public decimal? TargetValue { get; set; }
+
+        [JsonPropertyName("minTolerance")]
+        public decimal? MinTolerance { get; set; }
+
+        [JsonPropertyName("maxTolerance")]
+        public decimal? MaxTolerance { get; set; }
+
+        [JsonPropertyName("actualNumericValue")]
+        public decimal? ActualNumericValue { get; set; }
 
         [JsonPropertyName("result")]
         public QcCheckResult Result { get; set; }

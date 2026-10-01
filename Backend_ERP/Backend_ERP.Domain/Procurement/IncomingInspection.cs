@@ -49,6 +49,12 @@ namespace ERP.Domain.Procurement
 
         public decimal AcceptedQuantity { get; set; }
 
+        public decimal ReworkQuantity { get; set; }
+
+        public decimal ScrapQuantity { get; set; }
+
+        public decimal RtvQuantity { get; set; }
+
         public decimal RejectedQuantity { get; set; }
 
         public decimal PendingQuantity { get; set; }

@@ -29,10 +29,14 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.InspectionResult).HasConversion<string>().HasMaxLength(64);
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64);
 
-            builder.Property(x => x.SamplingQuantity).HasPrecision(18, 4);
-            builder.Property(x => x.AcceptedQuantity).HasPrecision(18, 4);
-            builder.Property(x => x.RejectedQuantity).HasPrecision(18, 4);
-            builder.Property(x => x.PendingQuantity).HasPrecision(18, 4);
+            builder.Property(x => x.SamplingQuantity).HasPrecision(14, 4);
+            builder.Property(x => x.AcceptedQuantity).HasPrecision(14, 4);
+            builder.Property(x => x.ReworkQuantity).HasPrecision(14, 4);
+            builder.Property(x => x.ScrapQuantity).HasPrecision(14, 4);
+            builder.Property(x => x.RtvQuantity).HasPrecision(14, 4);
+            builder.Property(x => x.RejectedQuantity).HasPrecision(14, 4);
+            builder.Property(x => x.PendingQuantity).HasPrecision(14, 4);
+            builder.Property<uint>("xmin").IsRowVersion();
 
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.Notes).HasMaxLength(2000);
@@ -60,10 +64,35 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Parameter).HasMaxLength(256).IsRequired();
             builder.Property(x => x.Specification).HasMaxLength(256);
             builder.Property(x => x.ActualValue).HasMaxLength(256);
+            builder.Property(x => x.UoM).HasMaxLength(32);
+            builder.Property(x => x.TargetValue).HasPrecision(14, 4);
+            builder.Property(x => x.MinTolerance).HasPrecision(14, 4);
+            builder.Property(x => x.MaxTolerance).HasPrecision(14, 4);
+            builder.Property(x => x.MeanValue).HasPrecision(14, 4);
+            builder.Property(x => x.StdDeviation).HasPrecision(14, 4);
             builder.Property(x => x.Result).HasConversion<string>().HasMaxLength(64);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
 
             builder.HasIndex(x => x.IncomingInspectionId);
+
+            builder.HasMany(x => x.Samples)
+                .WithOne(x => x.IncomingChecklistItem)
+                .HasForeignKey(x => x.IncomingChecklistItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class IncomingInspectionSampleConfiguration : IEntityTypeConfiguration<IncomingInspectionSample>
+    {
+        public void Configure(EntityTypeBuilder<IncomingInspectionSample> builder)
+        {
+            builder.ToTable("incoming_inspection_samples");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.ObservedNumericValue).HasPrecision(14, 4);
+            builder.Property(x => x.MeasurementToolId).HasMaxLength(64);
+
+            builder.HasIndex(x => x.IncomingChecklistItemId);
         }
     }
 
@@ -91,6 +120,11 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Tolerance).HasMaxLength(128);
             builder.Property(x => x.ExpectedValue).HasMaxLength(128);
             builder.Property(x => x.ActualValue).HasMaxLength(128);
+            builder.Property(x => x.UoM).HasMaxLength(32);
+            builder.Property(x => x.TargetValue).HasPrecision(14, 4);
+            builder.Property(x => x.MinTolerance).HasPrecision(14, 4);
+            builder.Property(x => x.MaxTolerance).HasPrecision(14, 4);
+            builder.Property(x => x.ActualNumericValue).HasPrecision(14, 4);
             builder.Property(x => x.Result).HasConversion<string>().HasMaxLength(64);
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64);
 
@@ -98,6 +132,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Notes).HasMaxLength(2000);
             builder.Property(x => x.CreatedBy).HasMaxLength(256);
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
+            builder.Property<uint>("xmin").IsRowVersion();
 
             builder.HasIndex(x => x.Status);
         }
@@ -125,14 +160,15 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.SurfaceFinish).HasMaxLength(128);
             builder.Property(x => x.VisualCheck).HasMaxLength(128);
 
-            builder.Property(x => x.AcceptedQuantity).HasPrecision(18, 4);
-            builder.Property(x => x.RejectedQuantity).HasPrecision(18, 4);
+            builder.Property(x => x.AcceptedQuantity).HasPrecision(14, 4);
+            builder.Property(x => x.RejectedQuantity).HasPrecision(14, 4);
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64);
 
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.Notes).HasMaxLength(2000);
             builder.Property(x => x.CreatedBy).HasMaxLength(256);
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
+            builder.Property<uint>("xmin").IsRowVersion();
 
             builder.HasIndex(x => x.Status);
 
@@ -153,6 +189,11 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Name).HasMaxLength(256).IsRequired();
             builder.Property(x => x.Expected).HasMaxLength(256);
             builder.Property(x => x.Actual).HasMaxLength(256);
+            builder.Property(x => x.UoM).HasMaxLength(32);
+            builder.Property(x => x.TargetValue).HasPrecision(14, 4);
+            builder.Property(x => x.MinTolerance).HasPrecision(14, 4);
+            builder.Property(x => x.MaxTolerance).HasPrecision(14, 4);
+            builder.Property(x => x.ActualNumericValue).HasPrecision(14, 4);
             builder.Property(x => x.Result).HasConversion<string>().HasMaxLength(64);
 
             builder.HasIndex(x => x.FinalInspectionId);

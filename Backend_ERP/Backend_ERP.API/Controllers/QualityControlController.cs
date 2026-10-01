@@ -1,14 +1,18 @@
+using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using ERP.Application.Procurement;
 using ERP.Application.Procurement.Dtos;
 using ERP.Shared.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
 {
     [Route("api/quality-control")]
     [ApiController]
+    [Authorize]
     public class QualityControlController : ControllerBase
     {
         private readonly IQualityControlService _qcService;
@@ -441,7 +445,12 @@ namespace ERP.API.Controllers
             return Ok(await _qcService.GetPermissionsAsync());
         }
 
-        private static string ResolveUser(int? userId) => userId is > 0 ? userId.Value.ToString() : "system";
+        private string ResolveUser(int? userId)
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (!string.IsNullOrWhiteSpace(claim)) return claim;
+            return userId is > 0 ? userId.Value.ToString() : "system";
+        }
     }
 
     public class RecordResultRequestDto : StatusActionRequestDto

@@ -79,19 +79,51 @@ namespace ERP.Application.Procurement
             };
         }
 
-        public static string? ValidateIncomingQuantities(decimal sampling, decimal accepted, decimal rejected, decimal pending)
+        public static string? ValidateIncomingQuantities(decimal sampling, decimal accepted, decimal rejected, decimal pending, decimal rework = 0, decimal scrap = 0, decimal rtv = 0)
         {
-            if (sampling < 0 || accepted < 0 || rejected < 0 || pending < 0)
+            if (sampling < 0 || accepted < 0 || rejected < 0 || pending < 0 || rework < 0 || scrap < 0 || rtv < 0)
             {
                 return "Inspection quantities cannot be negative.";
             }
 
-            if (accepted + rejected > sampling + 0.0001m && sampling > 0)
+            decimal totalSplit = accepted + rework + scrap + rtv;
+            if (totalSplit > 0 && Math.Abs(totalSplit - (accepted + rejected)) > 0.001m && rejected == 0)
             {
-                return "Accepted + rejected quantity cannot exceed sampling quantity.";
+                // If rework/scrap/rtv are explicitly provided, check sum
+            }
+
+            if (accepted + rework + scrap + rtv > sampling + 0.0001m && sampling > 0)
+            {
+                return "Total disposition quantities (Accepted + Rework + Scrap + RTV) cannot exceed sampling quantity.";
             }
 
             return null;
+        }
+
+        public static (decimal mean, decimal stdDev, bool isCompliant) EvaluateSampleStatistics(List<decimal> observedValues, decimal? minTol, decimal? maxTol)
+        {
+            if (observedValues == null || observedValues.Count == 0)
+                return (0, 0, true);
+
+            decimal sum = 0;
+            bool compliant = true;
+            foreach (var val in observedValues)
+            {
+                sum += val;
+                if (minTol.HasValue && val < minTol.Value) compliant = false;
+                if (maxTol.HasValue && val > maxTol.Value) compliant = false;
+            }
+
+            decimal mean = Math.Round(sum / observedValues.Count, 4);
+            decimal stdDev = 0;
+
+            if (observedValues.Count > 1)
+            {
+                double sumSq = observedValues.Sum(v => Math.Pow((double)v - (double)mean, 2));
+                stdDev = Math.Round((decimal)Math.Sqrt(sumSq / (observedValues.Count - 1)), 4);
+            }
+
+            return (mean, stdDev, compliant);
         }
 
         public static string? ValidateFinalInspectionQuantities(decimal accepted, decimal rejected, decimal sourceGoodQty)

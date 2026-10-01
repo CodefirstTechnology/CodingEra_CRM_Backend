@@ -172,6 +172,8 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.IncomingChecklistItem> IncomingChecklistItems => Set<ERP.Domain.Procurement.IncomingChecklistItem>();
 
+        public DbSet<ERP.Domain.Procurement.IncomingInspectionSample> IncomingInspectionSamples => Set<ERP.Domain.Procurement.IncomingInspectionSample>();
+
         public DbSet<ERP.Domain.Procurement.InProcessCheck> InProcessChecks => Set<ERP.Domain.Procurement.InProcessCheck>();
 
         public DbSet<ERP.Domain.Procurement.FinalInspection> FinalInspections => Set<ERP.Domain.Procurement.FinalInspection>();
