@@ -96,6 +96,8 @@ namespace ERP.Infrastructure
 
             // Production Services
             services.AddScoped<ERP.Application.Production.IProductionService, ERP.Infrastructure.Production.ProductionService>();
+            services.AddScoped<Backend_ERP.Infrastructure.Production.IAtomicProductionEntryHandler, Backend_ERP.Infrastructure.Production.AtomicProductionEntryHandler>();
+            services.AddScoped<Backend_ERP.Infrastructure.Production.IDailyProductionReportService, Backend_ERP.Infrastructure.Production.DailyProductionReportService>();
 
             // Dispatch & Logistics - Dispatch Planning Services
             services.AddScoped<ERP.Infrastructure.Sales.DispatchPlanningNumberingService>();

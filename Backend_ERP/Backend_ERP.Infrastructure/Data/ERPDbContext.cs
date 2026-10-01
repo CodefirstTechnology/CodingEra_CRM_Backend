@@ -302,6 +302,13 @@ namespace ERP.Infrastructure.Data
         public DbSet<Backend_ERP.Domain.Entities.PhysicalCountSheetEntity> PhysicalCountSheets => Set<Backend_ERP.Domain.Entities.PhysicalCountSheetEntity>();
         public DbSet<Backend_ERP.Domain.Entities.PhysicalCountLineEntity> PhysicalCountLines => Set<Backend_ERP.Domain.Entities.PhysicalCountLineEntity>();
 
+        // Production Shop-Floor Execution DbSets
+        public DbSet<Backend_ERP.Domain.Entities.ProductionEntryEntity> ShopFloorProductionEntries => Set<Backend_ERP.Domain.Entities.ProductionEntryEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.MaterialConsumptionLogEntity> MaterialConsumptionLogs => Set<Backend_ERP.Domain.Entities.MaterialConsumptionLogEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.RejectionTrackingLogEntity> RejectionTrackingLogs => Set<Backend_ERP.Domain.Entities.RejectionTrackingLogEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.DailyProductionReportEntity> DailyProductionReports => Set<Backend_ERP.Domain.Entities.DailyProductionReportEntity>();
+        public DbSet<Backend_ERP.Domain.Entities.DailyProductionReportEntryJunctionEntity> DailyProductionReportEntries => Set<Backend_ERP.Domain.Entities.DailyProductionReportEntryJunctionEntity>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
