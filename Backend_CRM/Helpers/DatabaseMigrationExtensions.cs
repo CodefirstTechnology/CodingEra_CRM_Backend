@@ -43,6 +43,7 @@ namespace CRM.Helpers
                 await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTemplateSchemaEnsure.EnsureAsync(db, logger);
                 await LeadSyncIntervalSchemaEnsure.EnsureAsync(db, logger);
+                await SalesExecutiveReportSchemaEnsure.EnsureAsync(db, logger);
                 await DealPipelineStageSeed.EnsureAsync(db, logger);
                 await LeadStatusMovedToDealSeed.EnsureAsync(db, logger);
                 await RbacSeed.EnsureAsync(db, logger);
