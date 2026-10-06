@@ -57,11 +57,6 @@ namespace CRM.Controllers
                 return BadRequest();
             }
 
-            if (string.IsNullOrWhiteSpace(dto.DailyImprovement))
-            {
-                return BadRequest("Daily Improvement is required.");
-            }
-
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
             if (auditErr != null)
             {
@@ -70,11 +65,29 @@ namespace CRM.Controllers
 
             AuditUserValidation.SetAuditUser(_context, userId);
 
-            await RelatedRecordOwnership.ApplyTaskAssigneeFromRelatedRecordAsync(_context, dto);
-
             var entity = CrmWriteMappings.ToTask(dto, 0);
             entity.TaskId = 0;
             await _context.Tasks.AddAsync(entity);
+
+            if (dto.RelatedLeadId.HasValue && dto.RelatedLeadId.Value > 0)
+            {
+                var leadId = dto.RelatedLeadId.Value;
+                var relatedLead = await _context.Leads.FindAsync(leadId);
+                if (relatedLead != null)
+                {
+                    var followUpStatus = await _context.LeadStatuses
+                        .AsNoTracking()
+                        .Where(s => s.IsActive && (s.Name.ToLower() == "follow-up" || s.Name.ToLower() == "follow up"))
+                        .FirstOrDefaultAsync();
+
+                    if (followUpStatus != null)
+                    {
+                        relatedLead.LeadStatusId = followUpStatus.Id;
+                        relatedLead.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+            }
+
             await _context.SaveChangesAsync();
             return Ok(entity);
         }
@@ -85,11 +98,6 @@ namespace CRM.Controllers
             if (dto == null)
             {
                 return BadRequest();
-            }
-
-            if (string.IsNullOrWhiteSpace(dto.DailyImprovement))
-            {
-                return BadRequest("Daily Improvement is required.");
             }
 
             var auditErr = await AuditUserValidation.ValidateAuditUserAsync(_context, userId);
