@@ -66,6 +66,7 @@ namespace ERP.Application.Procurement
         Task<CertificateDto?> IssueCertificateAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default);
         Task<CertificateDto?> CancelCertificateAsync(int id, StatusActionRequestDto? payload, string actingUser, CancellationToken cancellationToken = default);
         Task<CertificateDashboardDto> GetCertificateDashboardAsync(CancellationToken cancellationToken = default);
+        Task<bool> IsCertificateClearedForDispatchAsync(int salesOrderId, CancellationToken cancellationToken = default);
 
         // ── Rejection Analysis ──
         Task<PagedResult<RejectionListItemDto>> GetRejectionsAsync(ListQueryDto query, CancellationToken cancellationToken = default);

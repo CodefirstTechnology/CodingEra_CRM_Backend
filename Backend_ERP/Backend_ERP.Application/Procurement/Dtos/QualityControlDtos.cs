@@ -944,6 +944,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("passFail")]
         public string PassFail { get; set; } = "Pending";
 
+        [JsonPropertyName("telemetryPointsJson")]
+        public string? TelemetryPointsJson { get; set; }
+
         [JsonPropertyName("remarks")]
         public string Remarks { get; set; } = string.Empty;
 
@@ -1009,6 +1012,9 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("durationMinutes")]
         public int DurationMinutes { get; set; }
+
+        [JsonPropertyName("telemetryPointsJson")]
+        public string? TelemetryPointsJson { get; set; }
 
         [JsonPropertyName("result")]
         public LoadTestStatus Result { get; set; } = LoadTestStatus.Pending;
@@ -1108,6 +1114,21 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("loadTestNumber")]
         public string? LoadTestNumber { get; set; }
 
+        [JsonPropertyName("salesOrderId")]
+        public int? SalesOrderId { get; set; }
+
+        [JsonPropertyName("dispatchPlanId")]
+        public int? DispatchPlanId { get; set; }
+
+        [JsonPropertyName("heatNumber")]
+        public string? HeatNumber { get; set; }
+
+        [JsonPropertyName("certificateHash")]
+        public string? CertificateHash { get; set; }
+
+        [JsonPropertyName("verificationQrUrl")]
+        public string? VerificationQrUrl { get; set; }
+
         [JsonPropertyName("batchNumber")]
         public string BatchNumber { get; set; } = string.Empty;
 
@@ -1179,6 +1200,15 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("loadTestNumber")]
         public string? LoadTestNumber { get; set; }
+
+        [JsonPropertyName("salesOrderId")]
+        public int? SalesOrderId { get; set; }
+
+        [JsonPropertyName("dispatchPlanId")]
+        public int? DispatchPlanId { get; set; }
+
+        [JsonPropertyName("heatNumber")]
+        public string? HeatNumber { get; set; }
 
         [JsonPropertyName("batchNumber")]
         public string BatchNumber { get; set; } = string.Empty;

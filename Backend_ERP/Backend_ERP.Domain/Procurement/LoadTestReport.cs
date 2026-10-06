@@ -36,6 +36,8 @@ namespace ERP.Domain.Procurement
 
         public string PassFail { get; set; } = "Pending";
 
+        public string? TelemetryPointsJson { get; set; }
+
         public string Remarks { get; set; } = string.Empty;
 
         public string Notes { get; set; } = string.Empty;

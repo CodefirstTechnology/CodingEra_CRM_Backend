@@ -38,6 +38,16 @@ namespace ERP.Domain.Procurement
 
         public DateTime? ExpiryDate { get; set; }
 
+        public string? CertificateHash { get; set; }
+
+        public string? VerificationQrUrl { get; set; }
+
+        public int? SalesOrderId { get; set; }
+
+        public int? DispatchPlanId { get; set; }
+
+        public string? HeatNumber { get; set; }
+
         public string Remarks { get; set; } = string.Empty;
 
         public string Notes { get; set; } = string.Empty;

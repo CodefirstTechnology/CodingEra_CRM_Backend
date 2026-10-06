@@ -387,6 +387,13 @@ namespace ERP.API.Controllers
             return updated is null ? NotFound() : Ok(updated);
         }
 
+        [HttpGet("certificates/clearance-check/{salesOrderId:int}")]
+        public async Task<ActionResult<object>> GetCertificateClearanceCheck(int salesOrderId, CancellationToken cancellationToken = default)
+        {
+            var cleared = await _qcService.IsCertificateClearedForDispatchAsync(salesOrderId, cancellationToken);
+            return Ok(new { salesOrderId, isCleared = cleared });
+        }
+
         // ── Rejection Analysis ──
 
         [HttpGet("rejections")]

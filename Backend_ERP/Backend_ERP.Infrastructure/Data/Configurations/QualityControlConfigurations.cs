@@ -220,6 +220,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.AppliedLoad).HasPrecision(18, 4);
             builder.Property(x => x.Result).HasConversion<string>().HasMaxLength(64);
             builder.Property(x => x.PassFail).HasMaxLength(32);
+            builder.Property(x => x.TelemetryPointsJson).HasColumnType("jsonb");
 
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.Notes).HasMaxLength(2000);
@@ -249,6 +250,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.IssuedBy).HasMaxLength(256);
             builder.Property(x => x.ApprovedBy).HasMaxLength(256);
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64);
+            builder.Property(x => x.CertificateHash).HasMaxLength(64);
+            builder.Property(x => x.VerificationQrUrl).HasMaxLength(512);
+            builder.Property(x => x.HeatNumber).HasMaxLength(64);
 
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.Notes).HasMaxLength(2000);
@@ -257,6 +261,8 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.FinalInspectionId);
+            builder.HasIndex(x => x.SalesOrderId);
+            builder.HasIndex(x => x.CertificateHash);
         }
     }
 

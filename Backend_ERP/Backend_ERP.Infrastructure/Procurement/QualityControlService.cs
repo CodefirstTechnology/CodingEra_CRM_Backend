@@ -1113,6 +1113,7 @@ namespace ERP.Infrastructure.Procurement
                 LoadCapacity = request.LoadCapacity,
                 AppliedLoad = request.AppliedLoad,
                 DurationMinutes = request.DurationMinutes,
+                TelemetryPointsJson = request.TelemetryPointsJson,
                 Result = result,
                 PassFail = passFail,
                 Remarks = request.Remarks?.Trim() ?? string.Empty,
@@ -1127,6 +1128,38 @@ namespace ERP.Infrastructure.Procurement
             if (!fin.LoadTestId.HasValue || fin.LoadTestId.Value == 0)
             {
                 fin.LoadTestId = entity.Id;
+            }
+
+            if (result == LoadTestStatus.Failed)
+            {
+                var rejectionNum = await _numberingService.NextNumberAsync("REJ", cancellationToken);
+                var rejection = new RejectionAnalysis
+                {
+                    RejectionNumber = rejectionNum,
+                    RejectionDate = now,
+                    Source = RejectionSource.FinalInspection,
+                    SourceRecordId = fin.Id,
+                    SourceRecordNumber = fin.InspectionNumber,
+                    ProductId = entity.ProductId,
+                    ProductCode = entity.ProductCode,
+                    ProductName = entity.ProductName,
+                    BatchNumber = fin.ProductionBatch,
+                    Quantity = 1,
+                    Reason = $"Failed Load Test Report {num}: Applied Load {entity.AppliedLoad} vs Capacity {entity.LoadCapacity}. {entity.Remarks}".Trim(),
+                    RootCause = "Structural load failure during load test verification",
+                    Department = "Quality Assurance",
+                    Operator = actingUser,
+                    MachineId = entity.MachineId,
+                    MachineCode = entity.MachineCode,
+                    MachineName = entity.MachineName,
+                    Status = RejectionAnalysisStatus.Open,
+                    Remarks = $"Auto-generated from failed Load Test {num}",
+                    CreatedAt = now,
+                    CreatedBy = actingUser,
+                    UpdatedAt = now,
+                    UpdatedBy = actingUser
+                };
+                _db.RejectionAnalyses.Add(rejection);
             }
 
             await _db.SaveChangesAsync(cancellationToken);
@@ -1223,6 +1256,52 @@ namespace ERP.Infrastructure.Procurement
                 fin.TestCertificateId = entity.Id;
             }
 
+            var now = DateTime.UtcNow;
+            var num = await _numberingService.NextNumberAsync("TC", cancellationToken);
+            var prodId = fin.FinishedProductId > 0 ? fin.FinishedProductId : request.ProductId;
+            var batchNum = !string.IsNullOrWhiteSpace(request.BatchNumber) ? request.BatchNumber.Trim() : fin.ProductionBatch;
+            var issuer = string.IsNullOrWhiteSpace(request.IssuedBy) ? actingUser : request.IssuedBy.Trim();
+
+            var rawPayload = $"{num}:{request.CustomerId}:{prodId}:{batchNum}:{request.CertificateDate:O}:{issuer}";
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var certHash = Convert.ToHexString(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawPayload))).ToLowerInvariant();
+
+            var entity = new TestCertificate
+            {
+                CertificateNumber = num,
+                CertificateDate = request.CertificateDate.ToUniversalTime(),
+                CustomerId = request.CustomerId,
+                CustomerName = request.CustomerName.Trim(),
+                ProductId = prodId,
+                ProductCode = !string.IsNullOrWhiteSpace(request.ProductCode) ? request.ProductCode.Trim() : fin.FinishedProductCode,
+                ProductName = !string.IsNullOrWhiteSpace(request.ProductName) ? request.ProductName.Trim() : fin.FinishedProductName,
+                FinalInspectionId = fin.Id,
+                FinalInspectionNumber = fin.InspectionNumber,
+                LoadTestId = request.LoadTestId ?? fin.LoadTestId,
+                LoadTestNumber = request.LoadTestNumber?.Trim(),
+                SalesOrderId = request.SalesOrderId,
+                DispatchPlanId = request.DispatchPlanId,
+                HeatNumber = request.HeatNumber?.Trim(),
+                CertificateHash = certHash,
+                VerificationQrUrl = $"/verify/certificate/{certHash}",
+                BatchNumber = batchNum,
+                IssuedBy = issuer,
+                ExpiryDate = request.ExpiryDate?.ToUniversalTime(),
+                Remarks = request.Remarks?.Trim() ?? string.Empty,
+                Notes = request.Notes?.Trim() ?? string.Empty,
+                Status = CertificateStatus.Draft,
+                CreatedAt = now,
+                CreatedBy = actingUser,
+                UpdatedAt = now,
+                UpdatedBy = actingUser
+            };
+
+            _db.TestCertificates.Add(entity);
+            if (!fin.TestCertificateId.HasValue || fin.TestCertificateId.Value == 0)
+            {
+                fin.TestCertificateId = entity.Id;
+            }
+
             await _db.SaveChangesAsync(cancellationToken);
 
             return MapToCertificateDto(entity);
@@ -1254,6 +1333,9 @@ namespace ERP.Infrastructure.Procurement
             entity.FinalInspectionNumber = request.FinalInspectionNumber.Trim();
             entity.LoadTestId = request.LoadTestId;
             entity.LoadTestNumber = request.LoadTestNumber?.Trim();
+            entity.SalesOrderId = request.SalesOrderId;
+            entity.DispatchPlanId = request.DispatchPlanId;
+            entity.HeatNumber = request.HeatNumber?.Trim();
             entity.BatchNumber = request.BatchNumber.Trim();
             entity.IssuedBy = string.IsNullOrWhiteSpace(request.IssuedBy) ? entity.IssuedBy : request.IssuedBy.Trim();
             entity.ExpiryDate = request.ExpiryDate?.ToUniversalTime();
@@ -1301,6 +1383,9 @@ namespace ERP.Infrastructure.Procurement
                 FinalInspectionNumber = src.FinalInspectionNumber,
                 LoadTestId = src.LoadTestId,
                 LoadTestNumber = src.LoadTestNumber,
+                SalesOrderId = src.SalesOrderId,
+                DispatchPlanId = src.DispatchPlanId,
+                HeatNumber = src.HeatNumber,
                 BatchNumber = src.BatchNumber,
                 IssuedBy = actingUser,
                 ExpiryDate = src.ExpiryDate,
@@ -1337,6 +1422,16 @@ namespace ERP.Infrastructure.Procurement
             };
         }
 
+        public async Task<bool> IsCertificateClearedForDispatchAsync(int salesOrderId, CancellationToken cancellationToken = default)
+        {
+            var certs = await _db.TestCertificates.AsNoTracking()
+                .Where(x => x.SalesOrderId == salesOrderId && !x.IsDeleted && (x.Status == CertificateStatus.Issued || x.Status == CertificateStatus.Approved))
+                .ToListAsync(cancellationToken);
+
+            if (!certs.Any()) return false;
+            return certs.All(c => !c.ExpiryDate.HasValue || c.ExpiryDate.Value > DateTime.UtcNow);
+        }
+
         private async Task<CertificateDto?> ChangeCertificateStatusAsync(int id, CertificateStatus target, string? remarks, string actingUser, CancellationToken cancellationToken)
         {
             var entity = await _db.TestCertificates.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
@@ -1350,6 +1445,15 @@ namespace ERP.Infrastructure.Procurement
             entity.Status = target;
             entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = actingUser;
+
+            if (string.IsNullOrWhiteSpace(entity.CertificateHash))
+            {
+                var rawPayload = $"{entity.CertificateNumber}:{entity.CustomerId}:{entity.ProductId}:{entity.BatchNumber}:{entity.CertificateDate:O}:{entity.IssuedBy}";
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                var certHash = Convert.ToHexString(sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawPayload))).ToLowerInvariant();
+                entity.CertificateHash = certHash;
+                entity.VerificationQrUrl = $"/verify/certificate/{certHash}";
+            }
 
             if (!string.IsNullOrWhiteSpace(remarks)) entity.Remarks = remarks.Trim();
 
@@ -1805,6 +1909,7 @@ namespace ERP.Infrastructure.Procurement
             LoadCapacity = x.LoadCapacity,
             AppliedLoad = x.AppliedLoad,
             DurationMinutes = x.DurationMinutes,
+            TelemetryPointsJson = x.TelemetryPointsJson,
             Result = x.Result,
             PassFail = x.PassFail,
             Remarks = x.Remarks,
@@ -1844,6 +1949,11 @@ namespace ERP.Infrastructure.Procurement
             LoadTestId = x.LoadTestId,
             LoadTestNumber = x.LoadTestNumber,
             BatchNumber = x.BatchNumber,
+            SalesOrderId = x.SalesOrderId,
+            DispatchPlanId = x.DispatchPlanId,
+            HeatNumber = x.HeatNumber,
+            CertificateHash = x.CertificateHash,
+            VerificationQrUrl = x.VerificationQrUrl,
             IssuedBy = x.IssuedBy,
             ApprovedBy = x.ApprovedBy,
             Status = x.Status,
