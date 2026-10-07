@@ -137,115 +137,56 @@ namespace CRM.Services
 
 
         public async Task<IReadOnlyList<UserPermissionDto>> GetUserPermissionsAsync(int userId)
-
         {
-
-            if (await IsAdminUserAsync(userId))
-
-            {
-
-                return await GetAllPermissionsAsync();
-
-            }
-
-
-
-            var roleId = await _db.Users.AsNoTracking()
-
+            var userRow = await _db.Users.AsNoTracking()
                 .Where(u => u.Id == userId && u.IsActive)
-
-                .Select(u => u.RoleId)
-
+                .Select(u => new { u.RoleId, RoleName = u.Role != null ? u.Role.Name : string.Empty })
                 .FirstOrDefaultAsync();
 
-
-
-            if (roleId == null)
-
+            if (userRow?.RoleId == null)
             {
-
                 return Array.Empty<UserPermissionDto>();
-
             }
 
-
-
+            var roleId = userRow.RoleId.Value;
             var perms = await _db.RolePermissions.AsNoTracking()
-
                 .Where(rp => rp.RoleId == roleId)
-
                 .Join(
-
                     _db.Permissions.AsNoTracking(),
-
                     rp => rp.PermissionId,
-
                     p => p.Id,
-
                     (rp, p) => new UserPermissionDto
-
                     {
-
                         Code = p.Code,
-
                         Module = p.Module,
-
                         Action = p.Action,
-
                         AccessScope = rp.AccessScope,
-
                     })
-
                 .ToListAsync();
 
-
-
             if (perms.Count == 0)
-
             {
+                if (RbacAdminHelper.IsAdminRole(roleId, userRow.RoleName))
+                {
+                    return await GetAllPermissionsAsync();
+                }
 
-                return await GetLegacyFallbackPermissionsAsync(roleId.Value);
-
+                return await GetLegacyFallbackPermissionsAsync(roleId);
             }
-
-
 
             return perms;
-
         }
 
-
-
         public async Task<bool> HasPermissionAsync(int userId, string permissionCode)
-
         {
-
             if (string.IsNullOrWhiteSpace(permissionCode))
-
             {
-
                 return false;
-
             }
-
-
-
-            if (await IsAdminUserAsync(userId))
-
-            {
-
-                return true;
-
-            }
-
-
 
             var code = permissionCode.Trim().ToLowerInvariant();
-
             var perms = await GetUserPermissionsAsync(userId);
-
             return perms.Any(p => string.Equals(p.Code, code, StringComparison.OrdinalIgnoreCase));
-
         }
 
 

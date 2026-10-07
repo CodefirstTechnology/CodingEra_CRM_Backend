@@ -84,6 +84,10 @@ coverage*.xml
 **/_schema_probe.csx
 
 # EF / DB tooling (local scratch)
+scratch/
+**/scratch/
+.dotnet/
+**/.dotnet/
 *.db
 *.db-shm
 *.db-wal
