@@ -474,6 +474,128 @@ namespace CRM.Controllers
             });
         }
 
+        [HttpGet("monthly-performance-summary")]
+        public async Task<IActionResult> GetMonthlyPerformanceSummary(
+            [FromQuery] int? year = null,
+            [FromQuery] int timeZoneOffsetMinutes = -330)
+        {
+            var offset = TimeSpan.FromMinutes(-timeZoneOffsetMinutes);
+            var nowLocal = DateTime.UtcNow.Add(offset);
+            var targetYear = year.HasValue && year.Value > 2000 && year.Value < 2100
+                ? year.Value
+                : nowLocal.Year;
+
+            var startOfYearLocal = new DateTime(targetYear, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+            var endOfYearLocal = new DateTime(targetYear + 1, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+
+            var startOfYearUtc = DateTime.SpecifyKind(startOfYearLocal - offset, DateTimeKind.Utc);
+            var endOfYearUtc = DateTime.SpecifyKind(endOfYearLocal - offset, DateTimeKind.Utc);
+
+            // 1. Batched Leads Query
+            var rawLeads = await _context.Leads.AsNoTracking()
+                .Include(l => l.LeadStatus)
+                .Where(l => l.IsActive && l.CreatedAt >= startOfYearUtc && l.CreatedAt < endOfYearUtc)
+                .Select(l => new
+                {
+                    l.Id,
+                    l.CreatedAt,
+                    DealAmount = l.DealAmount ?? 0m,
+                    IsQualified = (l.LeadStatus != null && (l.LeadStatus.IsPositive || l.LeadStatus.IsConversionStatus || l.LeadStatus.Name == "Qualified" || l.LeadStatus.Name == "Interested"))
+                })
+                .ToListAsync();
+
+            // 2. Batched Quotations Query
+            var rawQuotes = await _context.Quotations.AsNoTracking()
+                .Where(q => q.Status != "Draft" && q.Status != "Cancelled" &&
+                            q.CreatedAt >= startOfYearUtc && q.CreatedAt < endOfYearUtc)
+                .Select(q => new
+                {
+                    q.Id,
+                    q.CreatedAt,
+                    GrandTotal = q.GrandTotal
+                })
+                .ToListAsync();
+
+            // 3. Batched Deals Query
+            var rawDeals = await _context.Deals.AsNoTracking()
+                .Include(d => d.DealStatus)
+                .Where(d => d.IsActive && d.CreatedAt >= startOfYearUtc && d.CreatedAt < endOfYearUtc)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.CreatedAt,
+                    DealAmount = d.DealAmount ?? 0m,
+                    Status = d.Status ?? "",
+                    IsWon = (d.DealStatus != null && d.DealStatus.IsWon == true) ||
+                            (d.Status != null && (d.Status == "Closed Won" || d.Status == "Lead Closed - Won" || d.Status == "Won"))
+                })
+                .ToListAsync();
+
+            int GetLocalMonthNumber(DateTime? utcDt)
+            {
+                if (!utcDt.HasValue) return 0;
+                var localDt = utcDt.Value.Add(offset);
+                return localDt.Month;
+            }
+
+            var monthNames = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+            var monthRows = new List<MonthlySummaryRowDto>();
+
+            for (int m = 1; m <= 12; m++)
+            {
+                var mLeads = rawLeads.Where(l => GetLocalMonthNumber(l.CreatedAt) == m).ToList();
+                var mQuotes = rawQuotes.Where(q => GetLocalMonthNumber(q.CreatedAt) == m).ToList();
+                var mDeals = rawDeals.Where(d => GetLocalMonthNumber(d.CreatedAt) == m).ToList();
+
+                var totalLeads = mLeads.Count;
+                var qualifiedLeads = mLeads.Count(l => l.IsQualified);
+                var quotationsCount = mQuotes.Count;
+                var ordersWonCount = mDeals.Count(d => d.IsWon);
+
+                var leadValue = mLeads.Sum(l => l.DealAmount);
+                var quotationValue = mQuotes.Sum(q => q.GrandTotal);
+                var orderValue = mDeals.Where(d => d.IsWon).Sum(d => d.DealAmount);
+
+                monthRows.Add(new MonthlySummaryRowDto
+                {
+                    MonthLabel = $"{monthNames[m - 1]}-{targetYear}",
+                    MonthNumber = m,
+                    TotalLeads = totalLeads,
+                    QualifiedLeads = qualifiedLeads,
+                    QuotationsCount = quotationsCount,
+                    OrdersWonCount = ordersWonCount,
+                    LeadValue = leadValue,
+                    QuotationValue = quotationValue,
+                    OrderValue = orderValue,
+                    LeadToQuotePercentage = SafePercentage(quotationsCount, totalLeads),
+                    QuoteToOrderPercentage = SafePercentage(ordersWonCount, quotationsCount),
+                    LeadToOrderPercentage = SafePercentage(ordersWonCount, totalLeads)
+                });
+            }
+
+            var totals = new MonthlySummaryTotalsDto
+            {
+                TotalLeads = monthRows.Sum(r => r.TotalLeads),
+                QualifiedLeads = monthRows.Sum(r => r.QualifiedLeads),
+                QuotationsCount = monthRows.Sum(r => r.QuotationsCount),
+                OrdersWonCount = monthRows.Sum(r => r.OrdersWonCount),
+                LeadValue = monthRows.Sum(r => r.LeadValue),
+                QuotationValue = monthRows.Sum(r => r.QuotationValue),
+                OrderValue = monthRows.Sum(r => r.OrderValue)
+            };
+
+            totals.LeadToQuotePercentage = SafePercentage(totals.QuotationsCount, totals.TotalLeads);
+            totals.QuoteToOrderPercentage = SafePercentage(totals.OrdersWonCount, totals.QuotationsCount);
+            totals.LeadToOrderPercentage = SafePercentage(totals.OrdersWonCount, totals.TotalLeads);
+
+            return Ok(new MonthlyPerformanceReportResponse
+            {
+                SelectedYear = targetYear,
+                Months = monthRows,
+                Totals = totals
+            });
+        }
+
         private static double SafePercentage(double numerator, double denominator)
         {
             if (denominator <= 0) return 0.0;
@@ -482,3 +604,4 @@ namespace CRM.Controllers
         }
     }
 }
+
