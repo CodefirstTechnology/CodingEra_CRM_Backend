@@ -34,6 +34,9 @@ namespace CRM.models
 
         public int? RelatedDealId { get; set; }
 
+        [Column("call_log_id")]
+        public int? CallLogId { get; set; }
+
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 

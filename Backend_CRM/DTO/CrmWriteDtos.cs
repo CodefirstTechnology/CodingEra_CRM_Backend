@@ -151,6 +151,7 @@ namespace CRM.DTO
         public int? AssigneeUserId { get; set; }
         public int? RelatedLeadId { get; set; }
         public int? RelatedDealId { get; set; }
+        public int? CallLogId { get; set; }
     }
 
     /// <summary>POST <c>AddCall</c> / PUT <c>UpdateCall</c>. Server sets callId and lastModified.</summary>
@@ -172,6 +173,20 @@ namespace CRM.DTO
         public int? ContactId { get; set; }
         public int? RelatedLeadId { get; set; }
         public int? RelatedDealId { get; set; }
+        public int? RelatedTaskId { get; set; }
+    }
+
+    /// <summary>DTO payload when completing a follow-up task.</summary>
+    public class CompleteFollowUpDto
+    {
+        public int TaskId { get; set; }
+        public string DiscussionNotes { get; set; } = string.Empty;
+        public bool LogAsCallDone { get; set; } = true;
+        public string CallOutcome { get; set; } = "Connected";
+        public int? DurationSeconds { get; set; } = 60;
+        public bool ScheduleNext { get; set; } = false;
+        public DateTime? NextDueDate { get; set; }
+        public string? NextMessage { get; set; }
     }
 
     public static class CrmWriteMappings
@@ -323,6 +338,7 @@ namespace CRM.DTO
             AssigneeUserId = Fk(d.AssigneeUserId),
             RelatedLeadId = Fk(d.RelatedLeadId),
             RelatedDealId = Fk(d.RelatedDealId),
+            CallLogId = Fk(d.CallLogId),
         };
 
         public static void Apply(TaskTable e, TaskUpsertDto d)
@@ -337,6 +353,7 @@ namespace CRM.DTO
             e.AssigneeUserId = Fk(d.AssigneeUserId);
             e.RelatedLeadId = Fk(d.RelatedLeadId);
             e.RelatedDealId = Fk(d.RelatedDealId);
+            e.CallLogId = Fk(d.CallLogId);
         }
 
         public static CallLog ToCallLog(CallLogUpsertDto d, int callId = 0) => new()
@@ -354,6 +371,7 @@ namespace CRM.DTO
             ContactId = Fk(d.ContactId),
             RelatedLeadId = Fk(d.RelatedLeadId),
             RelatedDealId = Fk(d.RelatedDealId),
+            RelatedTaskId = Fk(d.RelatedTaskId),
         };
 
         public static void Apply(CallLog e, CallLogUpsertDto d)
@@ -370,6 +388,7 @@ namespace CRM.DTO
             e.ContactId = Fk(d.ContactId);
             e.RelatedLeadId = Fk(d.RelatedLeadId);
             e.RelatedDealId = Fk(d.RelatedDealId);
+            e.RelatedTaskId = Fk(d.RelatedTaskId);
         }
     }
 }
