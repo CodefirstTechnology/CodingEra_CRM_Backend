@@ -264,7 +264,9 @@ namespace CRM.Controllers
                         TaskDescription = dto.NextMessage?.Trim() ?? "",
                         TaskStatus = "Todo",
                         TaskPriority = "Medium",
-                        TaskDueDate = dto.NextDueDate.Value,
+                        TaskDueDate = dto.NextDueDate.Value.Kind == DateTimeKind.Unspecified
+                            ? DateTime.SpecifyKind(dto.NextDueDate.Value, DateTimeKind.Utc)
+                            : dto.NextDueDate.Value.ToUniversalTime(),
                         TaskAssignee = task.TaskAssignee,
                         AssigneeUserId = task.AssigneeUserId ?? userId,
                         RelatedLeadId = task.RelatedLeadId,
