@@ -29,6 +29,9 @@ namespace CRM.models
         [Column("is_conversion_status")]
         public bool IsConversionStatus { get; set; }
 
+        [Column("is_positive")]
+        public bool IsPositive { get; set; } = false;
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; }
 

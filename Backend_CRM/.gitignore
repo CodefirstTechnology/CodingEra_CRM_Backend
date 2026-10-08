@@ -1,0 +1,7 @@
+# Local temporary scratch directory & .NET CLI home
+scratch/
+**/scratch/
+.dotnet/
+**/.dotnet/
+bin/
+obj/

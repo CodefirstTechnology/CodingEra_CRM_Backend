@@ -25,11 +25,17 @@ namespace CRM.models
 
         public string TaskPriority { get; set; } = string.Empty;
 
+        [Column("task_type")]
+        public string TaskType { get; set; } = "Task";
+
         public int? AssigneeUserId { get; set; }
 
         public int? RelatedLeadId { get; set; }
 
         public int? RelatedDealId { get; set; }
+
+        [Column("call_log_id")]
+        public int? CallLogId { get; set; }
 
         [Column("is_active")]
         public bool IsActive { get; set; } = true;

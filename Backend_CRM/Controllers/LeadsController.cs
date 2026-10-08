@@ -44,14 +44,18 @@ namespace CRM.Controllers
             [FromQuery] string? leadSource = null,
             [FromQuery] string? status = null,
             [FromQuery] int? leadOwnerId = null,
-            [FromQuery] string? search = null)
+            [FromQuery] string? search = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
         {
             var permErr = await RbacAuthorization.RequirePermissionAsync(_context, _rbac, userId, "leads.view");
             if (permErr != null) return permErr;
             IQueryable<Lead> q = QueryWithMasters(_context.Leads.AsNoTracking());
             q = await RbacRecordScopeHelper.ApplyLeadOwnerScopeAsync(_context, _rbac, userId, "leads", q);
+            DateOnly? dFrom = fromDate.HasValue ? DateOnly.FromDateTime(fromDate.Value) : null;
+            DateOnly? dTo = toDate.HasValue ? DateOnly.FromDateTime(toDate.Value) : null;
             q = await LeadQueryFilterHelper.ApplyListFiltersAsync(
-                _context, _rbac, userId, q, leadSource, status, leadOwnerId, search);
+                _context, _rbac, userId, q, leadSource, status, leadOwnerId, search, dFrom, dTo);
 
             return Ok(await q.OrderByDescending(l => l.UpdatedAt).AsSplitQuery().ToListAsync());
         }
@@ -448,6 +452,16 @@ namespace CRM.Controllers
             if (direct is > 0)
             {
                 return direct;
+            }
+
+            var reqLower = req.ToLowerInvariant();
+            if (reqLower == "follow-up" || reqLower == "follow up" || reqLower == "followup")
+            {
+                var fId = await _context.LeadStatuses.AsNoTracking()
+                    .Where(s => (!requireActive || s.IsActive) && (s.Name.ToLower() == "follow-up" || s.Name.ToLower() == "follow up" || s.Name.ToLower() == "followup"))
+                    .Select(s => (int?)s.Id)
+                    .FirstOrDefaultAsync();
+                if (fId is > 0) return fId;
             }
 
             // Legacy aliases ("Converted" / "Moved to Deal") → flagged conversion status.
