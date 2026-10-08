@@ -49,6 +49,8 @@ namespace CRM.DATA
 
         public DbSet<DealStatus> DealStatuses { get; set; }
 
+        public DbSet<LeadTrackerRow> VwLeadTrackers { get; set; }
+
         public DbSet<RequestType> RequestTypes { get; set; }
 
         public DbSet<LeadSource> LeadSources { get; set; }
@@ -792,6 +794,10 @@ namespace CRM.DATA
             modelBuilder.Entity<UserTargetType>()
                 .HasIndex(t => t.Name)
                 .IsUnique();
+
+            modelBuilder.Entity<LeadTrackerRow>()
+                .HasNoKey()
+                .ToView("vw_lead_tracker");
 
             modelBuilder.Entity<UserTargetType>()
                 .HasOne<User>()
