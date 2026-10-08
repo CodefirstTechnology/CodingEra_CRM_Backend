@@ -7,7 +7,7 @@
     <UserSecretsId>aa734dd4-4f24-4996-a151-0a25442cdb83</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <!-- Set SkipEfMigrate=true to skip post-build EF migrate (e.g. CI without PostgreSQL). -->
-    <EfAutoMigrateOnBuild Condition="'$(EfAutoMigrateOnBuild)' == ''">true</EfAutoMigrateOnBuild>
+    <EfAutoMigrateOnBuild Condition="'$(EfAutoMigrateOnBuild)' == ''">false</EfAutoMigrateOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,13 +29,15 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
-  <!-- Debug build: detect model changes, add migration if needed, update PostgreSQL. -->
+  <!-- Debug build: detect model changes, add migration if needed, update PostgreSQL without recursion. -->
   <Target Name="EfAutoMigrateAfterBuild"
           AfterTargets="Build"
-          Condition="'$(EfAutoMigrateOnBuild)' == 'true' AND '$(Configuration)' == 'Debug' AND '$(SkipEfMigrate)' != 'true'">
+          Condition="'$(EfAutoMigrateOnBuild)' == 'true' and '$(Configuration)' == 'Debug' and '$(SkipEfMigrate)' != 'true' and '$(BuildingProject)' == 'true' and '$(EFAutoMigrateRunning)' != 'true' and '$(DesignTimeBuild)' != 'true'">
     <Message Importance="high" Text="Running EF Core auto-migration (Scripts\ef-auto-migrate.ps1)..." />
     <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
+          EnvironmentVariables="EFAutoMigrateRunning=true;SkipEfMigrate=true"
           Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Scripts\ef-auto-migrate.ps1&quot;"
+          CustomErrorRegularExpression="$^"
           IgnoreExitCode="true" />
   </Target>
 
