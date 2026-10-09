@@ -1,5 +1,7 @@
 using CRM.DATA;
 using CRM.DTO;
+using CRM.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Helpers
@@ -57,7 +59,7 @@ namespace CRM.Helpers
             return null;
         }
 
-        private static async Task<string?> ResolveUserDisplayNameAsync(TaskDbcontext db, int userId)
+        public static async Task<string?> ResolveUserDisplayNameAsync(TaskDbcontext db, int userId)
         {
             var row = await db.Users.AsNoTracking()
                 .Where(u => u.Id == userId && u.IsActive)
@@ -108,6 +110,115 @@ namespace CRM.Helpers
             if (!string.IsNullOrWhiteSpace(display))
             {
                 dto.Name = display;
+            }
+        }
+
+        /// <summary>
+        /// When a lead is reassigned to a new owner, automatically updates all active/pending follow-up tasks
+        /// linked to that lead to the new owner, resets alert tracking, and emits real-time SignalR events.
+        /// </summary>
+        public static async Task SyncActiveTasksAssigneeForLeadAsync(
+            TaskDbcontext db,
+            IHubContext<UserStatusHub> hubContext,
+            int leadId,
+            int newOwnerId)
+        {
+            var activeTasks = await db.Tasks
+                .Where(t => t.RelatedLeadId == leadId &&
+                            t.IsActive &&
+                            t.TaskStatus != "Completed" &&
+                            t.TaskStatus != "Done" &&
+                            t.TaskStatus != "Canceled")
+                .ToListAsync();
+
+            if (activeTasks.Count == 0)
+            {
+                return;
+            }
+
+            var newOwnerName = await ResolveUserDisplayNameAsync(db, newOwnerId) ?? $"User #{newOwnerId}";
+
+            var lead = await db.Leads.AsNoTracking()
+                .Include(l => l.Organization)
+                .FirstOrDefaultAsync(l => l.Id == leadId);
+
+            string customerName = lead?.Organization != null && !string.IsNullOrWhiteSpace(lead.Organization.Name)
+                ? lead.Organization.Name
+                : (lead != null ? (lead.FirstName + " " + lead.LastName).Trim() : "Customer");
+            string contactPerson = lead != null ? (lead.FirstName + " " + lead.LastName).Trim() : string.Empty;
+            string mobile = lead?.Mobile ?? string.Empty;
+
+            var nowUtc = DateTime.UtcNow;
+
+            foreach (var task in activeTasks)
+            {
+                var oldAssigneeId = task.AssigneeUserId;
+                if (oldAssigneeId == newOwnerId)
+                {
+                    continue;
+                }
+
+                task.AssigneeUserId = newOwnerId;
+                task.TaskAssignee = newOwnerName;
+                task.UpdatedAt = nowUtc;
+                task.LastModified = nowUtc;
+
+                // Reset SLA alert tracking timestamps for the new assignee
+                task.FirstDueAlertSentAt = null;
+                task.LastRepetitionAlertSentAt = null;
+
+                // 1. Dismiss active popup from old assignee's SignalR channel
+                if (oldAssigneeId.HasValue)
+                {
+                    var dismissEvent = new DismissFollowUpPopupDto
+                    {
+                        TaskId = task.TaskId,
+                        LeadId = leadId,
+                        Reason = "REASSIGNED"
+                    };
+                    await hubContext.Clients.Group($"User_{oldAssigneeId.Value}")
+                        .SendAsync("DismissFollowUpPopup", dismissEvent);
+                }
+
+                // 2. If the task is overdue, push alert to new assignee and admin dashboard immediately
+                if (task.TaskDueDate <= nowUtc)
+                {
+                    var overdueMins = (int)Math.Max(0, Math.Floor((nowUtc - task.TaskDueDate).TotalMinutes));
+                    var popupPayload = new FollowUpPopupEventDto
+                    {
+                        TaskId = task.TaskId,
+                        LeadId = leadId,
+                        LeadFormattedId = $"L{leadId:D4}",
+                        CustomerName = customerName,
+                        ContactPerson = contactPerson,
+                        Mobile = mobile,
+                        TaskTitle = task.TaskTitle,
+                        DueDate = task.TaskDueDate,
+                        MinutesOverdue = overdueMins,
+                        IsInitialDue = true
+                    };
+
+                    await hubContext.Clients.Group($"User_{newOwnerId}")
+                        .SendAsync("FollowUpReminderPopup", popupPayload);
+
+                    var adminPayload = new FollowUpAdminEscalationDto
+                    {
+                        TaskId = task.TaskId,
+                        LeadId = leadId,
+                        LeadFormattedId = $"L{leadId:D4}",
+                        CustomerName = customerName,
+                        SalesExecutiveName = newOwnerName,
+                        SalesExecutiveUserId = newOwnerId,
+                        TaskTitle = task.TaskTitle,
+                        DueDate = task.TaskDueDate,
+                        MinutesOverdue = overdueMins,
+                        Severity = overdueMins >= 60 ? "CRITICAL" : "OVERDUE",
+                        EscalatedAt = task.EscalatedToAdminAt ?? nowUtc
+                    };
+
+                    await hubContext.Clients.Group(UserStatusHub.AdminsGroupName)
+                        .SendAsync("FollowUpAdminEscalation", adminPayload);
+                }
             }
         }
     }

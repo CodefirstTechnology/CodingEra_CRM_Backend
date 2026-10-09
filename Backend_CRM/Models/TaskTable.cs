@@ -53,5 +53,17 @@ namespace CRM.models
 
         [Column("updated_by")]
         public int? UpdatedBy { get; set; }
+
+        [Column("first_due_alert_sent_at")]
+        public DateTime? FirstDueAlertSentAt { get; set; }
+
+        [Column("last_repetition_alert_sent_at")]
+        public DateTime? LastRepetitionAlertSentAt { get; set; }
+
+        [Column("is_escalated_to_admin")]
+        public bool IsEscalatedToAdmin { get; set; } = false;
+
+        [Column("escalated_to_admin_at")]
+        public DateTime? EscalatedToAdminAt { get; set; }
     }
 }
