@@ -51,6 +51,7 @@ builder.Services.AddScoped<ILeadSyncProvider, LeadSyncIndiaMartProvider>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncTradeIndiaProvider>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncJustdialProvider>();
 builder.Services.AddHostedService<LeadSyncAutoSyncHostedService>();
+builder.Services.AddHostedService<FollowUpSlaWorker>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IMasterDataAdminService, MasterDataAdminService>();
 builder.Services.AddScoped<IQuotationService, QuotationService>();
@@ -93,6 +94,28 @@ using (var scope = app.Services.CreateScope())
         await dbContext.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS ""IX_deals_org_id_is_active_created_at"" ON deals (organization_id, is_active, created_at DESC) WHERE organization_id IS NOT NULL;");
         await dbContext.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS ""IX_quotations_deal_id_status"" ON quotations (deal_id, status) WHERE deal_id IS NOT NULL;");
         await dbContext.Database.ExecuteSqlRawAsync(@"CREATE INDEX IF NOT EXISTS ""IX_Tasks_related_lead_id_task_status_task_due_date"" ON ""Tasks"" (""RelatedLeadId"", ""TaskStatus"", ""TaskDueDate"") WHERE ""RelatedLeadId"" IS NOT NULL;");
+
+        // Ensure SLA tracking columns & indexes on "Tasks" table exist in PostgreSQL database
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE ""Tasks"" 
+            ADD COLUMN IF NOT EXISTS ""first_due_alert_sent_at"" TIMESTAMPTZ NULL,
+            ADD COLUMN IF NOT EXISTS ""last_repetition_alert_sent_at"" TIMESTAMPTZ NULL,
+            ADD COLUMN IF NOT EXISTS ""is_escalated_to_admin"" BOOLEAN NOT NULL DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS ""escalated_to_admin_at"" TIMESTAMPTZ NULL;
+
+            CREATE INDEX IF NOT EXISTS ""IX_Tasks_SLA_Executive_Alerts""
+            ON ""Tasks"" (""AssigneeUserId"", ""TaskDueDate"", ""last_repetition_alert_sent_at"")
+            WHERE ""is_active"" = true 
+              AND ""RelatedLeadId"" IS NOT NULL 
+              AND ""TaskStatus"" NOT IN ('Completed', 'Done', 'Canceled');
+
+            CREATE INDEX IF NOT EXISTS ""IX_Tasks_SLA_Admin_Escalations""
+            ON ""Tasks"" (""TaskDueDate"", ""is_escalated_to_admin"")
+            WHERE ""is_active"" = true 
+              AND ""RelatedLeadId"" IS NOT NULL 
+              AND ""TaskStatus"" NOT IN ('Completed', 'Done', 'Canceled')
+              AND ""is_escalated_to_admin"" = false;
+        ");
 
         await dbContext.Database.ExecuteSqlRawAsync(@"DROP VIEW IF EXISTS vw_lead_tracker CASCADE;");
         await dbContext.Database.ExecuteSqlRawAsync(@"

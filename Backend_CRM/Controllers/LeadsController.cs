@@ -1,9 +1,11 @@
 using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
+using CRM.Hubs;
 using CRM.models;
 using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Controllers
@@ -18,6 +20,7 @@ namespace CRM.Controllers
         private readonly ILeadExportService _leadExportService;
         private readonly IRbacService _rbac;
         private readonly ILeadSyncRoundRobinService _leadSyncRoundRobin;
+        private readonly IHubContext<UserStatusHub> _hubContext;
 
         public LeadsController(
             TaskDbcontext context,
@@ -25,7 +28,8 @@ namespace CRM.Controllers
             ILeadImportFileParser leadImportFileParser,
             ILeadExportService leadExportService,
             IRbacService rbac,
-            ILeadSyncRoundRobinService leadSyncRoundRobin)
+            ILeadSyncRoundRobinService leadSyncRoundRobin,
+            IHubContext<UserStatusHub> hubContext)
         {
             _context = context;
             _leadImportService = leadImportService;
@@ -33,6 +37,7 @@ namespace CRM.Controllers
             _leadExportService = leadExportService;
             _rbac = rbac;
             _leadSyncRoundRobin = leadSyncRoundRobin;
+            _hubContext = hubContext;
         }
 
         private static IQueryable<Lead> QueryWithMasters(IQueryable<Lead> q) =>
@@ -288,6 +293,8 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var oldLeadOwnerId = existing.LeadOwnerId;
+
             await RecordOwnershipEnforcement.EnforceLeadOwnerOnUpdateAsync(_rbac, userId, dto, existing);
 
             ApplyDtoToLeadScalars(dto, existing);
@@ -306,6 +313,15 @@ namespace CRM.Controllers
             existing.CreatedAt = dto.CreatedAt;
 
             await _context.SaveChangesAsync();
+
+            // When a lead is reassigned to a new owner, sync all active/pending follow-up tasks to the new owner!
+            if (oldLeadOwnerId != existing.LeadOwnerId && existing.LeadOwnerId.HasValue)
+            {
+                await RelatedRecordOwnership.SyncActiveTasksAssigneeForLeadAsync(
+                    _context, _hubContext, existing.Id, existing.LeadOwnerId.Value);
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(await ReloadLeadAsync(existing.Id));
         }
 
