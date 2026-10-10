@@ -11,10 +11,12 @@ namespace CRM.Controllers
     public class LeadTrackerController : ControllerBase
     {
         private readonly ILeadTrackerService _trackerService;
+        private readonly ILogger<LeadTrackerController> _logger;
 
-        public LeadTrackerController(ILeadTrackerService trackerService)
+        public LeadTrackerController(ILeadTrackerService trackerService, ILogger<LeadTrackerController> logger)
         {
             _trackerService = trackerService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -30,12 +32,14 @@ namespace CRM.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "[LeadTrackerController] Error fetching Lead Tracker data with filters: {@Filters}", filters);
                 var details = new
                 {
                     Message = "Error fetching Lead Tracker data",
                     Error = ex.Message,
                     InnerError = ex.InnerException?.Message,
-                    Source = ex.Source
+                    Source = ex.Source,
+                    StackTrace = ex.StackTrace
                 };
                 return StatusCode(500, details);
             }
