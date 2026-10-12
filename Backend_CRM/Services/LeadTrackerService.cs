@@ -28,16 +28,23 @@ namespace CRM.Services
             // Total count for current filter
             var totalCount = await filteredQuery.CountAsync();
 
+            var wonCount = await filteredQuery.CountAsync(r => r.Status == "Won");
+            var leadsWithQuoteCount = await filteredQuery.CountAsync(r => r.QuotationValue > 0);
+
             // Compute Executive Summary Metrics across filtered scope
             var summary = new LeadTrackerSummaryDto
             {
                 TotalLeads = totalCount,
                 OpenLeads = await filteredQuery.CountAsync(r => r.Status == "Open"),
-                WonLeads = await filteredQuery.CountAsync(r => r.Status == "Won"),
+                WonLeads = wonCount,
                 LostLeads = await filteredQuery.CountAsync(r => r.Status == "Lost"),
                 TotalEstimatedValue = await filteredQuery.SumAsync(r => (decimal?)r.EstimatedLeadValue) ?? 0m,
                 TotalQuotationValue = await filteredQuery.SumAsync(r => (decimal?)r.QuotationValue) ?? 0m,
-                TotalWonValue = await filteredQuery.Where(r => r.Status == "Won").SumAsync(r => (decimal?)r.OrderValue) ?? 0m
+                TotalWonValue = await filteredQuery.Where(r => r.Status == "Won").SumAsync(r => (decimal?)r.OrderValue) ?? 0m,
+                LeadsWithQuoteCount = leadsWithQuoteCount,
+                LeadToQuotePercentage = totalCount > 0 ? Math.Round((double)leadsWithQuoteCount / totalCount * 100.0, 1) : 0.0,
+                QuoteToOrderPercentage = leadsWithQuoteCount > 0 ? Math.Round((double)wonCount / leadsWithQuoteCount * 100.0, 1) : 0.0,
+                ConversionRatePercentage = totalCount > 0 ? Math.Round((double)wonCount / totalCount * 100.0, 1) : 0.0
             };
 
             // Apply sorting

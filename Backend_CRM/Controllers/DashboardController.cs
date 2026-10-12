@@ -596,6 +596,85 @@ namespace CRM.Controllers
             });
         }
 
+        /// <summary>
+        /// Real-time executive summary metrics directly driven by vw_lead_tracker.
+        /// Synchronizes the Executive Dashboard KPI cards with the Lead Tracker ledger.
+        /// </summary>
+        [HttpGet("executive-tracker-summary")]
+        public async Task<IActionResult> GetExecutiveTrackerSummary(
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int? executiveId = null)
+        {
+            var query = _context.VwLeadTrackers.AsNoTracking();
+
+            if (executiveId.HasValue && executiveId.Value > 0)
+            {
+                query = query.Where(r => r.SalesExecutiveUserId == executiveId.Value);
+            }
+
+            if (fromDate.HasValue)
+            {
+                var startUtc = DateTime.SpecifyKind(fromDate.Value.Date, DateTimeKind.Utc);
+                query = query.Where(r => r.LeadDate >= startUtc);
+            }
+
+            if (toDate.HasValue)
+            {
+                var endUtc = DateTime.SpecifyKind(toDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+                query = query.Where(r => r.LeadDate < endUtc);
+            }
+
+            var totalLeads = await query.CountAsync();
+            var openLeads = await query.CountAsync(r => r.Status == "Open");
+            var wonLeads = await query.CountAsync(r => r.Status == "Won");
+            var lostLeads = await query.CountAsync(r => r.Status == "Lost");
+
+            var estPipeline = await query.SumAsync(r => (decimal?)r.EstimatedLeadValue) ?? 0m;
+            var totalQuotedValue = await query.SumAsync(r => (decimal?)r.QuotationValue) ?? 0m;
+            var totalWonRevenue = await query.Where(r => r.Status == "Won").SumAsync(r => (decimal?)r.OrderValue) ?? 0m;
+
+            var leadsWithQuoteCount = await query.CountAsync(r => r.QuotationValue > 0);
+
+            var leadToQuotePercentage = totalLeads > 0 ? Math.Round((double)leadsWithQuoteCount / totalLeads * 100.0, 1) : 0.0;
+            var quoteToOrderPercentage = leadsWithQuoteCount > 0 ? Math.Round((double)wonLeads / leadsWithQuoteCount * 100.0, 1) : 0.0;
+            var conversionRate = totalLeads > 0 ? Math.Round((double)wonLeads / totalLeads * 100.0, 1) : 0.0;
+
+            var lostItems = await query
+                .Where(r => r.Status == "Lost" && !string.IsNullOrWhiteSpace(r.LostReason))
+                .Select(r => new { r.LostReason, r.EstimatedLeadValue })
+                .ToListAsync();
+
+            var lostReasonBreakdown = lostItems
+                .GroupBy(r => r.LostReason!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new LostReasonBreakdownDto
+                {
+                    Reason = g.Key,
+                    Count = g.Count(),
+                    TotalLostValue = g.Sum(x => x.EstimatedLeadValue)
+                })
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
+            var result = new ExecutiveTrackerSummaryDto
+            {
+                TotalLeads = totalLeads,
+                OpenLeads = openLeads,
+                WonLeads = wonLeads,
+                LostLeads = lostLeads,
+                EstPipeline = estPipeline,
+                TotalQuotedValue = totalQuotedValue,
+                TotalWonRevenue = totalWonRevenue,
+                LeadsWithQuoteCount = leadsWithQuoteCount,
+                LeadToQuotePercentage = leadToQuotePercentage,
+                QuoteToOrderPercentage = quoteToOrderPercentage,
+                ConversionRate = conversionRate,
+                LostReasonBreakdown = lostReasonBreakdown
+            };
+
+            return Ok(result);
+        }
+
         private static double SafePercentage(double numerator, double denominator)
         {
             if (denominator <= 0) return 0.0;

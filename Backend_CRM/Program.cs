@@ -123,10 +123,36 @@ using (var scope = app.Services.CreateScope())
             WITH lead_latest_tasks AS (
                 SELECT 
                     ""RelatedLeadId"" AS related_lead_id,
-                    MAX(CASE WHEN LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') THEN created_at END) AS last_meeting_date,
-                    MAX(CASE WHEN LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') THEN 1 ELSE 0 END) AS is_meeting_done,
+                    MAX(CASE 
+                        WHEN (LOWER(COALESCE(task_type, '')) = 'meeting' 
+                              OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' 
+                              OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%demo%'
+                              OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%meet%'
+                              OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%demo%')
+                             AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') 
+                        THEN created_at 
+                    END) AS last_meeting_date,
+                    MAX(CASE 
+                        WHEN (LOWER(COALESCE(task_type, '')) = 'meeting' 
+                              OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' 
+                              OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%demo%'
+                              OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%meet%'
+                              OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%demo%')
+                             AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') 
+                        THEN 1 ELSE 0 
+                    END) AS is_meeting_done,
+                    MAX(CASE 
+                        WHEN (LOWER(COALESCE(task_type, '')) = 'call' 
+                              OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%call%')
+                             AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') 
+                        THEN 1 ELSE 0 
+                    END) AS is_call_task_done,
                     MAX(created_at) AS last_followup_date,
-                    MIN(CASE WHEN LOWER(COALESCE(""TaskStatus"", '')) IN ('todo', 'pending', 'open') AND ""TaskDueDate"" >= CURRENT_TIMESTAMP THEN ""TaskDueDate"" END) AS next_followup_date
+                    MIN(CASE 
+                        WHEN LOWER(COALESCE(""TaskStatus"", '')) IN ('todo', 'pending', 'open') 
+                             AND ""TaskDueDate"" >= CURRENT_TIMESTAMP 
+                        THEN ""TaskDueDate"" 
+                    END) AS next_followup_date
                 FROM ""Tasks""
                 WHERE ""RelatedLeadId"" IS NOT NULL AND is_active = true
                 GROUP BY ""RelatedLeadId""
@@ -169,11 +195,28 @@ using (var scope = app.Services.CreateScope())
                 COALESCE(l.deal_amount, 0) AS estimated_lead_value,
                 
                 COALESCE(l.created_at, CURRENT_TIMESTAMP) AS first_contact_date,
-                CASE WHEN EXISTS (SELECT 1 FROM ""CallLogs"" cl WHERE cl.""RelatedLeadId"" = l.id) THEN true ELSE false END AS is_contacted,
-                COALESCE(ls.is_positive, false) AS is_qualified,
                 
+                -- Rule 3: Unified Contacted Milestone
+                CASE 
+                    WHEN l.lead_status_id = 2 
+                         OR EXISTS (SELECT 1 FROM ""CallLogs"" cl WHERE cl.""RelatedLeadId"" = l.id) 
+                         OR COALESCE(t.is_call_task_done, 0) = 1 
+                    THEN true 
+                    ELSE false 
+                END AS is_contacted,
+                
+                -- Rule 3: Unified Qualified Milestone
+                CASE 
+                    WHEN COALESCE(ls.is_positive, false) = true 
+                         OR LOWER(COALESCE(ls.name, '')) IN ('qualified', 'interested', 'demo scheduled', 'proposal sent', 'hot') 
+                    THEN true 
+                    ELSE false 
+                END AS is_qualified,
+                
+                -- Rule 3: Unified Meeting Done Milestone
                 t.last_meeting_date AS meeting_date,
-                CASE WHEN t.is_meeting_done = 1 THEN true ELSE false END AS is_meeting_done,
+                CASE WHEN COALESCE(t.is_meeting_done, 0) = 1 THEN true ELSE false END AS is_meeting_done,
+                
                 q.quotation_date,
                 COALESCE(q.total_quotation_value, 0) AS quotation_value,
                 
@@ -182,25 +225,33 @@ using (var scope = app.Services.CreateScope())
                 
                 COALESCE(d.current_stage, ls.name, 'New Lead') AS current_stage,
                 CASE 
-                    WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR ls.is_positive = true THEN 'Won'
-                    WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' THEN 'Lost'
+                    WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' THEN 'Won'
+                    WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' 
+                         OR l.lead_status_id IN (4, 6) 
+                         OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost') 
+                    THEN 'Lost'
                     ELSE 'Open'
                 END AS status,
                 d.expected_close_date,
                 d.order_date,
                 COALESCE(d.order_value, 0) AS order_value,
-                COALESCE(d.lost_reason, '') AS lost_reason,
+                
+                -- Rule 5: Unified Lost Reason
+                COALESCE(NULLIF(d.lost_reason, ''), NULLIF(l.lost_reason, ''), '') AS lost_reason,
                 
                 CASE 
-                    WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' 
-                        THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                    WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' 
+                         OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' 
+                         OR l.lead_status_id IN (4, 6)
+                         OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost')
+                    THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
                     ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
                 END AS days_open,
                 
                 CASE 
-                    WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 2 THEN '0-2 Days'
-                    WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 7 THEN '3-7 Days'
-                    WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 14 THEN '8-14 Days'
+                    WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' OR l.lead_status_id IN (4, 6) OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost') THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 2 THEN '0-2 Days'
+                    WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' OR l.lead_status_id IN (4, 6) OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost') THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 7 THEN '3-7 Days'
+                    WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' OR l.lead_status_id IN (4, 6) OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost') THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 14 THEN '8-14 Days'
                     ELSE '15+ Days'
                 END AS ageing_bucket,
                 
