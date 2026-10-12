@@ -72,6 +72,7 @@ builder.Services.AddScoped<IJustdialWebhookService, JustdialWebhookService>();
 builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<IUserTargetService, UserTargetService>();
 builder.Services.AddScoped<ILeadTrackerService, LeadTrackerService>();
+builder.Services.AddScoped<IDailySalesRecognitionService, DailySalesRecognitionService>();
 
 var app = builder.Build();
 
@@ -275,6 +276,99 @@ using (var scope = app.Services.CreateScope())
             LEFT JOIN lead_quotations_summary q ON q.deal_id = d.deal_id
             WHERE l.is_active = true;
         ");
+
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS daily_sales_recognition_logs (
+                id SERIAL PRIMARY KEY,
+                date TIMESTAMPTZ NOT NULL,
+                executive_user_id INT NULL,
+                executive_name VARCHAR(150) NOT NULL,
+                new_leads INT NOT NULL DEFAULT 0,
+                customer_calls INT NOT NULL DEFAULT 0,
+                meetings INT NOT NULL DEFAULT 0,
+                follow_ups INT NOT NULL DEFAULT 0,
+                quotations INT NOT NULL DEFAULT 0,
+                lead_conversions INT NOT NULL DEFAULT 0,
+                orders_booked INT NOT NULL DEFAULT 0,
+                payment_follow_ups INT NOT NULL DEFAULT 0,
+                reporting_percentage NUMERIC(5,2) NOT NULL DEFAULT 100.0,
+                team_support INT NOT NULL DEFAULT 1,
+                lead_quality_percentage NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+                daily_activity_score NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+                business_result_score NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+                overall_score NUMERIC(5,2) NOT NULL DEFAULT 0.0,
+                recognition VARCHAR(50) NOT NULL DEFAULT 'Improve',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS ""IX_daily_sales_recognition_logs_date"" ON daily_sales_recognition_logs (date DESC);
+            CREATE INDEX IF NOT EXISTS ""IX_daily_sales_recognition_logs_executive"" ON daily_sales_recognition_logs (executive_name);
+        ");
+
+        var logCount = await dbContext.DailySalesRecognitionLogs.CountAsync();
+        if (logCount == 0)
+        {
+            var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+            var yesterday = today.AddDays(-1);
+
+            var initialLogs = new List<DailySalesRecognitionLog>
+            {
+                new DailySalesRecognitionLog
+                {
+                    Date = today,
+                    ExecutiveName = "Sharda Ahire",
+                    NewLeads = 5, CustomerCalls = 55, Meetings = 3, FollowUps = 10,
+                    Quotations = 4, LeadConversions = 4, OrdersBooked = 2, PaymentFollowUps = 4,
+                    ReportingPercentage = 100m, TeamSupport = 5, LeadQualityPercentage = 100m,
+                    DailyActivityScore = 87.0m, BusinessResultScore = 100.0m, OverallScore = 90.9m,
+                    Recognition = "🏆 Star Performer"
+                },
+                new DailySalesRecognitionLog
+                {
+                    Date = yesterday,
+                    ExecutiveName = "Sharda Ahire",
+                    NewLeads = 5, CustomerCalls = 55, Meetings = 0, FollowUps = 10,
+                    Quotations = 4, LeadConversions = 4, OrdersBooked = 2, PaymentFollowUps = 4,
+                    ReportingPercentage = 100m, TeamSupport = 5, LeadQualityPercentage = 100m,
+                    DailyActivityScore = 72.0m, BusinessResultScore = 100.0m, OverallScore = 80.4m,
+                    Recognition = "☀️ Excellent"
+                },
+                new DailySalesRecognitionLog
+                {
+                    Date = today,
+                    ExecutiveName = "Neha Verma",
+                    NewLeads = 6, CustomerCalls = 25, Meetings = 4, FollowUps = 12,
+                    Quotations = 5, LeadConversions = 2, OrdersBooked = 1, PaymentFollowUps = 5,
+                    ReportingPercentage = 100m, TeamSupport = 4, LeadQualityPercentage = 85m,
+                    DailyActivityScore = 80.0m, BusinessResultScore = 97.0m, OverallScore = 85.1m,
+                    Recognition = "☀️ Excellent"
+                },
+                new DailySalesRecognitionLog
+                {
+                    Date = yesterday,
+                    ExecutiveName = "Neha Verma",
+                    NewLeads = 4, CustomerCalls = 22, Meetings = 2, FollowUps = 9,
+                    Quotations = 3, LeadConversions = 1, OrdersBooked = 1, PaymentFollowUps = 4,
+                    ReportingPercentage = 100m, TeamSupport = 3, LeadQualityPercentage = 75m,
+                    DailyActivityScore = 70.5m, BusinessResultScore = 77.5m, OverallScore = 72.6m,
+                    Recognition = "👍 Good"
+                },
+                new DailySalesRecognitionLog
+                {
+                    Date = today,
+                    ExecutiveName = "Amit Sharma",
+                    NewLeads = 3, CustomerCalls = 18, Meetings = 1, FollowUps = 6,
+                    Quotations = 2, LeadConversions = 1, OrdersBooked = 0, PaymentFollowUps = 2,
+                    ReportingPercentage = 100m, TeamSupport = 2, LeadQualityPercentage = 60m,
+                    DailyActivityScore = 55.0m, BusinessResultScore = 29.5m, OverallScore = 47.4m,
+                    Recognition = "📝 Improve"
+                }
+            };
+
+            await dbContext.DailySalesRecognitionLogs.AddRangeAsync(initialLogs);
+            await dbContext.SaveChangesAsync();
+        }
 
         logger.LogInformation("[Startup] Successfully applied EF Core migrations and updated vw_lead_tracker view.");
     }

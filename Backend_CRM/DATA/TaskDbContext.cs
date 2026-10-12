@@ -50,6 +50,7 @@ namespace CRM.DATA
         public DbSet<DealStatus> DealStatuses { get; set; }
 
         public DbSet<LeadTrackerRow> VwLeadTrackers { get; set; }
+        public DbSet<DailySalesRecognitionLog> DailySalesRecognitionLogs { get; set; }
 
         public DbSet<RequestType> RequestTypes { get; set; }
 
