@@ -7,6 +7,7 @@ namespace CRM.Services
 {
     public interface IDailySalesRecognitionService
     {
+        Task<DailySalesRecognitionLogDto> AutofillExecutiveMetricsAsync(DateTime date, string executiveName);
         Task<DailySalesRecognitionDashboardResponseDto> GetDashboardDataAsync(DateTime? startDate, DateTime? endDate, string? executive);
         Task<DailySalesRecognitionLogDto> UpsertLogAsync(DailySalesRecognitionUpsertDto dto);
         Task<List<DailySalesRecognitionLogDto>> BulkUpsertLogsAsync(List<DailySalesRecognitionUpsertDto> dtos);

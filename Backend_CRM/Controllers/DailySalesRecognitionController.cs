@@ -79,5 +79,19 @@ namespace CRM.Controllers
             var execs = await _service.GetActiveExecutivesAsync();
             return Ok(execs);
         }
+
+        [HttpGet("autofill-metrics")]
+        public async Task<IActionResult> AutofillMetrics(
+            [FromQuery] DateTime date,
+            [FromQuery] string executive)
+        {
+            if (string.IsNullOrWhiteSpace(executive))
+            {
+                return BadRequest("Executive name is required.");
+            }
+
+            var result = await _service.AutofillExecutiveMetricsAsync(date, executive);
+            return Ok(result);
+        }
     }
 }
