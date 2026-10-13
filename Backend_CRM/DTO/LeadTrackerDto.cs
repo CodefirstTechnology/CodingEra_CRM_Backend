@@ -62,6 +62,33 @@ namespace CRM.DTO
         public decimal TotalEstimatedValue { get; set; }
         public decimal TotalQuotationValue { get; set; }
         public decimal TotalWonValue { get; set; }
+        public int LeadsWithQuoteCount { get; set; }
+        public double LeadToQuotePercentage { get; set; }
+        public double QuoteToOrderPercentage { get; set; }
+        public double ConversionRatePercentage { get; set; }
+    }
+
+    public class LostReasonBreakdownDto
+    {
+        public string Reason { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal TotalLostValue { get; set; }
+    }
+
+    public class ExecutiveTrackerSummaryDto
+    {
+        public int TotalLeads { get; set; }
+        public int OpenLeads { get; set; }
+        public int WonLeads { get; set; }
+        public int LostLeads { get; set; }
+        public decimal EstPipeline { get; set; }
+        public decimal TotalQuotedValue { get; set; }
+        public decimal TotalWonRevenue { get; set; }
+        public int LeadsWithQuoteCount { get; set; }
+        public double LeadToQuotePercentage { get; set; }
+        public double QuoteToOrderPercentage { get; set; }
+        public double ConversionRate { get; set; }
+        public List<LostReasonBreakdownDto> LostReasonBreakdown { get; set; } = new();
     }
 
     public class LeadTrackerPagedResultDto

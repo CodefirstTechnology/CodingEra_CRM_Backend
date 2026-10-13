@@ -362,6 +362,7 @@ namespace CRM.Controllers
                 lead.SalutationId = null;
             }
 
+            int? resolvedStatusId = null;
             if (dto.LeadStatusId is int lstid && lstid > 0)
             {
                 if (!await _context.LeadStatuses.AnyAsync(s => s.Id == lstid && s.IsActive))
@@ -369,15 +370,43 @@ namespace CRM.Controllers
                     return BadRequest($"Lead status id {lstid} does not exist or is inactive.");
                 }
 
-                lead.LeadStatusId = lstid;
+                resolvedStatusId = lstid;
             }
             else if (!string.IsNullOrWhiteSpace(dto.Status))
             {
-                lead.LeadStatusId = await ResolveLeadStatusNameToIdAsync(dto.Status, requireActive: true);
+                resolvedStatusId = await ResolveLeadStatusNameToIdAsync(dto.Status, requireActive: true);
             }
             else if (isCreate)
             {
-                lead.LeadStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, "New", requireActive: true);
+                resolvedStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, "New", requireActive: true);
+            }
+            else
+            {
+                resolvedStatusId = lead.LeadStatusId;
+            }
+
+            if (resolvedStatusId.HasValue)
+            {
+                bool isTerminalLost = resolvedStatusId.Value == 4 || resolvedStatusId.Value == 6;
+                if (isTerminalLost)
+                {
+                    var reason = !string.IsNullOrWhiteSpace(dto.LostReason)
+                        ? dto.LostReason.Trim()
+                        : (!isCreate ? lead.LostReason?.Trim() : null);
+
+                    if (string.IsNullOrWhiteSpace(reason))
+                    {
+                        return BadRequest("Lost reason is mandatory when marking a lead as Unqualified or Junk.");
+                    }
+                    lead.LostReason = reason;
+                }
+                else
+                {
+                    // Moving back to an active pipeline stage: clear lost_reason
+                    lead.LostReason = null;
+                }
+
+                lead.LeadStatusId = resolvedStatusId.Value;
             }
 
             if (dto.RequestTypeId is int rtid && rtid > 0)
