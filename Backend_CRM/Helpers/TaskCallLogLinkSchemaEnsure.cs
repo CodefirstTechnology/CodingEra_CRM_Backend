@@ -14,25 +14,39 @@ namespace CRM.Helpers
         {
             try
             {
-                // Ensure call_log_id column exists on Tasks table
                 await db.Database.ExecuteSqlRawAsync(
                     """
-                    ALTER TABLE "Tasks" ADD COLUMN IF NOT EXISTS call_log_id integer NULL;
-                    """,
-                    cancellationToken);
+                    DO $$
+                    BEGIN
+                        -- Ensure call_log_id column exists on Tasks table
+                        IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'tasks') THEN
+                            ALTER TABLE tasks ADD COLUMN IF NOT EXISTS call_log_id integer NULL;
+                        END IF;
+                        IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Tasks') THEN
+                            ALTER TABLE "Tasks" ADD COLUMN IF NOT EXISTS call_log_id integer NULL;
+                        END IF;
 
-                // Ensure related_task_id column exists on CallLogs table
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                    ALTER TABLE "CallLogs" ADD COLUMN IF NOT EXISTS related_task_id integer NULL;
-                    """,
-                    cancellationToken);
+                        -- Ensure related_task_id column exists on CallLogs table
+                        IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'call_logs') THEN
+                            ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS related_task_id integer NULL;
+                        END IF;
+                        IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'CallLogs') THEN
+                            ALTER TABLE "CallLogs" ADD COLUMN IF NOT EXISTS related_task_id integer NULL;
+                        END IF;
 
-                // Ensure indexes for efficient bidirectional queries
-                await db.Database.ExecuteSqlRawAsync(
-                    """
-                    CREATE INDEX IF NOT EXISTS ix_call_logs_related_task_id ON "CallLogs" (related_task_id);
-                    CREATE INDEX IF NOT EXISTS ix_tasks_call_log_id ON "Tasks" (call_log_id);
+                        -- Ensure indexes for efficient bidirectional queries
+                        IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'call_logs') THEN
+                            CREATE INDEX IF NOT EXISTS ix_call_logs_related_task_id ON call_logs (related_task_id);
+                        ELSIF EXISTS (SELECT FROM pg_tables WHERE tablename = 'CallLogs') THEN
+                            CREATE INDEX IF NOT EXISTS ix_call_logs_related_task_id ON "CallLogs" (related_task_id);
+                        END IF;
+
+                        IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'tasks') THEN
+                            CREATE INDEX IF NOT EXISTS ix_tasks_call_log_id ON tasks (call_log_id);
+                        ELSIF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Tasks') THEN
+                            CREATE INDEX IF NOT EXISTS ix_tasks_call_log_id ON "Tasks" (call_log_id);
+                        END IF;
+                    END $$;
                     """,
                     cancellationToken);
 

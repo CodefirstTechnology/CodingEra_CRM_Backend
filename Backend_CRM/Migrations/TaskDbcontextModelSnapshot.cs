@@ -163,6 +163,10 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("RelatedLeadId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("RelatedTaskId")
+                        .HasColumnType("integer")
+                        .HasColumnName("related_task_id");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -496,6 +500,104 @@ namespace Backend_CRM.Migrations
                     b.HasIndex("UpdatedBy");
 
                     b.ToTable("contacts");
+                });
+
+            modelBuilder.Entity("CRM.models.DailySalesRecognitionLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BusinessResultScore")
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("business_result_score");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CustomerCalls")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_calls");
+
+                    b.Property<decimal>("DailyActivityScore")
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("daily_activity_score");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("date");
+
+                    b.Property<string>("ExecutiveName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("executive_name");
+
+                    b.Property<int?>("ExecutiveUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("executive_user_id");
+
+                    b.Property<int>("FollowUps")
+                        .HasColumnType("integer")
+                        .HasColumnName("follow_ups");
+
+                    b.Property<int>("LeadConversions")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_conversions");
+
+                    b.Property<decimal>("LeadQualityPercentage")
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("lead_quality_percentage");
+
+                    b.Property<int>("Meetings")
+                        .HasColumnType("integer")
+                        .HasColumnName("meetings");
+
+                    b.Property<int>("NewLeads")
+                        .HasColumnType("integer")
+                        .HasColumnName("new_leads");
+
+                    b.Property<int>("OrdersBooked")
+                        .HasColumnType("integer")
+                        .HasColumnName("orders_booked");
+
+                    b.Property<decimal>("OverallScore")
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("overall_score");
+
+                    b.Property<int>("PaymentFollowUps")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_follow_ups");
+
+                    b.Property<int>("Quotations")
+                        .HasColumnType("integer")
+                        .HasColumnName("quotations");
+
+                    b.Property<string>("Recognition")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("recognition");
+
+                    b.Property<decimal>("ReportingPercentage")
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("reporting_percentage");
+
+                    b.Property<int>("TeamSupport")
+                        .HasColumnType("integer")
+                        .HasColumnName("team_support");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("daily_sales_recognition_logs");
                 });
 
             modelBuilder.Entity("CRM.models.Deal", b =>
@@ -1410,6 +1512,11 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("text")
                         .HasColumnName("address");
 
+                    b.Property<string>("LostReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("lost_reason");
+
                     b.Property<string>("Mobile")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1424,6 +1531,10 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("OrganizationId")
                         .HasColumnType("integer")
                         .HasColumnName("organization_id");
+
+                    b.Property<string>("RawPayload")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("raw_payload");
 
                     b.Property<int?>("RequestTypeId")
                         .HasColumnType("integer")
@@ -1578,6 +1689,66 @@ namespace Backend_CRM.Migrations
                     b.ToTable("lead_histories");
                 });
 
+            modelBuilder.Entity("CRM.models.LeadSource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime>("LastModified")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_modified");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.ToTable("lead_sources");
+                });
+
             modelBuilder.Entity("CRM.models.LeadStatus", b =>
                 {
                     b.Property<int>("Id")
@@ -1607,6 +1778,10 @@ namespace Backend_CRM.Migrations
                     b.Property<bool>("IsConversionStatus")
                         .HasColumnType("boolean")
                         .HasColumnName("is_conversion_status");
+
+                    b.Property<bool>("IsPositive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_positive");
 
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone")
@@ -1939,6 +2114,153 @@ namespace Backend_CRM.Migrations
                     b.ToTable("lead_sync_source_credentials");
                 });
 
+            modelBuilder.Entity("CRM.models.LeadTrackerRow", b =>
+                {
+                    b.Property<string>("AgeingBucket")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ageing_bucket");
+
+                    b.Property<string>("ContactPerson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("contact_person");
+
+                    b.Property<string>("CurrentStage")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("current_stage");
+
+                    b.Property<string>("CustomerCompanyName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("customer_company_name");
+
+                    b.Property<int>("DaysOpen")
+                        .HasColumnType("integer")
+                        .HasColumnName("days_open");
+
+                    b.Property<decimal>("EstimatedLeadValue")
+                        .HasColumnType("numeric")
+                        .HasColumnName("estimated_lead_value");
+
+                    b.Property<DateTime?>("ExpectedOrderDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expected_close_date");
+
+                    b.Property<DateTime?>("FirstContactDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_contact_date");
+
+                    b.Property<string>("FollowupDueStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("followup_due_status");
+
+                    b.Property<bool>("IsContacted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_contacted");
+
+                    b.Property<bool>("IsMeetingDone")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_meeting_done");
+
+                    b.Property<bool>("IsQualified")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_qualified");
+
+                    b.Property<DateTime?>("LastFollowupDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_followup_date");
+
+                    b.Property<DateTime?>("LeadDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lead_date");
+
+                    b.Property<string>("LeadIdFormatted")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("lead_id_formatted");
+
+                    b.Property<int>("LeadIdNum")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_id_num");
+
+                    b.Property<int>("LeadMonthNum")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_month_num");
+
+                    b.Property<string>("LeadSource")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("lead_source");
+
+                    b.Property<int>("LeadYear")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_year");
+
+                    b.Property<string>("LostReason")
+                        .HasColumnType("text")
+                        .HasColumnName("lost_reason");
+
+                    b.Property<DateTime?>("MeetingDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("meeting_date");
+
+                    b.Property<string>("Mobile")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("mobile");
+
+                    b.Property<string>("MonthLabel")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("month_label");
+
+                    b.Property<DateTime?>("NextFollowupDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_followup_date");
+
+                    b.Property<DateTime?>("OrderDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("order_date");
+
+                    b.Property<decimal>("OrderValue")
+                        .HasColumnType("numeric")
+                        .HasColumnName("order_value");
+
+                    b.Property<DateTime?>("QuotationDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("quotation_date");
+
+                    b.Property<decimal>("QuotationValue")
+                        .HasColumnType("numeric")
+                        .HasColumnName("quotation_value");
+
+                    b.Property<string>("RequirementProduct")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("requirement_product");
+
+                    b.Property<string>("SalesExecutive")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("sales_executive");
+
+                    b.Property<int?>("SalesExecutiveUserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("sales_executive_user_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.ToTable("vw_lead_tracker");
+
+                    b.ToView("vw_lead_tracker", (string)null);
+                });
+
             modelBuilder.Entity("CRM.models.Note", b =>
                 {
                     b.Property<int>("Id")
@@ -2081,6 +2403,12 @@ namespace Backend_CRM.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("address");
 
                     b.Property<decimal?>("AnnualRevenue")
                         .HasColumnType("numeric")
@@ -2904,6 +3232,10 @@ namespace Backend_CRM.Migrations
                     b.Property<int?>("AssigneeUserId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("CallLogId")
+                        .HasColumnType("integer")
+                        .HasColumnName("call_log_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2916,12 +3248,28 @@ namespace Backend_CRM.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("EscalatedToAdminAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("escalated_to_admin_at");
+
+                    b.Property<DateTime?>("FirstDueAlertSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_due_alert_sent_at");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsEscalatedToAdmin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_escalated_to_admin");
+
                     b.Property<DateTime>("LastModified")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastRepetitionAlertSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_repetition_alert_sent_at");
 
                     b.Property<int?>("RelatedDealId")
                         .HasColumnType("integer");
@@ -2951,6 +3299,11 @@ namespace Backend_CRM.Migrations
                     b.Property<string>("TaskTitle")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("TaskType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("task_type");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3054,6 +3407,10 @@ namespace Backend_CRM.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("email");
 
+                    b.Property<DateTime?>("FirstLoginAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_login_at");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -3063,6 +3420,14 @@ namespace Backend_CRM.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<bool>("IsOnline")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_online");
+
+                    b.Property<DateTime?>("LastActiveAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_active_at");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -3237,6 +3602,25 @@ namespace Backend_CRM.Migrations
                     b.HasIndex("UpdatedBy");
 
                     b.ToTable("user_target_types");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DataProtectionKeys");
                 });
 
             modelBuilder.Entity("CRM.models.CallLog", b =>
@@ -3615,6 +3999,19 @@ namespace Backend_CRM.Migrations
                         .HasForeignKey("LeadId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("CRM.models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("CRM.models.LeadSource", b =>
+                {
+                    b.HasOne("CRM.models.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("CRM.models.User", null)
                         .WithMany()

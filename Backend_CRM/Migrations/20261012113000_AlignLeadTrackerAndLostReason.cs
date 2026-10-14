@@ -17,10 +17,44 @@ namespace Backend_CRM.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // 1. Add lost_reason column to leads table if it doesn't already exist
+            // 1. Ensure prerequisite columns exist for vw_lead_tracker view and downstream queries
             migrationBuilder.Sql(@"
-                ALTER TABLE leads 
-                ADD COLUMN IF NOT EXISTS lost_reason character varying(500) NULL;
+                DO $$
+                BEGIN
+                    -- Leads columns
+                    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'leads') THEN
+                        ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_amount numeric NULL;
+                        ALTER TABLE leads ADD COLUMN IF NOT EXISTS lost_reason character varying(500) NULL;
+                    END IF;
+
+                    -- Deals columns
+                    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'deals') THEN
+                        ALTER TABLE deals ADD COLUMN IF NOT EXISTS deal_amount numeric NULL;
+                        ALTER TABLE deals ADD COLUMN IF NOT EXISTS lost_reason text NULL;
+                    END IF;
+
+                    -- Tasks table columns
+                    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Tasks') THEN
+                        ALTER TABLE ""Tasks"" ADD COLUMN IF NOT EXISTS task_type character varying(32) NOT NULL DEFAULT 'Task';
+                        ALTER TABLE ""Tasks"" ADD COLUMN IF NOT EXISTS call_log_id integer NULL;
+                    ELSIF EXISTS (SELECT FROM pg_tables WHERE tablename = 'tasks') THEN
+                        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_type character varying(32) NOT NULL DEFAULT 'Task';
+                        ALTER TABLE tasks ADD COLUMN IF NOT EXISTS call_log_id integer NULL;
+                    END IF;
+
+                    -- CallLogs table columns
+                    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'CallLogs') THEN
+                        ALTER TABLE ""CallLogs"" ADD COLUMN IF NOT EXISTS related_task_id integer NULL;
+                    ELSIF EXISTS (SELECT FROM pg_tables WHERE tablename = 'call_logs') THEN
+                        ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS related_task_id integer NULL;
+                    END IF;
+
+                    -- LeadStatuses table columns
+                    IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'lead_statuses') THEN
+                        ALTER TABLE lead_statuses ADD COLUMN IF NOT EXISTS is_positive boolean NOT NULL DEFAULT false;
+                        ALTER TABLE lead_statuses ADD COLUMN IF NOT EXISTS is_conversion_status boolean NOT NULL DEFAULT false;
+                    END IF;
+                END $$;
             ");
 
             // 2. Drop and recreate production view vw_lead_tracker with unified rules
