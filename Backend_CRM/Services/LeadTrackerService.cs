@@ -28,16 +28,23 @@ namespace CRM.Services
             // Total count for current filter
             var totalCount = await filteredQuery.CountAsync();
 
+            var wonCount = await filteredQuery.CountAsync(r => r.Status == "Won");
+            var leadsWithQuoteCount = await filteredQuery.CountAsync(r => r.QuotationValue > 0);
+
             // Compute Executive Summary Metrics across filtered scope
             var summary = new LeadTrackerSummaryDto
             {
                 TotalLeads = totalCount,
                 OpenLeads = await filteredQuery.CountAsync(r => r.Status == "Open"),
-                WonLeads = await filteredQuery.CountAsync(r => r.Status == "Won"),
+                WonLeads = wonCount,
                 LostLeads = await filteredQuery.CountAsync(r => r.Status == "Lost"),
                 TotalEstimatedValue = await filteredQuery.SumAsync(r => (decimal?)r.EstimatedLeadValue) ?? 0m,
                 TotalQuotationValue = await filteredQuery.SumAsync(r => (decimal?)r.QuotationValue) ?? 0m,
-                TotalWonValue = await filteredQuery.Where(r => r.Status == "Won").SumAsync(r => (decimal?)r.OrderValue) ?? 0m
+                TotalWonValue = await filteredQuery.Where(r => r.Status == "Won").SumAsync(r => (decimal?)r.OrderValue) ?? 0m,
+                LeadsWithQuoteCount = leadsWithQuoteCount,
+                LeadToQuotePercentage = totalCount > 0 ? Math.Round((double)leadsWithQuoteCount / totalCount * 100.0, 1) : 0.0,
+                QuoteToOrderPercentage = leadsWithQuoteCount > 0 ? Math.Round((double)wonCount / leadsWithQuoteCount * 100.0, 1) : 0.0,
+                ConversionRatePercentage = totalCount > 0 ? Math.Round((double)wonCount / totalCount * 100.0, 1) : 0.0
             };
 
             // Apply sorting
@@ -163,44 +170,48 @@ namespace CRM.Services
 
             if (!string.IsNullOrWhiteSpace(filters.AgeingBucket))
             {
-                var bucket = filters.AgeingBucket.Trim().ToLower();
+                var bucket = filters.AgeingBucket.Trim().ToLower().Replace(" ", "");
                 switch (bucket)
                 {
-                    case "0-2 days":
+                    case "0-2days":
                     case "0-2":
                         query = query.Where(r => r.DaysOpen <= 2 || r.AgeingBucket.ToLower() == "0-2 days");
                         break;
-                    case "3-7 days":
+                    case "3-7days":
                     case "3-7":
                         query = query.Where(r => (r.DaysOpen >= 3 && r.DaysOpen <= 7) || r.AgeingBucket.ToLower() == "3-7 days");
                         break;
-                    case "0-7 days":
+                    case "0-7days":
                     case "0-7":
                         query = query.Where(r => r.DaysOpen <= 7);
                         break;
-                    case "8-14 days":
+                    case "8-14days":
                     case "8-14":
                         query = query.Where(r => (r.DaysOpen >= 8 && r.DaysOpen <= 14) || r.AgeingBucket.ToLower() == "8-14 days");
                         break;
-                    case "8-15 days":
+                    case "8-15days":
                     case "8-15":
                         query = query.Where(r => r.DaysOpen >= 8 && r.DaysOpen <= 15);
                         break;
-                    case "15+ days":
+                    case "15+days":
                     case "15+":
                         query = query.Where(r => r.DaysOpen >= 15 || r.AgeingBucket.ToLower() == "15+ days");
                         break;
-                    case "16-30 days":
+                    case "16-30days":
+                    case "16-30":
                         query = query.Where(r => r.DaysOpen >= 16 && r.DaysOpen <= 30);
                         break;
-                    case "31-60 days":
+                    case "31-60days":
+                    case "31-60":
                         query = query.Where(r => r.DaysOpen >= 31 && r.DaysOpen <= 60);
                         break;
-                    case "60+ days":
+                    case "60+days":
+                    case "60+":
                         query = query.Where(r => r.DaysOpen >= 60);
                         break;
                     default:
-                        query = query.Where(r => r.AgeingBucket.ToLower() == bucket);
+                        var rawBucket = filters.AgeingBucket.Trim().ToLower();
+                        query = query.Where(r => r.AgeingBucket.ToLower() == rawBucket);
                         break;
                 }
             }
@@ -208,7 +219,26 @@ namespace CRM.Services
             if (!string.IsNullOrWhiteSpace(filters.FollowUpStatus))
             {
                 var due = filters.FollowUpStatus.Trim().ToLower();
-                query = query.Where(r => r.FollowupDueStatus.ToLower() == due);
+                switch (due)
+                {
+                    case "overdue":
+                        query = query.Where(r => r.FollowupDueStatus.ToLower() == "overdue");
+                        break;
+                    case "today":
+                    case "due today":
+                        query = query.Where(r => r.FollowupDueStatus.ToLower() == "due today" || r.FollowupDueStatus.ToLower() == "today");
+                        break;
+                    case "upcoming":
+                        query = query.Where(r => r.FollowupDueStatus.ToLower() == "upcoming");
+                        break;
+                    case "no schedule":
+                    case "noschedule":
+                        query = query.Where(r => r.FollowupDueStatus.ToLower() == "no schedule" || r.FollowupDueStatus.ToLower() == "noschedule");
+                        break;
+                    default:
+                        query = query.Where(r => r.FollowupDueStatus.ToLower() == due);
+                        break;
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(filters.Search))
@@ -223,6 +253,11 @@ namespace CRM.Services
                     r.RequirementProduct.ToLower().Contains(term));
             }
 
+            if (filters.StartDate.HasValue && filters.EndDate.HasValue && filters.StartDate.Value.Date > filters.EndDate.Value.Date)
+            {
+                (filters.StartDate, filters.EndDate) = (filters.EndDate, filters.StartDate);
+            }
+
             if (filters.StartDate.HasValue)
             {
                 var startUtc = DateTime.SpecifyKind(filters.StartDate.Value.Date, DateTimeKind.Utc);
@@ -231,8 +266,8 @@ namespace CRM.Services
 
             if (filters.EndDate.HasValue)
             {
-                var endUtc = DateTime.SpecifyKind(filters.EndDate.Value.Date, DateTimeKind.Utc).AddDays(1).AddTicks(-1);
-                query = query.Where(r => r.LeadDate <= endUtc);
+                var endNextDayUtc = DateTime.SpecifyKind(filters.EndDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+                query = query.Where(r => r.LeadDate < endNextDayUtc);
             }
 
             return query;

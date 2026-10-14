@@ -1,9 +1,11 @@
 using CRM.DATA;
 using CRM.DTO;
 using CRM.Helpers;
+using CRM.Hubs;
 using CRM.models;
 using CRM.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Controllers
@@ -18,6 +20,7 @@ namespace CRM.Controllers
         private readonly ILeadExportService _leadExportService;
         private readonly IRbacService _rbac;
         private readonly ILeadSyncRoundRobinService _leadSyncRoundRobin;
+        private readonly IHubContext<UserStatusHub> _hubContext;
 
         public LeadsController(
             TaskDbcontext context,
@@ -25,7 +28,8 @@ namespace CRM.Controllers
             ILeadImportFileParser leadImportFileParser,
             ILeadExportService leadExportService,
             IRbacService rbac,
-            ILeadSyncRoundRobinService leadSyncRoundRobin)
+            ILeadSyncRoundRobinService leadSyncRoundRobin,
+            IHubContext<UserStatusHub> hubContext)
         {
             _context = context;
             _leadImportService = leadImportService;
@@ -33,6 +37,7 @@ namespace CRM.Controllers
             _leadExportService = leadExportService;
             _rbac = rbac;
             _leadSyncRoundRobin = leadSyncRoundRobin;
+            _hubContext = hubContext;
         }
 
         private static IQueryable<Lead> QueryWithMasters(IQueryable<Lead> q) =>
@@ -288,6 +293,8 @@ namespace CRM.Controllers
                 return NotFound();
             }
 
+            var oldLeadOwnerId = existing.LeadOwnerId;
+
             await RecordOwnershipEnforcement.EnforceLeadOwnerOnUpdateAsync(_rbac, userId, dto, existing);
 
             ApplyDtoToLeadScalars(dto, existing);
@@ -306,6 +313,15 @@ namespace CRM.Controllers
             existing.CreatedAt = dto.CreatedAt;
 
             await _context.SaveChangesAsync();
+
+            // When a lead is reassigned to a new owner, sync all active/pending follow-up tasks to the new owner!
+            if (oldLeadOwnerId != existing.LeadOwnerId && existing.LeadOwnerId.HasValue)
+            {
+                await RelatedRecordOwnership.SyncActiveTasksAssigneeForLeadAsync(
+                    _context, _hubContext, existing.Id, existing.LeadOwnerId.Value);
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(await ReloadLeadAsync(existing.Id));
         }
 
@@ -346,6 +362,7 @@ namespace CRM.Controllers
                 lead.SalutationId = null;
             }
 
+            int? resolvedStatusId = null;
             if (dto.LeadStatusId is int lstid && lstid > 0)
             {
                 if (!await _context.LeadStatuses.AnyAsync(s => s.Id == lstid && s.IsActive))
@@ -353,15 +370,43 @@ namespace CRM.Controllers
                     return BadRequest($"Lead status id {lstid} does not exist or is inactive.");
                 }
 
-                lead.LeadStatusId = lstid;
+                resolvedStatusId = lstid;
             }
             else if (!string.IsNullOrWhiteSpace(dto.Status))
             {
-                lead.LeadStatusId = await ResolveLeadStatusNameToIdAsync(dto.Status, requireActive: true);
+                resolvedStatusId = await ResolveLeadStatusNameToIdAsync(dto.Status, requireActive: true);
             }
             else if (isCreate)
             {
-                lead.LeadStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, "New", requireActive: true);
+                resolvedStatusId = await ResolveNameToIdAsync(_context.LeadStatuses, "New", requireActive: true);
+            }
+            else
+            {
+                resolvedStatusId = lead.LeadStatusId;
+            }
+
+            if (resolvedStatusId.HasValue)
+            {
+                bool isTerminalLost = resolvedStatusId.Value == 4 || resolvedStatusId.Value == 6;
+                if (isTerminalLost)
+                {
+                    var reason = !string.IsNullOrWhiteSpace(dto.LostReason)
+                        ? dto.LostReason.Trim()
+                        : (!isCreate ? lead.LostReason?.Trim() : null);
+
+                    if (string.IsNullOrWhiteSpace(reason))
+                    {
+                        return BadRequest("Lost reason is mandatory when marking a lead as Unqualified or Junk.");
+                    }
+                    lead.LostReason = reason;
+                }
+                else
+                {
+                    // Moving back to an active pipeline stage: clear lost_reason
+                    lead.LostReason = null;
+                }
+
+                lead.LeadStatusId = resolvedStatusId.Value;
             }
 
             if (dto.RequestTypeId is int rtid && rtid > 0)
