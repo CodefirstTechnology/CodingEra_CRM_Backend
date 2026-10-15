@@ -25,6 +25,7 @@ namespace Backend_CRM.Migrations
                     IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'leads') THEN
                         ALTER TABLE leads ADD COLUMN IF NOT EXISTS deal_amount numeric NULL;
                         ALTER TABLE leads ADD COLUMN IF NOT EXISTS lost_reason character varying(500) NULL;
+                        ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_qualified boolean NOT NULL DEFAULT false;
                     END IF;
 
                     -- Deals columns
@@ -64,21 +65,49 @@ namespace Backend_CRM.Migrations
                 WITH lead_latest_tasks AS (
                     SELECT 
                         ""RelatedLeadId"" AS related_lead_id,
+                        COALESCE(
+                            MAX(CASE 
+                                WHEN (LOWER(COALESCE(task_type, '')) IN ('meeting', 'demo', 'visit') 
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' 
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%demo%'
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%visit%'
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%discussion%'
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%presentation%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%meet%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%demo%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%visit%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%discussion%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%presentation%')
+                                     AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') 
+                                THEN COALESCE(""TaskDueDate"", created_at) 
+                            END),
+                            MAX(CASE 
+                                WHEN (LOWER(COALESCE(task_type, '')) IN ('meeting', 'demo', 'visit') 
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' 
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%demo%'
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%visit%'
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%discussion%'
+                                      OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%presentation%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%meet%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%demo%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%visit%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%discussion%'
+                                      OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%presentation%')
+                                THEN COALESCE(""TaskDueDate"", created_at) 
+                            END)
+                        ) AS last_meeting_date,
                         MAX(CASE 
-                            WHEN (LOWER(COALESCE(task_type, '')) = 'meeting' 
+                            WHEN (LOWER(COALESCE(task_type, '')) IN ('meeting', 'demo', 'visit') 
                                   OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' 
                                   OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%demo%'
+                                  OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%visit%'
+                                  OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%discussion%'
+                                  OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%presentation%'
                                   OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%meet%'
-                                  OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%demo%')
-                                 AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') 
-                            THEN created_at 
-                        END) AS last_meeting_date,
-                        MAX(CASE 
-                            WHEN (LOWER(COALESCE(task_type, '')) = 'meeting' 
-                                  OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%meet%' 
-                                  OR LOWER(COALESCE(""TaskTitle"", '')) LIKE '%demo%'
-                                  OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%meet%'
-                                  OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%demo%')
+                                  OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%demo%'
+                                  OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%visit%'
+                                  OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%discussion%'
+                                  OR LOWER(COALESCE(""TaskDescription"", '')) LIKE '%presentation%')
                                  AND LOWER(COALESCE(""TaskStatus"", '')) IN ('done', 'completed') 
                             THEN 1 ELSE 0 
                         END) AS is_meeting_done,
@@ -93,7 +122,11 @@ namespace Backend_CRM.Migrations
                             WHEN LOWER(COALESCE(""TaskStatus"", '')) IN ('todo', 'pending', 'open') 
                                  AND ""TaskDueDate"" >= CURRENT_TIMESTAMP 
                             THEN ""TaskDueDate"" 
-                        END) AS next_followup_date
+                        END) AS next_followup_date,
+                        MAX(CASE 
+                            WHEN LOWER(COALESCE(""TaskStatus"", '')) IN ('todo', 'pending', 'open') 
+                            THEN ""TaskId"" 
+                        END) AS pending_task_id
                     FROM ""Tasks""
                     WHERE ""RelatedLeadId"" IS NOT NULL AND is_active = true
                     GROUP BY ""RelatedLeadId""
@@ -146,10 +179,33 @@ namespace Backend_CRM.Migrations
                         ELSE false 
                     END AS is_contacted,
                     
-                    -- Rule 3: Unified Qualified Milestone
+                    -- Rule 3: Unified Qualified Milestone (once qualified or converted to deal, stays true)
                     CASE 
-                        WHEN COALESCE(ls.is_positive, false) = true 
-                             OR LOWER(COALESCE(ls.name, '')) IN ('qualified', 'interested', 'demo scheduled', 'proposal sent', 'hot') 
+                        WHEN COALESCE(l.is_qualified, false) = true
+                             OR COALESCE(ls.is_positive, false) = true 
+                             OR COALESCE(ls.is_conversion_status, false) = true
+                             OR LOWER(COALESCE(ls.name, '')) IN ('qualified', 'interested', 'demo scheduled', 'proposal sent', 'hot', 'converted', 'moved to deal') 
+                             OR d.deal_id IS NOT NULL
+                             OR q.quotation_date IS NOT NULL
+                             OR COALESCE(q.total_quotation_value, 0) > 0
+                             OR EXISTS (
+                                 SELECT 1 FROM lead_histories lh
+                                 JOIN lead_statuses lhs ON lh.lead_status_id = lhs.id
+                                 WHERE lh.lead_id = l.id 
+                                   AND (COALESCE(lhs.is_positive, false) = true 
+                                        OR COALESCE(lhs.is_conversion_status, false) = true 
+                                        OR LOWER(COALESCE(lhs.name, '')) IN ('qualified', 'interested', 'demo scheduled', 'proposal sent', 'hot', 'converted', 'moved to deal'))
+                             )
+                             OR EXISTS (
+                                 SELECT 1 FROM activity_logs al
+                                 WHERE al.entity_type = 'lead' AND al.entity_id = l.id
+                                   AND (
+                                       LOWER(COALESCE(al.new_value, '')) IN ('qualified', 'converted', 'moved to deal')
+                                       OR LOWER(COALESCE(al.old_value, '')) IN ('qualified', 'converted', 'moved to deal')
+                                       OR LOWER(COALESCE(al.message, '')) LIKE '%qualified%'
+                                       OR LOWER(COALESCE(al.message, '')) LIKE '%converted%'
+                                   )
+                             )
                         THEN true 
                         ELSE false 
                     END AS is_qualified,
@@ -163,6 +219,7 @@ namespace Backend_CRM.Migrations
                     
                     t.last_followup_date,
                     t.next_followup_date,
+                    t.pending_task_id,
                     
                     COALESCE(d.current_stage, ls.name, 'New Lead') AS current_stage,
                     CASE 
@@ -180,19 +237,111 @@ namespace Backend_CRM.Migrations
                     -- Rule 5: Unified Lost Reason (Deal reason takes precedence, fallback to Lead reason)
                     COALESCE(NULLIF(d.lost_reason, ''), NULLIF(l.lost_reason, ''), '') AS lost_reason,
                     
+                    -- Rule 4: Dynamic Days Open
+                    -- If nothing happens on that lead (no activity, no calls, no tasks, no status change from initial 'New'): shows 0 days
+                    -- If there is ANY activity on the lead (even if status changes to unqualified on day 0): shows at least 1 day open
                     CASE 
+                        WHEN NOT (
+                            COALESCE(l.is_qualified, false) = true
+                            OR COALESCE(ls.is_positive, false) = true 
+                            OR COALESCE(ls.is_conversion_status, false) = true
+                            OR LOWER(COALESCE(ls.name, '')) NOT IN ('', 'new', 'open')
+                            OR l.lead_status_id NOT IN (1)
+                            OR t.related_lead_id IS NOT NULL
+                            OR EXISTS (SELECT 1 FROM ""CallLogs"" cl WHERE cl.""RelatedLeadId"" = l.id)
+                            OR EXISTS (SELECT 1 FROM notes n WHERE (n.related_lead_id = l.id OR (n.related_type = 'lead' AND n.record_id = l.id)) AND n.is_active = true)
+                            OR EXISTS (SELECT 1 FROM lead_histories lh WHERE lh.lead_id = l.id)
+                            OR EXISTS (SELECT 1 FROM activity_logs al WHERE al.entity_type = 'lead' AND al.entity_id = l.id AND al.action_type NOT IN ('created', 'lead_created'))
+                            OR d.deal_id IS NOT NULL
+                            OR q.quotation_date IS NOT NULL
+                            OR (l.updated_at IS NOT NULL AND l.created_at IS NOT NULL AND l.updated_at > l.created_at + INTERVAL '10 seconds')
+                        ) THEN 0
+                        
                         WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' 
                              OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' 
                              OR l.lead_status_id IN (4, 6)
                              OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost')
-                        THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
-                        ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                        THEN GREATEST(1, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                        
+                        ELSE GREATEST(1, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
                     END AS days_open,
                     
                     CASE 
-                        WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' OR l.lead_status_id IN (4, 6) OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost') THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 2 THEN '0-2 Days'
-                        WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' OR l.lead_status_id IN (4, 6) OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost') THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 7 THEN '3-7 Days'
-                        WHEN (CASE WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' OR l.lead_status_id IN (4, 6) OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost') THEN GREATEST(0, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) ELSE GREATEST(0, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date)) END) <= 14 THEN '8-14 Days'
+                        WHEN (
+                            CASE 
+                                WHEN NOT (
+                                    COALESCE(l.is_qualified, false) = true
+                                    OR COALESCE(ls.is_positive, false) = true 
+                                    OR COALESCE(ls.is_conversion_status, false) = true
+                                    OR LOWER(COALESCE(ls.name, '')) NOT IN ('', 'new', 'open')
+                                    OR l.lead_status_id NOT IN (1)
+                                    OR t.related_lead_id IS NOT NULL
+                                    OR EXISTS (SELECT 1 FROM ""CallLogs"" cl WHERE cl.""RelatedLeadId"" = l.id)
+                                    OR EXISTS (SELECT 1 FROM notes n WHERE (n.related_lead_id = l.id OR (n.related_type = 'lead' AND n.record_id = l.id)) AND n.is_active = true)
+                                    OR EXISTS (SELECT 1 FROM lead_histories lh WHERE lh.lead_id = l.id)
+                                    OR EXISTS (SELECT 1 FROM activity_logs al WHERE al.entity_type = 'lead' AND al.entity_id = l.id AND al.action_type NOT IN ('created', 'lead_created'))
+                                    OR d.deal_id IS NOT NULL
+                                    OR q.quotation_date IS NOT NULL
+                                    OR (l.updated_at IS NOT NULL AND l.created_at IS NOT NULL AND l.updated_at > l.created_at + INTERVAL '10 seconds')
+                                ) THEN 0
+                                WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' 
+                                     OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' 
+                                     OR l.lead_status_id IN (4, 6)
+                                     OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost')
+                                THEN GREATEST(1, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                                ELSE GREATEST(1, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                            END
+                        ) <= 2 THEN '0-2 Days'
+                        WHEN (
+                            CASE 
+                                WHEN NOT (
+                                    COALESCE(l.is_qualified, false) = true
+                                    OR COALESCE(ls.is_positive, false) = true 
+                                    OR COALESCE(ls.is_conversion_status, false) = true
+                                    OR LOWER(COALESCE(ls.name, '')) NOT IN ('', 'new', 'open')
+                                    OR l.lead_status_id NOT IN (1)
+                                    OR t.related_lead_id IS NOT NULL
+                                    OR EXISTS (SELECT 1 FROM ""CallLogs"" cl WHERE cl.""RelatedLeadId"" = l.id)
+                                    OR EXISTS (SELECT 1 FROM notes n WHERE (n.related_lead_id = l.id OR (n.related_type = 'lead' AND n.record_id = l.id)) AND n.is_active = true)
+                                    OR EXISTS (SELECT 1 FROM lead_histories lh WHERE lh.lead_id = l.id)
+                                    OR EXISTS (SELECT 1 FROM activity_logs al WHERE al.entity_type = 'lead' AND al.entity_id = l.id AND al.action_type NOT IN ('created', 'lead_created'))
+                                    OR d.deal_id IS NOT NULL
+                                    OR q.quotation_date IS NOT NULL
+                                    OR (l.updated_at IS NOT NULL AND l.created_at IS NOT NULL AND l.updated_at > l.created_at + INTERVAL '10 seconds')
+                                ) THEN 0
+                                WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' 
+                                     OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' 
+                                     OR l.lead_status_id IN (4, 6)
+                                     OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost')
+                                THEN GREATEST(1, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                                ELSE GREATEST(1, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                            END
+                        ) <= 7 THEN '3-7 Days'
+                        WHEN (
+                            CASE 
+                                WHEN NOT (
+                                    COALESCE(l.is_qualified, false) = true
+                                    OR COALESCE(ls.is_positive, false) = true 
+                                    OR COALESCE(ls.is_conversion_status, false) = true
+                                    OR LOWER(COALESCE(ls.name, '')) NOT IN ('', 'new', 'open')
+                                    OR l.lead_status_id NOT IN (1)
+                                    OR t.related_lead_id IS NOT NULL
+                                    OR EXISTS (SELECT 1 FROM ""CallLogs"" cl WHERE cl.""RelatedLeadId"" = l.id)
+                                    OR EXISTS (SELECT 1 FROM notes n WHERE (n.related_lead_id = l.id OR (n.related_type = 'lead' AND n.record_id = l.id)) AND n.is_active = true)
+                                    OR EXISTS (SELECT 1 FROM lead_histories lh WHERE lh.lead_id = l.id)
+                                    OR EXISTS (SELECT 1 FROM activity_logs al WHERE al.entity_type = 'lead' AND al.entity_id = l.id AND al.action_type NOT IN ('created', 'lead_created'))
+                                    OR d.deal_id IS NOT NULL
+                                    OR q.quotation_date IS NOT NULL
+                                    OR (l.updated_at IS NOT NULL AND l.created_at IS NOT NULL AND l.updated_at > l.created_at + INTERVAL '10 seconds')
+                                ) THEN 0
+                                WHEN LOWER(COALESCE(d.status, ls.name, '')) LIKE '%won%' 
+                                     OR LOWER(COALESCE(d.status, ls.name, '')) LIKE '%lost%' 
+                                     OR l.lead_status_id IN (4, 6)
+                                     OR LOWER(COALESCE(ls.name, '')) IN ('unqualified', 'junk', 'lost')
+                                THEN GREATEST(1, (COALESCE(d.order_date, l.updated_at, CURRENT_TIMESTAMP)::date - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                                ELSE GREATEST(1, (CURRENT_DATE - COALESCE(l.created_at, CURRENT_TIMESTAMP)::date))
+                            END
+                        ) <= 14 THEN '8-14 Days'
                         ELSE '15+ Days'
                     END AS ageing_bucket,
                     

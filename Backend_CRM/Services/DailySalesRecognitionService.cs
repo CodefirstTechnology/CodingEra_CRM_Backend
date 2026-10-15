@@ -297,14 +297,14 @@ namespace CRM.Services
 
             User? matchedUser = null;
 
-            // Direct full name match (prefer RoleId == 4)
-            matchedUser = users.FirstOrDefault(u => u.RoleId == 4 && string.Equals(u.FullName.Trim(), cleanExecName, StringComparison.OrdinalIgnoreCase))
+            // Direct full name match (prefer role in crm_roles containing 'sales')
+            matchedUser = users.FirstOrDefault(u => u.Role != null && u.Role.Name.ToLower().Contains("sales") && string.Equals(u.FullName.Trim(), cleanExecName, StringComparison.OrdinalIgnoreCase))
                        ?? users.FirstOrDefault(u => string.Equals(u.FullName.Trim(), cleanExecName, StringComparison.OrdinalIgnoreCase));
 
             // Fallback: contains match
             if (matchedUser == null)
             {
-                matchedUser = users.FirstOrDefault(u => u.RoleId == 4 && (
+                matchedUser = users.FirstOrDefault(u => u.Role != null && u.Role.Name.ToLower().Contains("sales") && (
                     cleanExecName.IndexOf(u.FullName, StringComparison.OrdinalIgnoreCase) >= 0 ||
                     u.FullName.IndexOf(cleanExecName, StringComparison.OrdinalIgnoreCase) >= 0))
                     ?? users.FirstOrDefault(u =>
@@ -360,15 +360,22 @@ namespace CRM.Services
                 // Meetings
                 meetings = await _context.Tasks.AsNoTracking()
                     .CountAsync(t => t.IsActive && (t.AssigneeUserId == uid || t.CreatedBy == uid) &&
-                        ((t.TaskDueDate >= dayStartUtc && t.TaskDueDate <= dayEndUtc) || (t.CreatedAt >= dayStartUtc && t.CreatedAt <= dayEndUtc)) &&
+                        ((t.TaskDueDate >= dayStartUtc && t.TaskDueDate <= dayEndUtc) ||
+                         (t.CreatedAt >= dayStartUtc && t.CreatedAt <= dayEndUtc) ||
+                         (t.UpdatedAt >= dayStartUtc && t.UpdatedAt <= dayEndUtc && (t.TaskStatus.ToLower() == "done" || t.TaskStatus.ToLower() == "completed"))) &&
                         (t.TaskType.ToLower().Contains("meeting") || t.TaskTitle.ToLower().Contains("meeting") ||
                          t.TaskTitle.ToLower().Contains("demo") || t.TaskTitle.ToLower().Contains("visit") ||
-                         t.TaskDescription.ToLower().Contains("meeting") || t.TaskDescription.ToLower().Contains("demo")));
+                         t.TaskTitle.ToLower().Contains("discussion") || t.TaskTitle.ToLower().Contains("presentation") ||
+                         t.TaskDescription.ToLower().Contains("meeting") || t.TaskDescription.ToLower().Contains("demo") ||
+                         t.TaskDescription.ToLower().Contains("visit") || t.TaskDescription.ToLower().Contains("discussion") ||
+                         t.TaskDescription.ToLower().Contains("presentation")));
 
                 // Follow-ups
                 followUps = await _context.Tasks.AsNoTracking()
                     .CountAsync(t => t.IsActive && (t.AssigneeUserId == uid || t.CreatedBy == uid) &&
-                        ((t.TaskDueDate >= dayStartUtc && t.TaskDueDate <= dayEndUtc) || (t.CreatedAt >= dayStartUtc && t.CreatedAt <= dayEndUtc)));
+                        ((t.TaskDueDate >= dayStartUtc && t.TaskDueDate <= dayEndUtc) ||
+                         (t.CreatedAt >= dayStartUtc && t.CreatedAt <= dayEndUtc) ||
+                         (t.UpdatedAt >= dayStartUtc && t.UpdatedAt <= dayEndUtc && (t.TaskStatus.ToLower() == "done" || t.TaskStatus.ToLower() == "completed"))));
 
                 // Quotations
                 quotations = await _context.Quotations.AsNoTracking()
@@ -446,7 +453,11 @@ namespace CRM.Services
         {
             return await _context.Users
                 .AsNoTracking()
-                .Where(u => u.IsActive && u.RoleId == 4 && !string.IsNullOrWhiteSpace(u.FullName))
+                .Include(u => u.Role)
+                .Where(u => u.IsActive && 
+                            !string.IsNullOrWhiteSpace(u.FullName) &&
+                            u.Role != null && 
+                            u.Role.Name.ToLower().Contains("sales"))
                 .OrderBy(u => u.FullName)
                 .Select(u => u.FullName.Trim())
                 .Distinct()

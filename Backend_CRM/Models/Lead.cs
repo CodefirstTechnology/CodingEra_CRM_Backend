@@ -105,5 +105,8 @@ namespace CRM.models
         [Column("lost_reason")]
         [MaxLength(500)]
         public string? LostReason { get; set; }
+
+        [Column("is_qualified")]
+        public bool IsQualified { get; set; } = false;
     }
 }
