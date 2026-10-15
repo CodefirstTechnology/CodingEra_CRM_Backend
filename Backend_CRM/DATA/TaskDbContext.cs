@@ -919,6 +919,7 @@ namespace CRM.DATA
                 AppendLeadHistorySnapshots();
                 AppendDealStageHistoryRecords();
                 StampAuditTimestamps();
+                EnsureLeadQualificationPersisted();
                 var activityBatch = ActivityCapture.Capture(this);
                 var result = base.SaveChanges(acceptAllChangesOnSuccess);
                 ActivityCapture.Flush(this, activityBatch);
@@ -943,6 +944,7 @@ namespace CRM.DATA
                 AppendLeadHistorySnapshots();
                 AppendDealStageHistoryRecords();
                 StampAuditTimestamps();
+                EnsureLeadQualificationPersisted();
                 var activityBatch = ActivityCapture.Capture(this);
                 var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
                 ActivityCapture.Flush(this, activityBatch);
@@ -994,6 +996,34 @@ namespace CRM.DATA
                     CreatedAt = (DateTime?)o[nameof(Lead.CreatedAt)],
                     UpdatedAt = (DateTime)o[nameof(Lead.UpdatedAt)]!,
                 });
+            }
+        }
+
+        /// <summary>Ensures that once a lead qualifies or converts, <see cref="Lead.IsQualified"/> is set to true and permanently stays true.</summary>
+        private void EnsureLeadQualificationPersisted()
+        {
+            foreach (var entry in ChangeTracker.Entries<Lead>())
+            {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                {
+                    if (entry.Entity.IsQualified)
+                    {
+                        continue;
+                    }
+
+                    var statusId = entry.Entity.LeadStatusId;
+                    if (statusId.HasValue)
+                    {
+                        var st = LeadStatuses.Local.FirstOrDefault(s => s.Id == statusId.Value);
+                        if (st != null && (st.IsPositive || st.IsConversionStatus ||
+                            st.Name.ToLower().Contains("qualif") ||
+                            st.Name.ToLower().Contains("convert") ||
+                            st.Name.ToLower() == "moved to deal"))
+                        {
+                            entry.Entity.IsQualified = true;
+                        }
+                    }
+                }
             }
         }
 

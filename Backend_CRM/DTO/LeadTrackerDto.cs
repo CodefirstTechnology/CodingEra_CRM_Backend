@@ -26,6 +26,7 @@ namespace CRM.DTO
         public decimal QuotationValue { get; set; }
         public DateTime? LastFollowUpDate { get; set; }
         public DateTime? NextFollowUpDate { get; set; }
+        public int? PendingTaskId { get; set; }
         public string FollowUpStatus { get; set; } = string.Empty;
         public string CurrentStage { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty; // Open, Won, Lost

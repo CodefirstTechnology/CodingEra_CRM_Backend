@@ -314,6 +314,7 @@ namespace CRM.Services
             QuotationValue = r.QuotationValue,
             LastFollowUpDate = r.LastFollowupDate,
             NextFollowUpDate = r.NextFollowupDate,
+            PendingTaskId = r.PendingTaskId,
             FollowUpStatus = string.IsNullOrWhiteSpace(r.FollowupDueStatus) ? "No Schedule" : FormatFollowUpStatus(r.FollowupDueStatus),
             CurrentStage = r.CurrentStage,
             Status = r.Status,

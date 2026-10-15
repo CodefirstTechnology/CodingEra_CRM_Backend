@@ -148,6 +148,7 @@ namespace CRM.DTO
         public string TaskAssignee { get; set; } = string.Empty;
         public DateTime TaskDueDate { get; set; } = DateTime.UtcNow;
         public string TaskPriority { get; set; } = string.Empty;
+        public string? TaskType { get; set; }
         public int? AssigneeUserId { get; set; }
         public int? RelatedLeadId { get; set; }
         public int? RelatedDealId { get; set; }
@@ -335,6 +336,7 @@ namespace CRM.DTO
             TaskAssignee = d.TaskAssignee ?? string.Empty,
             TaskDueDate = d.TaskDueDate,
             TaskPriority = d.TaskPriority ?? string.Empty,
+            TaskType = !string.IsNullOrWhiteSpace(d.TaskType) ? d.TaskType : "Task",
             AssigneeUserId = Fk(d.AssigneeUserId),
             RelatedLeadId = Fk(d.RelatedLeadId),
             RelatedDealId = Fk(d.RelatedDealId),
@@ -350,6 +352,7 @@ namespace CRM.DTO
             e.TaskAssignee = d.TaskAssignee ?? string.Empty;
             e.TaskDueDate = d.TaskDueDate;
             e.TaskPriority = d.TaskPriority ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(d.TaskType)) e.TaskType = d.TaskType;
             e.AssigneeUserId = Fk(d.AssigneeUserId);
             e.RelatedLeadId = Fk(d.RelatedLeadId);
             e.RelatedDealId = Fk(d.RelatedDealId);
