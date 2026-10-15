@@ -342,6 +342,10 @@ namespace CRM.Controllers
             to.LeadSource = from.LeadSource;
             to.CreatedAt = from.CreatedAt;
             to.DealAmount = from.DealAmount;
+            if (from.IsQualified == true)
+            {
+                to.IsQualified = true;
+            }
         }
 
         private async Task<IActionResult?> ApplyLeadMastersFromDtoAsync(LeadUpsertDto dto, Lead lead, bool isCreate)
@@ -407,6 +411,15 @@ namespace CRM.Controllers
                 }
 
                 lead.LeadStatusId = resolvedStatusId.Value;
+
+                var st = await _context.LeadStatuses.AsNoTracking().FirstOrDefaultAsync(s => s.Id == resolvedStatusId.Value);
+                if (st != null && (st.IsPositive || st.IsConversionStatus ||
+                    st.Name.ToLower().Contains("qualif") ||
+                    st.Name.ToLower().Contains("convert") ||
+                    st.Name.ToLower() == "moved to deal"))
+                {
+                    lead.IsQualified = true;
+                }
             }
 
             if (dto.RequestTypeId is int rtid && rtid > 0)

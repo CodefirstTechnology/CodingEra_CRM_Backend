@@ -66,6 +66,9 @@ namespace CRM.models
         [Column("next_followup_date")]
         public DateTime? NextFollowupDate { get; set; }
 
+        [Column("pending_task_id")]
+        public int? PendingTaskId { get; set; }
+
         [Column("current_stage")]
         public string CurrentStage { get; set; } = string.Empty;
 
