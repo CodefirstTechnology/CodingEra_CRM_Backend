@@ -1,72 +1,57 @@
-using System.Text.Json.Serialization;
-using CRM.Configuration;
+using System;
+using System.IO;
+using System.Text.Json;
+using System.Threading.Tasks;
 using CRM.DATA;
-using CRM.Helpers;
+using CRM.DTO;
 using CRM.Hubs;
+using CRM.models;
 using CRM.Services;
-using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Configuration.AddJsonFile(
-    $"appsettings.{builder.Environment.EnvironmentName}.local.json",
-    optional: true,
-    reloadOnChange: true);
-
 // Add services to the container.
-
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddSignalR();
+// Configure EF Core DbContext with PostgreSQL
+builder.Services.AddDbContext<TaskDbcontext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// CORS Configuration
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular",
-        policy =>
-        {
-            // Dynamic origin validation for SaaS multi-tenancy & custom domains
-            policy.SetIsOriginAllowed(_ => true)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-        });
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
-builder.Services.AddDbContext<TaskDbcontext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
-builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
-builder.Services.Configure<LeadSyncIndiaMartOptions>(
-    builder.Configuration.GetSection(LeadSyncIndiaMartOptions.SectionName));
-builder.Services.Configure<IndiaMartWebhookOptions>(
-    builder.Configuration.GetSection(IndiaMartWebhookOptions.SectionName));
-builder.Services.Configure<JustdialWebhookOptions>(
-    builder.Configuration.GetSection(JustdialWebhookOptions.SectionName));
-builder.Services.AddDataProtection()
-    .SetApplicationName("CodingEra_CRM")
-    .PersistKeysToDbContext<TaskDbcontext>();
-builder.Services.AddHttpClient("LeadSyncIndiaMart");
-builder.Services.AddHttpClient("LeadSyncMarketplace");
+// Dependency Injection Registrations
+builder.Services.AddDataProtection();
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<ILeadSyncCredentialService, LeadSyncCredentialService>();
+builder.Services.AddScoped<ILeadSyncManagementService, LeadSyncManagementService>();
 builder.Services.AddScoped<ILeadSyncRoundRobinService, LeadSyncRoundRobinService>();
 builder.Services.AddScoped<IMarketplaceLeadPersistenceService, MarketplaceLeadPersistenceService>();
-builder.Services.AddScoped<ILeadSyncManagementService, LeadSyncManagementService>();
 builder.Services.AddScoped<ILeadSyncExecutionService, LeadSyncExecutionService>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncIndiaMartProvider>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncTradeIndiaProvider>();
 builder.Services.AddScoped<ILeadSyncProvider, LeadSyncJustdialProvider>();
 builder.Services.AddHostedService<LeadSyncAutoSyncHostedService>();
+builder.Services.AddHostedService<FollowUpSlaWorker>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IMasterDataAdminService, MasterDataAdminService>();
 builder.Services.AddScoped<IQuotationService, QuotationService>();
@@ -86,10 +71,13 @@ builder.Services.AddScoped<IJustdialWebhookSecurityService, JustdialWebhookSecur
 builder.Services.AddScoped<IJustdialWebhookService, JustdialWebhookService>();
 builder.Services.AddScoped<IRbacService, RbacService>();
 builder.Services.AddScoped<IUserTargetService, UserTargetService>();
+builder.Services.AddScoped<ILeadTrackerService, LeadTrackerService>();
+builder.Services.AddScoped<IDailySalesRecognitionService, DailySalesRecognitionService>();
 
 var app = builder.Build();
 
-await app.ApplyPendingMigrationsAsync();
+// Safe, idempotent, and fault-tolerant startup database initialization
+await app.InitializeDatabaseAsync();
 
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
@@ -106,12 +94,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("AllowAll");
 app.UseHttpsRedirection();
-
-app.UseCors("AllowAngular");
-
 app.UseAuthorization();
-
 app.MapControllers();
 app.MapHub<UserStatusHub>("/hubs/user-status");
 app.MapHub<UserStatusHub>("/api/hubs/user-status");

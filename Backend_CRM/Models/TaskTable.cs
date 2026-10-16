@@ -25,11 +25,17 @@ namespace CRM.models
 
         public string TaskPriority { get; set; } = string.Empty;
 
+        [Column("task_type")]
+        public string TaskType { get; set; } = "Task";
+
         public int? AssigneeUserId { get; set; }
 
         public int? RelatedLeadId { get; set; }
 
         public int? RelatedDealId { get; set; }
+
+        [Column("call_log_id")]
+        public int? CallLogId { get; set; }
 
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
@@ -47,5 +53,17 @@ namespace CRM.models
 
         [Column("updated_by")]
         public int? UpdatedBy { get; set; }
+
+        [Column("first_due_alert_sent_at")]
+        public DateTime? FirstDueAlertSentAt { get; set; }
+
+        [Column("last_repetition_alert_sent_at")]
+        public DateTime? LastRepetitionAlertSentAt { get; set; }
+
+        [Column("is_escalated_to_admin")]
+        public bool IsEscalatedToAdmin { get; set; } = false;
+
+        [Column("escalated_to_admin_at")]
+        public DateTime? EscalatedToAdminAt { get; set; }
     }
 }
