@@ -12,10 +12,17 @@ namespace ERP.API.Controllers
     public class PriceListsController : ControllerBase
     {
         private readonly IPriceListService _service;
+        private readonly ERP.Application.Sales.Pricing.IPriceResolutionEngine _resolutionEngine;
+        private readonly ERP.Application.Sales.Pricing.IBomMarginAuditService _marginAudit;
 
-        public PriceListsController(IPriceListService service)
+        public PriceListsController(
+            IPriceListService service,
+            ERP.Application.Sales.Pricing.IPriceResolutionEngine resolutionEngine,
+            ERP.Application.Sales.Pricing.IBomMarginAuditService marginAudit)
         {
             _service = service;
+            _resolutionEngine = resolutionEngine;
+            _marginAudit = marginAudit;
         }
 
         [HttpGet]
@@ -109,12 +116,31 @@ namespace ERP.API.Controllers
             _ = userId;
             try
             {
-                var result = await _service.ResolveAsync(request, cancellationToken);
-                return result is null ? NotFound() : Ok(result);
+                var result = await _resolutionEngine.ResolveRateAsync(request, cancellationToken);
+                return Ok(result);
             }
             catch (InvalidOperationException ex)
             {
                 return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpGet("margin-audit/{itemCode}")]
+        public async Task<ActionResult<BomMarginAuditDto>> AuditMargin(
+            [FromRoute] string itemCode,
+            [FromQuery] decimal proposedSellingRate,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            try
+            {
+                var result = await _marginAudit.AuditItemMarginAsync(itemCode, proposedSellingRate, cancellationToken);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
 

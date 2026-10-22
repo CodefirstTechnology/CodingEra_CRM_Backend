@@ -66,6 +66,10 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
 
+        public DbSet<PriceListItemSlab> PriceListItemSlabs => Set<PriceListItemSlab>();
+
+        public DbSet<CustomerPriceListMapping> CustomerPriceListMappings => Set<CustomerPriceListMapping>();
+
         public DbSet<PriceListHistory> PriceListHistories => Set<PriceListHistory>();
 
         public DbSet<PriceListDocumentSequence> PriceListDocumentSequences => Set<PriceListDocumentSequence>();
@@ -362,5 +366,51 @@ namespace ERP.Infrastructure.Data
                     .OnDelete(DeleteBehavior.SetNull);
             });
         }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SyncTemporalRanges();
+            return base.SaveChangesAsync(cancellationToken);
+        }
+
+        public override int SaveChanges()
+        {
+            SyncTemporalRanges();
+            return base.SaveChanges();
+        }
+
+        private void SyncTemporalRanges()
+        {
+            foreach (var entry in ChangeTracker.Entries<PriceList>())
+            {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                {
+                    var entity = entry.Entity;
+                    entity.ValidityPeriod = new NpgsqlTypes.NpgsqlRange<DateOnly>(
+                        entity.EffectiveFrom,
+                        true,
+                        false,
+                        entity.EffectiveTo ?? default,
+                        entity.EffectiveTo.HasValue,
+                        !entity.EffectiveTo.HasValue);
+                }
+            }
+
+            foreach (var entry in ChangeTracker.Entries<CustomerPriceListMapping>())
+            {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                {
+                    var entity = entry.Entity;
+                    entity.EffectiveRange = new NpgsqlTypes.NpgsqlRange<DateOnly>(
+                        entity.EffectiveFrom,
+                        true,
+                        false,
+                        entity.EffectiveTo ?? default,
+                        entity.EffectiveTo.HasValue,
+                        !entity.EffectiveTo.HasValue);
+                }
+            }
+        }
     }
 }
+

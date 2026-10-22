@@ -13,9 +13,15 @@ namespace ERP.Infrastructure
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            services.AddDbContext<ERPDbContext>(options =>
-                options.UseNpgsql(
-                    configuration.GetConnectionString("DefaultConnection")));
+            services.AddDbContext<ERPDbContext>((sp, options) =>
+            {
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                var interceptor = sp.GetService<ERP.Infrastructure.Data.Interceptors.PricingTransactionCommitInterceptor>();
+                if (interceptor != null)
+                {
+                    options.AddInterceptors(interceptor);
+                }
+            });
 
             services.AddHttpContextAccessor();
             services.AddScoped<ERP.Application.Common.Security.ICurrentUser, ERP.Infrastructure.Security.CurrentUser>();
@@ -39,6 +45,29 @@ namespace ERP.Infrastructure
             services.AddScoped<IPerformanceRepository, PerformanceRepository>();
             services.AddScoped<IPerformanceService, PerformanceService>();
             services.AddScoped<IPerformanceRecalculationService, PerformanceRecalculationService>();
+            services.AddMemoryCache();
+            var redisConn = configuration.GetConnectionString("Redis");
+            if (!string.IsNullOrWhiteSpace(redisConn))
+            {
+                try
+                {
+                    services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(
+                        StackExchange.Redis.ConnectionMultiplexer.Connect(redisConn));
+                }
+                catch
+                {
+                    // Fall back to L1 MemoryCache gracefully
+                }
+            }
+
+            services.AddScoped<ERP.Application.Common.Interfaces.ITenantSettingsService, ERP.Infrastructure.Services.TenantSettingsService>();
+            services.AddScoped<ERP.Application.Sales.Pricing.IHybridPricingCache, ERP.Infrastructure.Sales.Caching.HybridPricingCacheService>();
+            services.AddScoped<ERP.Application.Sales.Pricing.IPriceResolutionEngine, ERP.Infrastructure.Sales.Pricing.PriceResolutionEngine>();
+            services.AddScoped<ERP.Application.Sales.Pricing.IBomMarginAuditService, ERP.Infrastructure.Sales.Pricing.BomMarginAuditService>();
+            services.AddScoped<ERP.Application.Sales.Quotations.IQuotationLineSnapshotService, ERP.Application.Sales.Quotations.QuotationLineSnapshotService>();
+            services.AddScoped<ERP.Application.Sales.Approvals.ICommercialComplianceService, ERP.Application.Sales.Approvals.CommercialComplianceService>();
+            services.AddScoped<ERP.Infrastructure.Data.Interceptors.PricingTransactionCommitInterceptor>();
+
             services.AddScoped<IPriceListNumberingService, PriceListNumberingService>();
             services.AddScoped<IPriceListRepository, PriceListRepository>();
             services.AddScoped<IPriceListService, PriceListService>();

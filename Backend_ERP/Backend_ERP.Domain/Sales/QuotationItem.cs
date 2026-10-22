@@ -1,3 +1,5 @@
+using System;
+
 namespace ERP.Domain.Sales
 {
     public class QuotationItem
@@ -35,5 +37,24 @@ namespace ERP.Domain.Sales
         public decimal LineTotal { get; set; }
 
         public int SortOrder { get; set; } = 1;
+
+        // Frozen Snapshot Fields from Price List Resolution Engine
+        public int? ResolvedPriceListId { get; set; }
+
+        public string PriceListNumberSnapshot { get; set; } = string.Empty;
+
+        public string ResolutionStageSnapshot { get; set; } = string.Empty;
+
+        public decimal OriginalSellingRate { get; set; }
+
+        public decimal FloorPriceSnapshot { get; set; }
+
+        public decimal MaxDiscountPctSnapshot { get; set; }
+
+        public decimal TaxSlabPercentSnapshot { get; set; } = 18m;
+
+        public DateTimeOffset SnapshotTimestampUtc { get; set; } = DateTimeOffset.UtcNow;
+
+        public bool IsCommercialDeviation { get; set; }
     }
 }

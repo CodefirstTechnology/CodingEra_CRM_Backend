@@ -109,10 +109,15 @@ namespace ERP.Application.Sales.Dtos
 
     public class PriceListResolveRequestDto
     {
+        public string? TenantId { get; set; } = "default";
+        public string? CustomerId { get; set; }
         public string CustomerCategory { get; set; } = string.Empty;
         public string ItemCode { get; set; } = string.Empty;
+        public decimal Quantity { get; set; } = 1.0m;
+        public string? RequestedUom { get; set; }
         public string? Currency { get; set; }
         public string? EffectiveDate { get; set; }
+        public DateTimeOffset? EffectiveDateUtc { get; set; }
     }
 
     public class PriceListResolveDto
@@ -125,16 +130,38 @@ namespace ERP.Application.Sales.Dtos
         public string Currency { get; set; } = string.Empty;
         public string ItemCode { get; set; } = string.Empty;
         public string ItemName { get; set; } = string.Empty;
+        public string QuotedUom { get; set; } = "Nos";
+        public string BaseStockUom { get; set; } = "Nos";
+        public string PricingUom { get; set; } = "Nos";
+        public decimal UomConversionMultiplier { get; set; } = 1.0m;
+        public decimal EffectiveRatePerQuotedUom { get; set; }
+        public decimal EffectiveRatePerBaseUom { get; set; }
         public decimal BasePrice { get; set; }
         public decimal SellingPrice { get; set; }
         public decimal DiscountPercentage { get; set; }
         public decimal MinimumPrice { get; set; }
+        public decimal FloorPrice { get; set; }
         public decimal MaximumDiscount { get; set; }
         public decimal TaxPercentage { get; set; }
+        public string AppliedSlabDescription { get; set; } = string.Empty;
+        public string ResolutionStage { get; set; } = string.Empty;
         public string EffectiveFrom { get; set; } = string.Empty;
         public string? EffectiveTo { get; set; }
         public int AlternativeListsAvailable { get; set; }
         public bool ResolvedViaPriority { get; set; }
+    }
+
+    public class BomMarginAuditDto
+    {
+        public string ItemCode { get; set; } = string.Empty;
+        public bool HasActiveBom { get; set; }
+        public string BomNumber { get; set; } = string.Empty;
+        public decimal StandardBomUnitCost { get; set; }
+        public decimal ProposedSellingRate { get; set; }
+        public decimal GrossMarginPercentage { get; set; }
+        public bool IsBelowHurdle { get; set; }
+        public bool IsNegativeMargin { get; set; }
+        public string HurdleWarning { get; set; } = string.Empty;
     }
 
     public class PriceListCompareDto
