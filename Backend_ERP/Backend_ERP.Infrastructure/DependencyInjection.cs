@@ -129,6 +129,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Accounting.IReceiptService, ERP.Infrastructure.Accounting.ReceiptService>();
             services.AddScoped<ERP.Application.Accounting.IGstService, ERP.Infrastructure.Accounting.GstService>();
             services.AddScoped<ERP.Application.Accounting.IBankReconciliationService, ERP.Infrastructure.Accounting.BankReconciliationService>();
+            services.AddScoped<ERP.Application.Accounting.IFinancialReportService, ERP.Infrastructure.Accounting.FinancialReportService>();
             // Group 1, 2, 3 Inventory Hardening & Control Services
             services.AddScoped<Backend_ERP.Infrastructure.Services.IHardenedStockTransactionService, Backend_ERP.Infrastructure.Services.HardenedStockTransactionService>();
             services.AddScoped<Backend_ERP.Infrastructure.Services.IBatchAllocationService, Backend_ERP.Infrastructure.Services.BatchAllocationService>();

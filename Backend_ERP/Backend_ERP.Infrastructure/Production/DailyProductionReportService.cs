@@ -31,11 +31,12 @@ namespace Backend_ERP.Infrastructure.Production
 
         public async Task<DailyProductionReportDto> GenerateDailyProductionReportAsync(GenerateDprRequestDto request, CancellationToken ct = default)
         {
-            var dateOnly = request.ReportDate.Date;
+            var dateOnly = DateTime.SpecifyKind(request.ReportDate.Date, DateTimeKind.Utc);
+            var nextDate = dateOnly.AddDays(1);
 
             // Check if report already exists and is finalized
             var existingReport = await _dbContext.DailyProductionReports
-                .FirstOrDefaultAsync(r => r.ReportDate == dateOnly && r.ShiftId == request.ShiftId && r.WorkCenterId == request.WorkCenterId, ct);
+                .FirstOrDefaultAsync(r => r.ReportDate >= dateOnly && r.ReportDate < nextDate && r.ShiftId == request.ShiftId && r.WorkCenterId == request.WorkCenterId, ct);
 
             if (existingReport != null && existingReport.IsFinalized)
             {
@@ -238,9 +239,10 @@ namespace Backend_ERP.Infrastructure.Production
 
         public async Task<List<DailyProductionReportDto>> GetReportsByDateAsync(DateTime reportDate, CancellationToken ct = default)
         {
-            var dateOnly = reportDate.Date;
+            var dateOnly = DateTime.SpecifyKind(reportDate.Date, DateTimeKind.Utc);
+            var nextDate = dateOnly.AddDays(1);
             var reports = await _dbContext.DailyProductionReports
-                .Where(r => r.ReportDate == dateOnly)
+                .Where(r => r.ReportDate >= dateOnly && r.ReportDate < nextDate)
                 .ToListAsync(ct);
 
             var dtos = new List<DailyProductionReportDto>();

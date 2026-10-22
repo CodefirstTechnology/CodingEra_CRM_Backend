@@ -1222,39 +1222,6 @@ namespace ERP.Infrastructure.Procurement
                 throw new InvalidOperationException("Certificate requires an Approved Final Inspection.");
             }
 
-            var now = DateTime.UtcNow;
-            var num = await _numberingService.NextNumberAsync("TC", cancellationToken);
-
-            var entity = new TestCertificate
-            {
-                CertificateNumber = num,
-                CertificateDate = request.CertificateDate.ToUniversalTime(),
-                CustomerId = request.CustomerId,
-                CustomerName = request.CustomerName.Trim(),
-                ProductId = fin.FinishedProductId > 0 ? fin.FinishedProductId : request.ProductId,
-                ProductCode = !string.IsNullOrWhiteSpace(request.ProductCode) ? request.ProductCode.Trim() : fin.FinishedProductCode,
-                ProductName = !string.IsNullOrWhiteSpace(request.ProductName) ? request.ProductName.Trim() : fin.FinishedProductName,
-                FinalInspectionId = fin.Id,
-                FinalInspectionNumber = fin.InspectionNumber,
-                LoadTestId = request.LoadTestId ?? fin.LoadTestId,
-                LoadTestNumber = request.LoadTestNumber?.Trim(),
-                BatchNumber = !string.IsNullOrWhiteSpace(request.BatchNumber) ? request.BatchNumber.Trim() : fin.ProductionBatch,
-                IssuedBy = string.IsNullOrWhiteSpace(request.IssuedBy) ? actingUser : request.IssuedBy.Trim(),
-                ExpiryDate = request.ExpiryDate?.ToUniversalTime(),
-                Remarks = request.Remarks?.Trim() ?? string.Empty,
-                Notes = request.Notes?.Trim() ?? string.Empty,
-                Status = CertificateStatus.Draft,
-                CreatedAt = now,
-                CreatedBy = actingUser,
-                UpdatedAt = now,
-                UpdatedBy = actingUser
-            };
-
-            _db.TestCertificates.Add(entity);
-            if (!fin.TestCertificateId.HasValue || fin.TestCertificateId.Value == 0)
-            {
-                fin.TestCertificateId = entity.Id;
-            }
 
             var now = DateTime.UtcNow;
             var num = await _numberingService.NextNumberAsync("TC", cancellationToken);
