@@ -6,11 +6,22 @@ namespace ERP.Domain.Sales
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public int QuotationId { get; set; }
 
         public Quotation? Quotation { get; set; }
 
+        // Physical Inventory Interlinkage
+        public PricingItemType ItemType { get; set; } = PricingItemType.FinishedGood;
+
+        public int? ItemId { get; set; }
+
         public int? ProductId { get; set; }
+
+        public int? WarehouseId { get; set; }
+
+        public string BaseStockUom { get; set; } = "Nos";
 
         public int LineNumber { get; set; } = 1;
 

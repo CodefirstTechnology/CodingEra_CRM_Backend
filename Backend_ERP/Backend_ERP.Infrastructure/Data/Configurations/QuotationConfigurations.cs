@@ -11,11 +11,15 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("quotations");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.Version).IsRowVersion();
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+
             builder.Property(x => x.QuotationNumber).HasMaxLength(64).IsRequired();
             builder.HasIndex(x => x.QuotationNumber);
 
             builder.Property(x => x.CustomerId).HasMaxLength(64);
             builder.Property(x => x.CustomerName).HasMaxLength(256).IsRequired();
+            builder.Property(x => x.CustomerCategory).HasMaxLength(64).HasDefaultValue(PriceListCustomerCategories.Standard).IsRequired();
             builder.Property(x => x.ContactPerson).HasMaxLength(256);
             builder.Property(x => x.BillingAddress).HasMaxLength(2000);
             builder.Property(x => x.ShippingAddress).HasMaxLength(2000);
@@ -40,6 +44,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.ClientPoNumber).HasMaxLength(128);
             builder.Property(x => x.ClientPoAttachmentUrl).HasMaxLength(1024);
             builder.Property(x => x.ConvertedSalesOrderNumber).HasMaxLength(64);
+            builder.Property(x => x.ApprovalToken).HasMaxLength(256);
 
             builder.Property(x => x.CreatedBy).HasMaxLength(256);
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
@@ -47,6 +52,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.QuotationDate);
             builder.HasIndex(x => x.IsCurrentRevision);
+            builder.HasIndex(x => new { x.TenantId, x.QuotationNumber, x.RevisionNumber });
 
             builder.HasIndex(x => x.ConvertedSalesOrderId)
                 .IsUnique()
@@ -60,6 +66,17 @@ namespace ERP.Infrastructure.Data.Configurations
                 .WithMany()
                 .HasForeignKey(x => x.DiscountApprovalId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Lineage self-referencing relationships
+            builder.HasOne(x => x.ParentQuotation)
+                .WithMany(x => x.ChildRevisions)
+                .HasForeignKey(x => x.ParentQuotationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.RootQuotation)
+                .WithMany()
+                .HasForeignKey(x => x.RootQuotationId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(x => x.Items)
                 .WithOne(x => x.Quotation)
@@ -75,6 +92,12 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("quotation_items");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+            builder.Property(x => x.ItemType).HasConversion<string>().HasMaxLength(32).HasDefaultValue(PricingItemType.FinishedGood);
+            builder.Property(x => x.ItemId);
+            builder.Property(x => x.WarehouseId);
+            builder.Property(x => x.BaseStockUom).HasMaxLength(32).HasDefaultValue("Nos");
+
             builder.Property(x => x.ItemCode).HasMaxLength(64);
             builder.Property(x => x.ItemName).HasMaxLength(512).IsRequired();
             builder.Property(x => x.Description).HasMaxLength(2000);
@@ -88,8 +111,19 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.TaxAmount).HasPrecision(18, 2);
             builder.Property(x => x.LineTotal).HasPrecision(18, 2);
 
+            builder.Property(x => x.ResolvedPriceListId);
+            builder.Property(x => x.PriceListNumberSnapshot).HasMaxLength(64);
+            builder.Property(x => x.ResolutionStageSnapshot).HasMaxLength(64);
+            builder.Property(x => x.OriginalSellingRate).HasPrecision(18, 4);
+            builder.Property(x => x.FloorPriceSnapshot).HasPrecision(18, 4);
+            builder.Property(x => x.MaxDiscountPctSnapshot).HasPrecision(9, 4);
+            builder.Property(x => x.TaxSlabPercentSnapshot).HasPrecision(9, 4);
+
             builder.HasIndex(x => x.QuotationId);
             builder.HasIndex(x => x.ProductId);
+            builder.HasIndex(x => new { x.TenantId, x.QuotationId });
+            builder.HasIndex(x => new { x.TenantId, x.ItemCode });
+            builder.HasIndex(x => new { x.TenantId, x.WarehouseId, x.ItemId });
         }
     }
 }

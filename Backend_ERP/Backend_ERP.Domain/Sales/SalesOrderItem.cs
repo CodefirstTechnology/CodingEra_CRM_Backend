@@ -4,6 +4,8 @@ namespace ERP.Domain.Sales
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public int SalesOrderId { get; set; }
 
         public SalesOrder SalesOrder { get; set; } = null!;
@@ -13,15 +15,28 @@ namespace ERP.Domain.Sales
 
         public int SortIndex { get; set; }
 
+        // Physical item linkages
+        public PricingItemType ItemType { get; set; } = PricingItemType.FinishedGood;
+
+        public int? ItemId { get; set; }
+
+        public int? WarehouseId { get; set; }
+
+        public string ItemCode { get; set; } = string.Empty;
+
         public string ItemName { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;
 
         public decimal Quantity { get; set; }
 
+        public decimal DispatchedQuantity { get; set; } = 0m;
+
         public decimal ProformaInvoicedQuantity { get; set; } = 0m;
 
         public string Unit { get; set; } = "Nos";
+
+        public string BaseStockUom { get; set; } = "Nos";
 
         public decimal Rate { get; set; }
 
@@ -33,5 +48,18 @@ namespace ERP.Domain.Sales
 
         /// <summary>Line amount after discount + GST.</summary>
         public decimal Amount { get; set; }
+
+        // Frozen Commercial Snapshots Promoted from Quotation
+        public int? ResolvedPriceListId { get; set; }
+
+        public string PriceListNumberSnapshot { get; set; } = string.Empty;
+
+        public decimal OriginalSellingRate { get; set; }
+
+        public decimal FloorPriceSnapshot { get; set; }
+
+        public decimal MaxDiscountPctSnapshot { get; set; }
+
+        public decimal TaxSlabPercentSnapshot { get; set; }
     }
 }

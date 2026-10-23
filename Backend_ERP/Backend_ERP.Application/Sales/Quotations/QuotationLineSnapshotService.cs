@@ -39,7 +39,7 @@ namespace ERP.Application.Sales.Quotations
             var resolution = await _pricingEngine.ResolveRateAsync(new PriceListResolveRequestDto
             {
                 CustomerId = quotation.CustomerId,
-                CustomerCategory = string.IsNullOrWhiteSpace(quotation.CustomerName) ? "Standard" : "Standard",
+                CustomerCategory = string.IsNullOrWhiteSpace(quotation.CustomerCategory) ? "Standard" : quotation.CustomerCategory,
                 ItemCode = lineItem.ItemCode,
                 Quantity = requestedQty,
                 RequestedUom = lineItem.Unit,

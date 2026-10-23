@@ -9,6 +9,7 @@ using ERP.Application.Sales.Pricing;
 using ERP.Application.Sales.Quotations;
 using ERP.Domain.Sales;
 using ERP.Infrastructure.Data;
+using ERP.Infrastructure.Sales;
 using ERP.Infrastructure.Sales.Caching;
 using ERP.Infrastructure.Sales.Pricing;
 using Microsoft.EntityFrameworkCore;

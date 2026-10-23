@@ -295,6 +295,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("from-sales-order/{salesOrderId:int}")]
+        [HttpPost("generate/sales-order/{salesOrderId:int}")]
         [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
         public async Task<ActionResult<ProformaInvoiceDto>> GenerateFromSalesOrder(
             int salesOrderId,
@@ -319,6 +320,7 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("from-sales-order")]
+        [HttpPost("generate/sales-order")]
         [RequirePermission(ErpPermissions.ProformaInvoices.Create)]
         public async Task<ActionResult<ProformaInvoiceDto>> CreateFromSalesOrder(
             [FromBody] CreateProformaInvoiceFromSoDto request,
@@ -327,13 +329,18 @@ namespace ERP.API.Controllers
         {
             try
             {
+                if (request == null || request.SalesOrderId <= 0)
+                {
+                    return BadRequest(new { message = "A valid SalesOrderId is required." });
+                }
+
                 var created = await _service.GenerateFromSalesOrderAsync(
                     request.SalesOrderId,
                     ResolveActingUser(userId),
                     request.BillingType ?? "Full",
                     request.MilestonePercentage,
                     cancellationToken);
-                return CreatedAtAction(nameof(GetById), new { id = created.Id, userId }, created);
+                return Ok(created);
             }
             catch (InvalidOperationException ex)
             {

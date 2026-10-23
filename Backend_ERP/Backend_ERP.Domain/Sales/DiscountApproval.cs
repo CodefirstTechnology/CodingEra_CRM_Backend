@@ -1,8 +1,13 @@
+using System;
+using System.Collections.Generic;
+
 namespace ERP.Domain.Sales
 {
     public class DiscountApproval
     {
         public int Id { get; set; }
+
+        public string TenantId { get; set; } = "default";
 
         public string ApprovalNumber { get; set; } = string.Empty;
 
@@ -30,6 +35,10 @@ namespace ERP.Domain.Sales
 
         public decimal? ApprovedDiscountPercentage { get; set; }
 
+        public decimal MaxAllowedDiscountPercentage { get; set; }
+
+        public decimal DiscountBreachPercentage { get; set; }
+
         public decimal RequestedAmount { get; set; }
 
         public decimal? ApprovedAmount { get; set; }
@@ -43,6 +52,16 @@ namespace ERP.Domain.Sales
         public string Reason { get; set; } = string.Empty;
 
         public string Remarks { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Cryptographic HMAC-SHA256 seal issued upon discount approval.
+        /// </summary>
+        public string? ApprovalToken { get; set; }
+
+        /// <summary>
+        /// Optimistic concurrency token mapped to PostgreSQL xmin.
+        /// </summary>
+        public uint Version { get; set; }
 
         public string CreatedBy { get; set; } = string.Empty;
 

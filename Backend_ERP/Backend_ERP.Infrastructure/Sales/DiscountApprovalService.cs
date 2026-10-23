@@ -11,15 +11,18 @@ namespace ERP.Infrastructure.Sales
         private readonly IDiscountApprovalRepository _repo;
         private readonly IDiscountApprovalNumberingService _numbering;
         private readonly ERPDbContext _db;
+        private readonly ERP.Application.Sales.Approvals.ICommercialComplianceService _complianceService;
 
         public DiscountApprovalService(
             IDiscountApprovalRepository repo,
             IDiscountApprovalNumberingService numbering,
-            ERPDbContext db)
+            ERPDbContext db,
+            ERP.Application.Sales.Approvals.ICommercialComplianceService complianceService)
         {
             _repo = repo;
             _numbering = numbering;
             _db = db;
+            _complianceService = complianceService;
         }
 
         public async Task<IReadOnlyList<DiscountApprovalListItemDto>> GetAllAsync(
@@ -575,8 +578,11 @@ namespace ERP.Infrastructure.Sales
                             item.LineTotal = taxableAmount + item.TaxAmount;
                         }
                         quote.CalculateTotals();
+                        var token = _complianceService.GenerateApprovalToken(quote);
+                        quote.ApprovalToken = token;
+                        entity.ApprovalToken = token;
                         quote.DiscountApprovalStatus = DiscountApprovalStatuses.Approved;
-                        quote.Status = QuotationStatuses.Sent;
+                        quote.Status = QuotationStatuses.Approved;
                         quote.UpdatedBy = actingUser;
                         quote.UpdatedDate = now;
                     }

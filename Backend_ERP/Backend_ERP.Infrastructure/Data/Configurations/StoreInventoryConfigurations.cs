@@ -77,6 +77,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("finished_goods");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.Version).IsRowVersion();
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+
             builder.Property(x => x.ProductCode).HasMaxLength(64).IsRequired();
             builder.HasIndex(x => x.ProductCode).IsUnique();
 
@@ -89,6 +92,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.FinishedQuantity).HasPrecision(18, 4);
             builder.Property(x => x.ReservedQuantity).HasPrecision(18, 4);
             builder.Property(x => x.AvailableQuantity).HasPrecision(18, 4);
+            builder.Property(x => x.ReorderLevel).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.UnitCost).HasPrecision(18, 4);
             builder.Property(x => x.CurrentValue).HasPrecision(18, 4);
 
@@ -98,6 +102,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
 
             builder.HasIndex(x => x.WarehouseId);
+            builder.HasIndex(x => new { x.TenantId, x.ProductCode, x.WarehouseId });
         }
     }
 
@@ -108,6 +113,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("stock_transactions");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+
             builder.Property(x => x.TransactionNumber).HasMaxLength(64).IsRequired();
             builder.HasIndex(x => x.TransactionNumber).IsUnique();
 
@@ -116,6 +123,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.WarehouseName).HasMaxLength(256);
             builder.Property(x => x.Unit).HasMaxLength(32);
             builder.Property(x => x.Quantity).HasPrecision(18, 4);
+            builder.Property(x => x.BalanceAfter).HasPrecision(18, 4).HasDefaultValue(0m);
 
             builder.Property(x => x.TransactionType).HasConversion<string>().HasMaxLength(64);
             builder.Property(x => x.ReferenceType).HasConversion<string>().HasMaxLength(64);
@@ -129,6 +137,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.TransactionType);
             builder.HasIndex(x => x.WarehouseId);
             builder.HasIndex(x => x.MaterialId);
+            builder.HasIndex(x => new { x.TenantId, x.WarehouseId, x.MaterialId });
         }
     }
 

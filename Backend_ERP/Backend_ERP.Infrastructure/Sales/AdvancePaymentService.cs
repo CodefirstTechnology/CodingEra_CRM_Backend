@@ -436,7 +436,7 @@ namespace ERP.Infrastructure.Sales
             if (_db.Database.IsRelational())
             {
                 return await _db.SalesOrders
-                    .FromSqlRaw(@"SELECT * FROM sales_orders WHERE ""Id"" = {0} FOR UPDATE", salesOrderId)
+                    .FromSqlRaw(@"SELECT *, xmin FROM sales_orders WHERE ""Id"" = {0} FOR UPDATE", salesOrderId)
                     .FirstOrDefaultAsync(cancellationToken);
             }
 

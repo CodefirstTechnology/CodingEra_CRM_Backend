@@ -6,9 +6,13 @@ namespace ERP.Domain.Procurement
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public string TransactionNumber { get; set; } = string.Empty;
 
         public StockTxnType TransactionType { get; set; } = StockTxnType.StockIn;
+
+        public decimal BalanceAfter { get; set; }
 
         public int? MaterialId { get; set; }
 

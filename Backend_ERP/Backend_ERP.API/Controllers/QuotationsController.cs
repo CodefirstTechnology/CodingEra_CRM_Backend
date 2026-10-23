@@ -2,6 +2,7 @@ using ERP.Shared.Models;
 using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
+using ERP.Application.Sales.Quotations;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers
@@ -12,15 +13,21 @@ namespace ERP.API.Controllers
     {
         private readonly IQuotationService _quotationService;
         private readonly ISalesOrderService _salesOrderService;
+        private readonly ERP.Application.Sales.Quotations.IQuotationConversionService _quotationConversionService;
+        private readonly ERP.Application.Sales.Quotations.IInventoryAllocationService _inventoryAllocationService;
         private readonly ICurrentUser _currentUser;
 
         public QuotationsController(
             IQuotationService quotationService,
             ISalesOrderService salesOrderService,
+            ERP.Application.Sales.Quotations.IQuotationConversionService quotationConversionService,
+            ERP.Application.Sales.Quotations.IInventoryAllocationService inventoryAllocationService,
             ICurrentUser currentUser)
         {
             _quotationService = quotationService;
             _salesOrderService = salesOrderService;
+            _quotationConversionService = quotationConversionService;
+            _inventoryAllocationService = inventoryAllocationService;
             _currentUser = currentUser;
         }
 
@@ -131,7 +138,8 @@ namespace ERP.API.Controllers
         }
 
         /// <summary>
-        /// Converts an approved (client-accepted) quote to a Sales Order under row-level pessimistic lock.
+        /// Converts an approved (client-accepted) quote to a Sales Order under row-level pessimistic lock,
+        /// preserving frozen pricing snapshots and executing soft inventory allocation.
         /// </summary>
         [HttpPost("{id:int}/convert-to-sales-order")]
         public async Task<ActionResult<SalesOrderDto>> ConvertToSalesOrder(
@@ -139,8 +147,52 @@ namespace ERP.API.Controllers
             CancellationToken cancellationToken)
         {
             var user = ResolveActingUser();
-            var so = await _salesOrderService.ConvertQuotationAsync(id, user, cancellationToken);
+            var so = await _quotationConversionService.ConvertQuotationToSalesOrderAsync(id, user, cancellationToken);
             return Ok(so);
+        }
+
+        /// <summary>
+        /// Submits a quotation for multi-tier commercial or discount approval.
+        /// </summary>
+        [HttpPost("{id:int}/submit-for-approval")]
+        public async Task<ActionResult<QuotationDto>> SubmitForApproval(
+            int id,
+            [FromBody] QuotationSubmitForApprovalRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var user = ResolveActingUser();
+            var result = await _quotationService.SubmitForApprovalAsync(id, request, user, cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Non-blocking real-time Available-to-Promise (ATP) check for all lines in a quotation.
+        /// </summary>
+        [HttpPost("{id:int}/atp-check")]
+        public async Task<ActionResult<IReadOnlyList<QuotationAtpCheckResponseDto>>> CheckQuotationAtp(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _inventoryAllocationService.CheckQuotationAtpAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Real-time single-item Available-to-Promise (ATP) check.
+        /// </summary>
+        [HttpPost("atp-check")]
+        public async Task<ActionResult<QuotationAtpCheckResponseDto>> CheckItemAtp(
+            [FromBody] QuotationAtpCheckRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _inventoryAllocationService.CheckAtpAsync(
+                request.WarehouseId,
+                request.ItemId,
+                request.ItemCode,
+                request.RequestedQuantity,
+                "default",
+                cancellationToken);
+            return Ok(result);
         }
 
         private string ResolveActingUser()

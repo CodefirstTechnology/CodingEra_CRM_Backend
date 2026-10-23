@@ -11,6 +11,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("QuotationApprovals");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.Version).IsRowVersion();
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+
             builder.Property(x => x.ApprovalNumber).IsRequired().HasMaxLength(50);
             builder.HasIndex(x => x.ApprovalNumber).IsUnique();
 
@@ -25,6 +28,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Status).IsRequired().HasMaxLength(50);
             builder.Property(x => x.Reason).HasMaxLength(2000);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
+            builder.Property(x => x.ApprovalToken).HasMaxLength(256);
 
             builder.Property(x => x.CreatedBy).IsRequired().HasMaxLength(100);
             builder.Property(x => x.UpdatedBy).HasMaxLength(100);
@@ -32,6 +36,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.RequestDate);
             builder.HasIndex(x => x.SalesPersonUserId);
             builder.HasIndex(x => x.Status);
+            builder.HasIndex(x => new { x.TenantId, x.Status });
         }
     }
 }

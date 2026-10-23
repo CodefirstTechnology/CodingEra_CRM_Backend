@@ -11,10 +11,14 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("sales_orders");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.Version).IsRowVersion();
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+
             builder.Property(x => x.SalesOrderNumber).HasMaxLength(64).IsRequired();
             builder.HasIndex(x => x.SalesOrderNumber).IsUnique();
 
             builder.Property(x => x.QuotationNumber).HasMaxLength(64);
+            builder.Property(x => x.ApprovalToken).HasMaxLength(256);
             builder.Property(x => x.SourceType).HasMaxLength(32).IsRequired();
             builder.Property(x => x.CustomerName).HasMaxLength(256).IsRequired();
             builder.Property(x => x.ContactPerson).HasMaxLength(256);
@@ -41,6 +45,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.OrderDate);
             builder.HasIndex(x => x.CustomerName);
+            builder.HasIndex(x => new { x.TenantId, x.SalesOrderNumber });
 
             builder.HasMany(x => x.Items)
                 .WithOne(x => x.SalesOrder)
@@ -66,18 +71,34 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("sales_order_items");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+            builder.Property(x => x.ItemType).HasConversion<string>().HasMaxLength(32).HasDefaultValue(PricingItemType.FinishedGood);
+            builder.Property(x => x.ItemId);
+            builder.Property(x => x.WarehouseId);
+            builder.Property(x => x.ItemCode).HasMaxLength(64);
+            builder.Property(x => x.BaseStockUom).HasMaxLength(32).HasDefaultValue("Nos");
+
             builder.Property(x => x.LineKey).HasMaxLength(64).IsRequired();
             builder.Property(x => x.ItemName).HasMaxLength(512).IsRequired();
             builder.Property(x => x.Description).HasMaxLength(2000);
             builder.Property(x => x.Unit).HasMaxLength(32);
             builder.Property(x => x.Quantity).HasPrecision(18, 4);
+            builder.Property(x => x.DispatchedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.ProformaInvoicedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.Rate).HasPrecision(18, 4);
             builder.Property(x => x.Discount).HasPrecision(9, 4);
             builder.Property(x => x.Gst).HasPrecision(9, 4);
             builder.Property(x => x.Amount).HasPrecision(18, 2);
 
+            builder.Property(x => x.PriceListNumberSnapshot).HasMaxLength(64);
+            builder.Property(x => x.OriginalSellingRate).HasPrecision(18, 4);
+            builder.Property(x => x.FloorPriceSnapshot).HasPrecision(18, 4);
+            builder.Property(x => x.MaxDiscountPctSnapshot).HasPrecision(9, 4);
+            builder.Property(x => x.TaxSlabPercentSnapshot).HasPrecision(9, 4);
+
             builder.HasIndex(x => new { x.SalesOrderId, x.SortIndex });
+            builder.HasIndex(x => new { x.TenantId, x.SalesOrderId });
+            builder.HasIndex(x => new { x.TenantId, x.WarehouseId, x.ItemId });
         }
     }
 

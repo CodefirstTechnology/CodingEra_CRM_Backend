@@ -3,6 +3,7 @@ using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Enums;
+using ERP.Domain.Sales;
 using ERP.Shared.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,6 +17,7 @@ namespace ERP.API.Controllers
         private readonly ISalesOrderService _salesOrders;
         private readonly IProformaInvoiceService _proformaInvoices;
         private readonly IAdvancePaymentService _advancePayments;
+        private readonly ERP.Application.Sales.Quotations.IStockDecrementService _stockDecrementService;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
         private readonly IErpWorkflowAuthorizationService _workflowAuthService;
@@ -24,6 +26,7 @@ namespace ERP.API.Controllers
             ISalesOrderService salesOrders,
             IProformaInvoiceService proformaInvoices,
             IAdvancePaymentService advancePayments,
+            ERP.Application.Sales.Quotations.IStockDecrementService stockDecrementService,
             ICurrentUser currentUser,
             IErpAuthorizationService authService,
             IErpWorkflowAuthorizationService workflowAuthService)
@@ -31,6 +34,7 @@ namespace ERP.API.Controllers
             _salesOrders = salesOrders;
             _proformaInvoices = proformaInvoices;
             _advancePayments = advancePayments;
+            _stockDecrementService = stockDecrementService;
             _currentUser = currentUser;
             _authService = authService;
             _workflowAuthService = workflowAuthService;
@@ -155,7 +159,13 @@ namespace ERP.API.Controllers
         }
 
         [HttpPost("{id:int}/status")]
-        [RequirePermission(ErpPermissions.SalesOrders.Confirm)]
+        [RequirePermission(
+            ErpPermissions.SalesOrders.Confirm,
+            ErpPermissions.SalesOrders.Submit,
+            ErpPermissions.SalesOrders.Process,
+            ErpPermissions.SalesOrders.Complete,
+            ErpPermissions.SalesOrders.Cancel,
+            ErpPermissions.SalesOrders.Edit)]
         public async Task<ActionResult<SalesOrderDto>> UpdateStatus(
             int id,
             [FromBody] SalesOrderStatusUpdateRequestDto request,
@@ -167,14 +177,41 @@ namespace ERP.API.Controllers
                 var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
                 if (existing is null) return NotFound();
 
-                if (!_workflowAuthService.CanConfirmSalesOrder(existing.Status, existing.CreatedBy))
+                var target = SalesOrderStatusRules.Normalize(request?.Status ?? string.Empty);
+                if (target is null)
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot change the status of this sales order in its current workflow state." });
+                    return ValidationProblem(detail: $"Unknown status '{request?.Status}'.", statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                if (!SalesOrderStatusRules.CanTransition(existing.Status, target))
+                {
+                    return ValidationProblem(detail: $"Cannot transition sales order from '{existing.Status}' to '{target}'.", statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                bool authorized = target switch
+                {
+                    SalesOrderStatuses.Submitted => _workflowAuthService.CanSubmitSalesOrder(existing.Status, existing.CreatedBy),
+                    SalesOrderStatuses.Confirmed => _workflowAuthService.CanConfirmSalesOrder(existing.Status, existing.CreatedBy),
+                    SalesOrderStatuses.Processing => _workflowAuthService.CanProcessSalesOrder(existing.Status, existing.CreatedBy),
+                    SalesOrderStatuses.PartiallyDelivered => _workflowAuthService.CanProcessSalesOrder(existing.Status, existing.CreatedBy) || _authService.Authorize(ErpPermissions.SalesOrders.Process),
+                    SalesOrderStatuses.Completed => _workflowAuthService.CanCompleteSalesOrder(existing.Status, existing.CreatedBy),
+                    SalesOrderStatuses.Cancelled => _workflowAuthService.CanCancelSalesOrder(existing.Status, existing.CreatedBy),
+                    _ => false
+                };
+
+                if (!authorized && _currentUser.IsAdmin)
+                {
+                    authorized = true;
+                }
+
+                if (!authorized)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = $"You cannot change the status of this sales order to '{target}' in its current workflow state." });
                 }
 
                 var updated = await _salesOrders.UpdateStatusAsync(
                     id,
-                    request,
+                    request!,
                     ResolveActingUser(userId),
                     cancellationToken);
                 if (updated is null)
@@ -385,6 +422,32 @@ namespace ERP.API.Controllers
             }
 
             return Ok(history);
+        }
+
+        /// <summary>
+        /// Stage 3 Dispatch/Completion: Decrements physical stock from finished_goods, releases reserved stock,
+        /// and records double-entry stock transactions under row-level pessimistic locks.
+        /// </summary>
+        [HttpPost("{id:int}/complete")]
+        [RequirePermission(ErpPermissions.SalesOrders.Complete)]
+        public async Task<ActionResult<SalesOrderDto>> CompleteOrder(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _salesOrders.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                var actingUser = ResolveActingUser(userId);
+                var result = await _stockDecrementService.DeductPhysicalStockForSalesOrderAsync(id, actingUser, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
         }
 
         private string ResolveActingUser(int? userId)

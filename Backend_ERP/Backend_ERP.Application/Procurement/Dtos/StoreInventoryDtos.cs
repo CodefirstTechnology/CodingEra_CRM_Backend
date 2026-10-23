@@ -438,6 +438,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("availableQuantity")]
         public decimal AvailableQuantity { get; set; }
 
+        [JsonPropertyName("warehouseId")]
+        public int WarehouseId { get; set; }
+
         [JsonPropertyName("warehouseName")]
         public string WarehouseName { get; set; } = string.Empty;
 

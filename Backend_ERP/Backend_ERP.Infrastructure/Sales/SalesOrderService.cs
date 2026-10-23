@@ -355,7 +355,7 @@ namespace ERP.Infrastructure.Sales
 
             // 1. Try locking canonical Quotation row with row-level pessimistic lock (SELECT ... FOR UPDATE)
             var quote = await _db.Quotations
-                .FromSqlRaw(@"SELECT * FROM quotations WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
+                .FromSqlRaw(@"SELECT *, xmin FROM quotations WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
                 .Include(x => x.Items)
                 .FirstOrDefaultAsync(cancellationToken);
 
@@ -486,7 +486,7 @@ namespace ERP.Infrastructure.Sales
 
             // 2. Fallback for legacy QuotationApproval records
             var qa = await _db.QuotationApprovals
-                .FromSqlRaw(@"SELECT * FROM ""QuotationApprovals"" WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
+                .FromSqlRaw(@"SELECT *, xmin FROM ""QuotationApprovals"" WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
                 .Include(x => x.History)
                 .FirstOrDefaultAsync(cancellationToken);
 

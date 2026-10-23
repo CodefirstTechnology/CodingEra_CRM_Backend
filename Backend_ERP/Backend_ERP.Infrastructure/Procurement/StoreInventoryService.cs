@@ -1703,6 +1703,7 @@ namespace ERP.Infrastructure.Procurement
             FinishedQuantity = entity.FinishedQuantity,
             ReservedQuantity = entity.ReservedQuantity,
             AvailableQuantity = entity.AvailableQuantity,
+            WarehouseId = entity.WarehouseId,
             WarehouseName = entity.WarehouseName,
             BatchNumber = entity.BatchNumber,
             ProductionReference = entity.ProductionReference,

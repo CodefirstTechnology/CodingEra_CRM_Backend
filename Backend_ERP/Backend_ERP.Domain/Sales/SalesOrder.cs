@@ -4,11 +4,17 @@ namespace ERP.Domain.Sales
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public string SalesOrderNumber { get; set; } = string.Empty;
 
         public int? QuotationId { get; set; }
 
         public string QuotationNumber { get; set; } = string.Empty;
+
+        public string? ApprovalToken { get; set; }
+
+        public uint Version { get; set; }
 
         public string SourceType { get; set; } = SalesOrderSourceTypes.Manual;
 

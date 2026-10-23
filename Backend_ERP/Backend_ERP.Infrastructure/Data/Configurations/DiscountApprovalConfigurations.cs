@@ -11,6 +11,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("discount_approvals");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.Version).IsRowVersion();
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+
             builder.Property(x => x.ApprovalNumber).HasMaxLength(64).IsRequired();
             builder.HasIndex(x => x.ApprovalNumber).IsUnique();
 
@@ -21,6 +24,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.CustomerCategory).HasMaxLength(64).IsRequired();
             builder.Property(x => x.RequestedDiscountPercentage).HasPrecision(9, 4);
             builder.Property(x => x.ApprovedDiscountPercentage).HasPrecision(9, 4);
+            builder.Property(x => x.MaxAllowedDiscountPercentage).HasPrecision(9, 4);
+            builder.Property(x => x.DiscountBreachPercentage).HasPrecision(9, 4);
             builder.Property(x => x.RequestedAmount).HasPrecision(18, 2);
             builder.Property(x => x.ApprovedAmount).HasPrecision(18, 2);
             builder.Property(x => x.ApprovalLevel).HasMaxLength(64).IsRequired();
@@ -28,10 +33,12 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Status).HasMaxLength(64).IsRequired();
             builder.Property(x => x.Reason).HasMaxLength(2000);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
+            builder.Property(x => x.ApprovalToken).HasMaxLength(256);
             builder.Property(x => x.CreatedBy).HasMaxLength(64);
             builder.Property(x => x.UpdatedBy).HasMaxLength(64);
 
             builder.HasIndex(x => x.Status);
+            builder.HasIndex(x => new { x.TenantId, x.Status });
             builder.HasIndex(x => x.Priority);
             builder.HasIndex(x => x.ApprovalLevel);
             builder.HasIndex(x => x.SourceType);

@@ -1,19 +1,28 @@
+using System;
+using System.Collections.Generic;
+using ERP.Domain.Sales;
+
 namespace ERP.Application.Sales.Dtos
 {
     public class QuotationDto
     {
         public int Id { get; set; }
+        public string TenantId { get; set; } = "default";
         public string QuotationNumber { get; set; } = string.Empty;
-        public int RevisionNumber { get; set; } = 1;
+        public int? ParentQuotationId { get; set; }
+        public int? RootQuotationId { get; set; }
+        public int RevisionNumber { get; set; } = 0;
         public bool IsCurrentRevision { get; set; } = true;
         public string CustomerId { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
+        public string CustomerCategory { get; set; } = "Standard";
         public string ContactPerson { get; set; } = string.Empty;
         public string? CustomerEmail { get; set; }
         public string? CustomerPhone { get; set; }
         public string BillingAddress { get; set; } = string.Empty;
         public string ShippingAddress { get; set; } = string.Empty;
         public string SalesPerson { get; set; } = string.Empty;
+        public int? SalesPersonUserId { get; set; }
         public string Status { get; set; } = string.Empty;
         public string QuotationDate { get; set; } = string.Empty;
         public string ValidUntil { get; set; } = string.Empty;
@@ -37,6 +46,7 @@ namespace ERP.Application.Sales.Dtos
         public string? ConvertedOn { get; set; }
         public int? DiscountApprovalId { get; set; }
         public string DiscountApprovalStatus { get; set; } = "None";
+        public string? ApprovalToken { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTimeOffset CreatedDate { get; set; }
         public string UpdatedBy { get; set; } = string.Empty;
@@ -47,7 +57,11 @@ namespace ERP.Application.Sales.Dtos
     public class QuotationItemDto
     {
         public int Id { get; set; }
+        public string ItemType { get; set; } = "FinishedGood";
+        public int? ItemId { get; set; }
         public int? ProductId { get; set; }
+        public int? WarehouseId { get; set; }
+        public string BaseStockUom { get; set; } = "Nos";
         public int LineNumber { get; set; }
         public string ItemCode { get; set; } = string.Empty;
         public string ItemName { get; set; } = string.Empty;
@@ -61,18 +75,31 @@ namespace ERP.Application.Sales.Dtos
         public decimal TaxAmount { get; set; }
         public decimal LineTotal { get; set; }
         public int SortOrder { get; set; }
+
+        // Frozen Snapshot Fields
+        public int? ResolvedPriceListId { get; set; }
+        public string PriceListNumberSnapshot { get; set; } = string.Empty;
+        public string ResolutionStageSnapshot { get; set; } = string.Empty;
+        public decimal OriginalSellingRate { get; set; }
+        public decimal FloorPriceSnapshot { get; set; }
+        public decimal MaxDiscountPctSnapshot { get; set; }
+        public decimal TaxSlabPercentSnapshot { get; set; }
+        public DateTimeOffset SnapshotTimestampUtc { get; set; }
+        public bool IsCommercialDeviation { get; set; }
     }
 
     public class QuotationCreateRequestDto
     {
         public string? CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        public string? CustomerCategory { get; set; }
         public string? ContactPerson { get; set; }
         public string? CustomerEmail { get; set; }
         public string? CustomerPhone { get; set; }
         public string? BillingAddress { get; set; }
         public string? ShippingAddress { get; set; }
         public string? SalesPerson { get; set; }
+        public int? SalesPersonUserId { get; set; }
         public DateOnly? QuotationDate { get; set; }
         public DateOnly? ValidUntil { get; set; }
         public string? Currency { get; set; }
@@ -92,7 +119,11 @@ namespace ERP.Application.Sales.Dtos
 
     public class QuotationItemUpsertDto
     {
+        public string? ItemType { get; set; } = "FinishedGood";
+        public int? ItemId { get; set; }
         public int? ProductId { get; set; }
+        public int? WarehouseId { get; set; }
+        public string? BaseStockUom { get; set; } = "Nos";
         public string? ItemCode { get; set; }
         public string ItemName { get; set; } = string.Empty;
         public string? Description { get; set; }
@@ -121,6 +152,36 @@ namespace ERP.Application.Sales.Dtos
     {
         public string Status { get; set; } = string.Empty;
         public string? Remarks { get; set; }
+    }
+
+    public class QuotationSubmitForApprovalRequestDto
+    {
+        public string? Reason { get; set; }
+        public string Priority { get; set; } = "Normal";
+        public string? ApprovalLevel { get; set; }
+    }
+
+    public class QuotationAtpCheckRequestDto
+    {
+        public int WarehouseId { get; set; }
+        public int? ItemId { get; set; }
+        public string? ItemCode { get; set; }
+        public decimal RequestedQuantity { get; set; } = 1m;
+    }
+
+    public class QuotationAtpCheckResponseDto
+    {
+        public int? ItemId { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public int WarehouseId { get; set; }
+        public string WarehouseName { get; set; } = string.Empty;
+        public decimal PhysicalStock { get; set; }
+        public decimal ReservedStock { get; set; }
+        public decimal AvailableQuantity { get; set; }
+        public bool IsAvailable { get; set; }
+        public decimal ShortageQuantity { get; set; }
+        public DateTime? EarliestAvailableDateUtc { get; set; }
     }
 
     public class QuotationListQueryDto

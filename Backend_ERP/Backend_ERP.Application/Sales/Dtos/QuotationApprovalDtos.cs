@@ -141,6 +141,7 @@ namespace ERP.Application.Sales.Dtos
         public decimal AvailableQuantity { get; set; }
         public string Unit { get; set; } = "Nos";
         public decimal UnitCost { get; set; }
+        public int WarehouseId { get; set; }
         public string WarehouseName { get; set; } = string.Empty;
         public string BatchNumber { get; set; } = string.Empty;
     }

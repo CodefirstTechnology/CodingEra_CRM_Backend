@@ -65,7 +65,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Sales.Pricing.IPriceResolutionEngine, ERP.Infrastructure.Sales.Pricing.PriceResolutionEngine>();
             services.AddScoped<ERP.Application.Sales.Pricing.IBomMarginAuditService, ERP.Infrastructure.Sales.Pricing.BomMarginAuditService>();
             services.AddScoped<ERP.Application.Sales.Quotations.IQuotationLineSnapshotService, ERP.Application.Sales.Quotations.QuotationLineSnapshotService>();
-            services.AddScoped<ERP.Application.Sales.Approvals.ICommercialComplianceService, ERP.Application.Sales.Approvals.CommercialComplianceService>();
+            services.AddScoped<ERP.Application.Sales.Approvals.ICommercialComplianceService, ERP.Infrastructure.Sales.CommercialComplianceService>();
             services.AddScoped<ERP.Infrastructure.Data.Interceptors.PricingTransactionCommitInterceptor>();
 
             services.AddScoped<IPriceListNumberingService, PriceListNumberingService>();
@@ -78,6 +78,10 @@ namespace ERP.Infrastructure
             services.AddScoped<IQuotationApprovalRepository, QuotationApprovalRepository>();
             services.AddScoped<IQuotationApprovalService, QuotationApprovalService>();
             services.AddScoped<IQuotationService, QuotationService>();
+            services.AddScoped<ERP.Application.Sales.Quotations.IQuotationRevisionService, ERP.Infrastructure.Sales.QuotationRevisionService>();
+            services.AddScoped<ERP.Application.Sales.Quotations.IInventoryAllocationService, ERP.Infrastructure.Sales.InventoryAllocationService>();
+            services.AddScoped<ERP.Application.Sales.Quotations.IStockDecrementService, ERP.Infrastructure.Sales.StockDecrementService>();
+            services.AddScoped<ERP.Application.Sales.Quotations.IQuotationConversionService, ERP.Infrastructure.Sales.QuotationConversionService>();
 
             // Procurement Phase 1 Vendor Master Services
             services.AddScoped<ERP.Infrastructure.Procurement.VendorNumberingService>();

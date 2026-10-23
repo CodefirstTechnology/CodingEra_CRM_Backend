@@ -68,6 +68,7 @@ namespace ERP.API.Controllers
                 UnitCost = x.CurrentValue > 0 && x.FinishedQuantity > 0
                     ? Math.Round(x.CurrentValue / x.FinishedQuantity, 2)
                     : 0m,
+                WarehouseId = x.WarehouseId,
                 WarehouseName = x.WarehouseName,
                 BatchNumber = x.BatchNumber,
             }).ToList();

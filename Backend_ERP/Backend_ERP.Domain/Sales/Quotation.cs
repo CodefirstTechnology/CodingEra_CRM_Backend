@@ -1,18 +1,33 @@
+using System;
+using System.Collections.Generic;
+
 namespace ERP.Domain.Sales
 {
     public class Quotation
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public string QuotationNumber { get; set; } = string.Empty;
 
-        public int RevisionNumber { get; set; } = 1;
+        public int? ParentQuotationId { get; set; }
+
+        public Quotation? ParentQuotation { get; set; }
+
+        public int? RootQuotationId { get; set; }
+
+        public Quotation? RootQuotation { get; set; }
+
+        public int RevisionNumber { get; set; } = 0;
 
         public bool IsCurrentRevision { get; set; } = true;
 
         public string CustomerId { get; set; } = string.Empty;
 
         public string CustomerName { get; set; } = string.Empty;
+
+        public string CustomerCategory { get; set; } = PriceListCustomerCategories.Standard;
 
         public string ContactPerson { get; set; } = string.Empty;
 
@@ -25,6 +40,8 @@ namespace ERP.Domain.Sales
         public string ShippingAddress { get; set; } = string.Empty;
 
         public string SalesPerson { get; set; } = string.Empty;
+
+        public int? SalesPersonUserId { get; set; }
 
         public string Status { get; set; } = QuotationStatuses.Draft;
 
@@ -74,6 +91,16 @@ namespace ERP.Domain.Sales
 
         public DiscountApproval? DiscountApproval { get; set; }
 
+        /// <summary>
+        /// Cryptographic HMAC-SHA256 seal issued upon commercial/deal approval to prevent quote tampering before conversion.
+        /// </summary>
+        public string? ApprovalToken { get; set; }
+
+        /// <summary>
+        /// Optimistic concurrency token mapped to PostgreSQL xmin.
+        /// </summary>
+        public uint Version { get; set; }
+
         public string CreatedBy { get; set; } = string.Empty;
 
         public DateTimeOffset CreatedDate { get; set; }
@@ -85,6 +112,8 @@ namespace ERP.Domain.Sales
         public bool IsDeleted { get; set; }
 
         public ICollection<QuotationItem> Items { get; set; } = new List<QuotationItem>();
+
+        public ICollection<Quotation> ChildRevisions { get; set; } = new List<Quotation>();
 
         public void CalculateTotals()
         {

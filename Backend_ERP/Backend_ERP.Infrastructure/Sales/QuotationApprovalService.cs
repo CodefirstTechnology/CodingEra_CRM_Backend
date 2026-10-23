@@ -2,6 +2,7 @@ using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
 using ERP.Shared.Helpers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace ERP.Infrastructure.Sales
@@ -12,17 +13,23 @@ namespace ERP.Infrastructure.Sales
         private readonly IQuotationApprovalNumberingService _numbering;
         private readonly ILogger<QuotationApprovalService> _logger;
         private readonly ISalesOrderService _salesOrderService;
+        private readonly ERP.Infrastructure.Data.ERPDbContext _dbContext;
+        private readonly ERP.Application.Sales.Approvals.ICommercialComplianceService _complianceService;
 
         public QuotationApprovalService(
             IQuotationApprovalRepository repo,
             IQuotationApprovalNumberingService numbering,
             ILogger<QuotationApprovalService> logger,
-            ISalesOrderService salesOrderService)
+            ISalesOrderService salesOrderService,
+            ERP.Infrastructure.Data.ERPDbContext dbContext,
+            ERP.Application.Sales.Approvals.ICommercialComplianceService complianceService)
         {
             _repo = repo;
             _numbering = numbering;
             _logger = logger;
             _salesOrderService = salesOrderService;
+            _dbContext = dbContext;
+            _complianceService = complianceService;
         }
 
         // ─── Queries ──────────────────────────────────────────────────────────
@@ -351,6 +358,23 @@ namespace ERP.Infrastructure.Sales
             entity.Status = targetStatus;
             if (!string.IsNullOrWhiteSpace(request?.Remarks))
                 entity.Remarks = request.Remarks.Trim();
+
+            if (targetStatus == QuotationApprovalStatuses.Approved && entity.QuotationId > 0)
+            {
+                var quote = await _dbContext.Quotations
+                    .Include(q => q.Items)
+                    .FirstOrDefaultAsync(q => q.Id == entity.QuotationId && !q.IsDeleted, cancellationToken);
+                if (quote != null)
+                {
+                    var token = _complianceService.GenerateApprovalToken(quote);
+                    quote.ApprovalToken = token;
+                    quote.Status = QuotationStatuses.Approved;
+                    quote.UpdatedBy = actingUser;
+                    quote.UpdatedDate = now;
+                    entity.ApprovalToken = token;
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
 
             entity.UpdatedBy = actingUser;
             entity.UpdatedDate = now;

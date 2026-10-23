@@ -5,17 +5,32 @@ using ERP.Domain.Sales;
 using ERP.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
+using ERP.Application.Sales.Quotations;
+using ERP.Application.Sales.Approvals;
+using ERP.Domain.Procurement;
+
 namespace ERP.Infrastructure.Sales
 {
     public class QuotationService : IQuotationService
     {
         private readonly ERPDbContext _db;
         private readonly IDiscountApprovalNumberingService _numbering;
+        private readonly IQuotationRevisionService _revisionService;
+        private readonly ERP.Application.Sales.Approvals.ICommercialComplianceService _complianceService;
+        private readonly IInventoryAllocationService _allocationService;
 
-        public QuotationService(ERPDbContext db, IDiscountApprovalNumberingService numbering)
+        public QuotationService(
+            ERPDbContext db,
+            IDiscountApprovalNumberingService numbering,
+            IQuotationRevisionService revisionService,
+            ERP.Application.Sales.Approvals.ICommercialComplianceService complianceService,
+            IInventoryAllocationService allocationService)
         {
             _db = db;
             _numbering = numbering;
+            _revisionService = revisionService;
+            _complianceService = complianceService;
+            _allocationService = allocationService;
         }
 
         public async Task<PagedResult<QuotationDto>> GetPagedAsync(
@@ -130,19 +145,27 @@ namespace ERP.Infrastructure.Sales
             };
 
             var candidateIds = request.Items
-                .Where(x => x.ProductId.HasValue && x.ProductId.Value > 0)
-                .Select(x => x.ProductId!.Value)
+                .Select(x => x.ProductId ?? x.ItemId)
+                .Where(x => x.HasValue && x.Value > 0)
+                .Select(x => x!.Value)
                 .Distinct()
                 .ToList();
 
-            var validProductIds = candidateIds.Count > 0
-                ? (await _db.FinishedGoods
-                    .Where(fg => candidateIds.Contains(fg.Id) && !fg.IsDeleted)
-                    .Select(fg => fg.Id)
-                    .ToListAsync(cancellationToken)).ToHashSet()
-                : new HashSet<int>();
+            var candidateCodes = request.Items
+                .Where(x => !string.IsNullOrWhiteSpace(x.ItemCode))
+                .Select(x => x.ItemCode!.Trim())
+                .Distinct()
+                .ToList();
 
-            HydrateItems(entity, request.Items, validProductIds);
+            var matchingGoods = await _db.FinishedGoods
+                .Where(fg => !fg.IsDeleted && (candidateIds.Contains(fg.Id) || (candidateCodes.Count > 0 && candidateCodes.Contains(fg.ProductCode))))
+                .ToListAsync(cancellationToken);
+
+            var goodsById = matchingGoods.ToDictionary(x => x.Id);
+            var goodsByCode = matchingGoods.GroupBy(x => x.ProductCode, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            HydrateItems(entity, request.Items, goodsById, goodsByCode);
             CalculateTotals(entity);
 
             var maxDiscount = entity.Items.Count > 0 ? entity.Items.Max(i => i.DiscountPercent) : 0m;
@@ -249,19 +272,27 @@ namespace ERP.Infrastructure.Sales
             entity.Items.Clear();
 
             var candidateIds = request.Items
-                .Where(x => x.ProductId.HasValue && x.ProductId.Value > 0)
-                .Select(x => x.ProductId!.Value)
+                .Select(x => x.ProductId ?? x.ItemId)
+                .Where(x => x.HasValue && x.Value > 0)
+                .Select(x => x!.Value)
                 .Distinct()
                 .ToList();
 
-            var validProductIds = candidateIds.Count > 0
-                ? (await _db.FinishedGoods
-                    .Where(fg => candidateIds.Contains(fg.Id) && !fg.IsDeleted)
-                    .Select(fg => fg.Id)
-                    .ToListAsync(cancellationToken)).ToHashSet()
-                : new HashSet<int>();
+            var candidateCodes = request.Items
+                .Where(x => !string.IsNullOrWhiteSpace(x.ItemCode))
+                .Select(x => x.ItemCode!.Trim())
+                .Distinct()
+                .ToList();
 
-            HydrateItems(entity, request.Items, validProductIds);
+            var matchingGoods = await _db.FinishedGoods
+                .Where(fg => !fg.IsDeleted && (candidateIds.Contains(fg.Id) || (candidateCodes.Count > 0 && candidateCodes.Contains(fg.ProductCode))))
+                .ToListAsync(cancellationToken);
+
+            var goodsById = matchingGoods.ToDictionary(x => x.Id);
+            var goodsByCode = matchingGoods.GroupBy(x => x.ProductCode, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            HydrateItems(entity, request.Items, goodsById, goodsByCode);
             CalculateTotals(entity);
 
             var maxDiscount = entity.Items.Count > 0 ? entity.Items.Max(i => i.DiscountPercent) : 0m;
@@ -408,91 +439,140 @@ namespace ERP.Infrastructure.Sales
             string actingUser,
             CancellationToken cancellationToken = default)
         {
-            var existing = await _db.Quotations
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+            var revision = await _revisionService.CreateRevisionAsync(
+                id,
+                request?.Reason,
+                actingUser,
+                cancellationToken);
 
-            if (existing is null)
+            return MapToDto(revision);
+        }
+
+        public async Task<QuotationDto> SubmitForApprovalAsync(
+            int id,
+            QuotationSubmitForApprovalRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var quote = await _db.Quotations
+                .Include(q => q.Items)
+                .FirstOrDefaultAsync(q => q.Id == id && !q.IsDeleted, cancellationToken)
+                ?? throw new KeyNotFoundException($"Quotation with ID {id} not found.");
+
+            if (quote.Status == QuotationStatuses.ConvertedToSO)
             {
-                throw new KeyNotFoundException($"Quotation with ID {id} not found.");
+                throw new InvalidOperationException("Cannot submit a quotation that is already converted to a Sales Order.");
             }
 
-            if (existing.Status == QuotationStatuses.ConvertedToSO)
-            {
-                throw new InvalidOperationException("Cannot revise a quotation that has already been converted to a Sales Order.");
-            }
-
+            var eval = _complianceService.EvaluateQuotation(quote);
             var now = DateTimeOffset.UtcNow;
 
-            // Mark current revision as obsolete/revised
-            existing.IsCurrentRevision = false;
-            existing.Status = QuotationStatuses.Revised;
-            existing.UpdatedBy = actingUser;
-            existing.UpdatedDate = now;
-
-            // Clone to new revision
-            var clone = new Quotation
+            if (eval.IsBlocked)
             {
-                QuotationNumber = existing.QuotationNumber,
-                RevisionNumber = existing.RevisionNumber + 1,
-                IsCurrentRevision = true,
-                CustomerId = existing.CustomerId,
-                CustomerName = existing.CustomerName,
-                ContactPerson = existing.ContactPerson,
-                CustomerEmail = existing.CustomerEmail,
-                CustomerPhone = existing.CustomerPhone,
-                BillingAddress = existing.BillingAddress,
-                ShippingAddress = existing.ShippingAddress,
-                SalesPerson = existing.SalesPerson,
-                Status = QuotationStatuses.Draft,
-                QuotationDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                ValidUntil = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(14)),
-                Currency = existing.Currency,
-                ExchangeRate = existing.ExchangeRate,
-                Subtotal = existing.Subtotal,
-                DiscountTotal = existing.DiscountTotal,
-                TaxTotal = existing.TaxTotal,
-                FreightAmount = existing.FreightAmount,
-                PackagingAmount = existing.PackagingAmount,
-                RoundOff = existing.RoundOff,
-                GrandTotal = existing.GrandTotal,
-                PaymentTerms = existing.PaymentTerms,
-                DeliveryTerms = existing.DeliveryTerms,
-                Notes = string.IsNullOrWhiteSpace(request.Reason)
-                    ? existing.Notes
-                    : $"{existing.Notes}\n[Revision Note]: {request.Reason}".Trim(),
-                CreatedBy = actingUser,
-                CreatedDate = now,
-                UpdatedBy = actingUser,
-                UpdatedDate = now,
-                IsDeleted = false
-            };
+                quote.Status = QuotationStatuses.PendingDiscountApproval;
+                quote.DiscountApprovalStatus = DiscountApprovalStatuses.Pending;
 
-            foreach (var item in existing.Items.OrderBy(i => i.SortOrder))
-            {
-                clone.Items.Add(new QuotationItem
+                var approvalNumber = await _numbering.GenerateNextApprovalNumberAsync(cancellationToken);
+                var approval = new DiscountApproval
                 {
-                    ProductId = item.ProductId,
-                    LineNumber = item.LineNumber,
-                    ItemCode = item.ItemCode,
-                    ItemName = item.ItemName,
-                    Description = item.Description,
-                    Quantity = item.Quantity,
-                    Unit = item.Unit,
-                    UnitPrice = item.UnitPrice,
-                    DiscountPercent = item.DiscountPercent,
-                    DiscountAmount = item.DiscountAmount,
-                    TaxPercent = item.TaxPercent,
-                    TaxAmount = item.TaxAmount,
-                    LineTotal = item.LineTotal,
-                    SortOrder = item.SortOrder
+                    TenantId = quote.TenantId,
+                    ApprovalNumber = approvalNumber,
+                    RequestDate = quote.QuotationDate,
+                    SourceType = DiscountApprovalSourceTypes.Quotation,
+                    QuotationId = quote.Id,
+                    QuotationNumber = quote.QuotationNumber,
+                    CustomerName = quote.CustomerName,
+                    CustomerCategory = quote.CustomerCategory,
+                    SalesPersonUserId = quote.SalesPersonUserId ?? 1,
+                    RequestedDiscountPercentage = eval.MaxDiscountBreachPercentage,
+                    MaxAllowedDiscountPercentage = quote.Items.Count > 0 ? quote.Items.Max(i => i.MaxDiscountPctSnapshot) : 0m,
+                    DiscountBreachPercentage = eval.MaxDiscountBreachPercentage,
+                    RequestedAmount = quote.DiscountTotal,
+                    ApprovalLevel = eval.RequiredApprovalLevel,
+                    Priority = request.Priority ?? DiscountApprovalPriorities.Normal,
+                    Status = DiscountApprovalStatuses.Pending,
+                    Reason = string.Join("; ", eval.BreachReasons),
+                    Remarks = request.Reason ?? $"Commercial deviation submission for {quote.QuotationNumber}",
+                    CreatedBy = actingUser,
+                    CreatedDate = now,
+                    UpdatedBy = actingUser,
+                    UpdatedDate = now,
+                    IsDeleted = false
+                };
+
+                approval.History.Add(new DiscountApprovalHistory
+                {
+                    Action = DiscountApprovalHistoryActions.Submitted,
+                    OldStatus = string.Empty,
+                    NewStatus = DiscountApprovalStatuses.Pending,
+                    Remarks = $"Submitted for commercial deviation approval. Level: {eval.RequiredApprovalLevel}",
+                    PerformedBy = actingUser,
+                    PerformedOn = now
                 });
+
+                _db.DiscountApprovals.Add(approval);
+                await _db.SaveChangesAsync(cancellationToken);
+
+                quote.DiscountApprovalId = approval.Id;
+            }
+            else if (quote.GrandTotal > 500_000m)
+            {
+                quote.Status = QuotationStatuses.PendingApproval;
+                var appSeq = await _db.QuotationApprovalDocumentSequences.FirstOrDefaultAsync(cancellationToken);
+                if (appSeq == null)
+                {
+                    appSeq = new QuotationApprovalDocumentSequence { LastNumber = 0, FinancialYear = DateTime.UtcNow.Year, Prefix = "QA" };
+                    _db.QuotationApprovalDocumentSequences.Add(appSeq);
+                }
+                appSeq.LastNumber += 1;
+                var appNum = $"QA-{DateTime.UtcNow.Year}-{appSeq.LastNumber:D4}";
+
+                var approval = new QuotationApproval
+                {
+                    TenantId = quote.TenantId,
+                    ApprovalNumber = appNum,
+                    RequestDate = quote.QuotationDate,
+                    QuotationId = quote.Id,
+                    QuotationNumber = quote.QuotationNumber,
+                    CustomerName = quote.CustomerName,
+                    SalesPersonUserId = quote.SalesPersonUserId ?? 1,
+                    TotalAmount = quote.GrandTotal,
+                    ApprovalLevel = eval.RequiredApprovalLevel != "None" ? eval.RequiredApprovalLevel : "Manager",
+                    Priority = request.Priority ?? "Normal",
+                    Status = "Submitted",
+                    Reason = request.Reason ?? $"High-value deal review (> 500,000 INR) for {quote.QuotationNumber}",
+                    Remarks = $"Auto-routed for {eval.RequiredApprovalLevel} approval",
+                    CreatedBy = actingUser,
+                    CreatedDate = now,
+                    UpdatedBy = actingUser,
+                    UpdatedDate = now,
+                    IsDeleted = false
+                };
+
+                approval.History.Add(new QuotationApprovalHistory
+                {
+                    Action = "Submitted",
+                    OldStatus = "Draft",
+                    NewStatus = "Submitted",
+                    Remarks = "High-value quotation deal submitted for management review",
+                    PerformedBy = actingUser,
+                    PerformedOn = now
+                });
+
+                _db.QuotationApprovals.Add(approval);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                quote.Status = QuotationStatuses.Approved;
+                quote.ApprovalToken = _complianceService.GenerateApprovalToken(quote);
             }
 
-            _db.Quotations.Add(clone);
-            await _db.SaveChangesAsync(cancellationToken);
+            quote.UpdatedBy = actingUser;
+            quote.UpdatedDate = now;
 
-            return MapToDto(clone);
+            await _db.SaveChangesAsync(cancellationToken);
+            return MapToDto(quote);
         }
 
         public async Task<QuotationDto> DuplicateAsync(
@@ -551,7 +631,12 @@ namespace ERP.Infrastructure.Sales
             {
                 clone.Items.Add(new QuotationItem
                 {
+                    TenantId = existing.TenantId,
+                    ItemType = item.ItemType,
+                    ItemId = item.ItemId,
                     ProductId = item.ProductId,
+                    WarehouseId = item.WarehouseId,
+                    BaseStockUom = item.BaseStockUom,
                     LineNumber = item.LineNumber,
                     ItemCode = item.ItemCode,
                     ItemName = item.ItemName,
@@ -564,7 +649,16 @@ namespace ERP.Infrastructure.Sales
                     TaxPercent = item.TaxPercent,
                     TaxAmount = item.TaxAmount,
                     LineTotal = item.LineTotal,
-                    SortOrder = item.SortOrder
+                    SortOrder = item.SortOrder,
+                    ResolvedPriceListId = item.ResolvedPriceListId,
+                    PriceListNumberSnapshot = item.PriceListNumberSnapshot,
+                    ResolutionStageSnapshot = item.ResolutionStageSnapshot,
+                    OriginalSellingRate = item.OriginalSellingRate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot,
+                    SnapshotTimestampUtc = item.SnapshotTimestampUtc,
+                    IsCommercialDeviation = item.IsCommercialDeviation
                 });
             }
 
@@ -644,30 +738,52 @@ namespace ERP.Infrastructure.Sales
         private static void HydrateItems(
             Quotation quote,
             IEnumerable<QuotationItemUpsertDto> dtos,
-            HashSet<int>? validFinishedGoodIds = null)
+            Dictionary<int, FinishedGood>? goodsById = null,
+            Dictionary<string, FinishedGood>? goodsByCode = null)
         {
             var idx = 1;
             foreach (var dto in dtos)
             {
-                var validProductId = dto.ProductId.HasValue && (validFinishedGoodIds?.Contains(dto.ProductId.Value) ?? false)
-                    ? dto.ProductId
-                    : null;
+                FinishedGood? fg = null;
+                var rawId = dto.ProductId ?? dto.ItemId;
+                if (rawId.HasValue && goodsById != null && goodsById.TryGetValue(rawId.Value, out var foundById))
+                {
+                    fg = foundById;
+                }
+                else if (!string.IsNullOrWhiteSpace(dto.ItemCode) && goodsByCode != null && goodsByCode.TryGetValue(dto.ItemCode.Trim(), out var foundByCode))
+                {
+                    fg = foundByCode;
+                }
+
+                var resolvedProductId = fg?.Id ?? (rawId.HasValue && rawId.Value > 0 ? rawId : null);
+                var resolvedWarehouseId = (dto.WarehouseId.HasValue && dto.WarehouseId.Value > 0)
+                    ? dto.WarehouseId.Value
+                    : (fg != null ? fg.WarehouseId : 1);
 
                 var discountAmt = Math.Round(dto.Quantity * dto.UnitPrice * (dto.DiscountPercent / 100m), 2);
                 var taxable = (dto.Quantity * dto.UnitPrice) - discountAmt;
                 var taxAmt = Math.Round(taxable * (dto.TaxPercent / 100m), 2);
                 var lineTotal = taxable + taxAmt;
 
+                var itemType = Enum.TryParse<PricingItemType>(dto.ItemType, true, out var parsedType)
+                    ? parsedType
+                    : (fg != null || resolvedProductId.HasValue ? PricingItemType.FinishedGood : PricingItemType.Service);
+
                 quote.Items.Add(new QuotationItem
                 {
-                    ProductId = validProductId,
+                    TenantId = quote.TenantId,
+                    ItemType = itemType,
+                    ItemId = resolvedProductId,
+                    ProductId = resolvedProductId,
+                    WarehouseId = resolvedWarehouseId,
+                    BaseStockUom = string.IsNullOrWhiteSpace(dto.BaseStockUom) ? (fg?.Unit ?? dto.Unit ?? "Nos") : dto.BaseStockUom.Trim(),
                     LineNumber = idx,
                     SortOrder = dto.SortOrder > 0 ? dto.SortOrder : idx,
-                    ItemCode = dto.ItemCode ?? string.Empty,
-                    ItemName = dto.ItemName,
+                    ItemCode = string.IsNullOrWhiteSpace(dto.ItemCode) ? (fg?.ProductCode ?? string.Empty) : dto.ItemCode,
+                    ItemName = string.IsNullOrWhiteSpace(dto.ItemName) ? (fg?.ProductName ?? "Item") : dto.ItemName,
                     Description = dto.Description ?? string.Empty,
                     Quantity = dto.Quantity,
-                    Unit = dto.Unit ?? "NOS",
+                    Unit = dto.Unit ?? (fg?.Unit ?? "NOS"),
                     UnitPrice = dto.UnitPrice,
                     DiscountPercent = dto.DiscountPercent,
                     DiscountAmount = discountAmt,
@@ -689,17 +805,22 @@ namespace ERP.Infrastructure.Sales
             return new QuotationDto
             {
                 Id = q.Id,
+                TenantId = q.TenantId,
                 QuotationNumber = q.QuotationNumber,
+                ParentQuotationId = q.ParentQuotationId,
+                RootQuotationId = q.RootQuotationId,
                 RevisionNumber = q.RevisionNumber,
                 IsCurrentRevision = q.IsCurrentRevision,
                 CustomerId = q.CustomerId,
                 CustomerName = q.CustomerName,
+                CustomerCategory = q.CustomerCategory,
                 ContactPerson = q.ContactPerson,
                 CustomerEmail = q.CustomerEmail,
                 CustomerPhone = q.CustomerPhone,
                 BillingAddress = q.BillingAddress,
                 ShippingAddress = q.ShippingAddress,
                 SalesPerson = q.SalesPerson,
+                SalesPersonUserId = q.SalesPersonUserId,
                 Status = q.Status,
                 QuotationDate = q.QuotationDate.ToString("yyyy-MM-dd"),
                 ValidUntil = q.ValidUntil.ToString("yyyy-MM-dd"),
@@ -723,6 +844,7 @@ namespace ERP.Infrastructure.Sales
                 ConvertedOn = q.ConvertedOn?.ToString("o"),
                 DiscountApprovalId = q.DiscountApprovalId,
                 DiscountApprovalStatus = q.DiscountApprovalStatus,
+                ApprovalToken = q.ApprovalToken,
                 CreatedBy = q.CreatedBy,
                 CreatedDate = q.CreatedDate,
                 UpdatedBy = q.UpdatedBy,
@@ -730,7 +852,11 @@ namespace ERP.Infrastructure.Sales
                 Items = q.Items.OrderBy(i => i.SortOrder).Select(i => new QuotationItemDto
                 {
                     Id = i.Id,
+                    ItemType = i.ItemType.ToString(),
+                    ItemId = i.ItemId,
                     ProductId = i.ProductId,
+                    WarehouseId = i.WarehouseId,
+                    BaseStockUom = i.BaseStockUom,
                     LineNumber = i.LineNumber,
                     ItemCode = i.ItemCode,
                     ItemName = i.ItemName,
@@ -743,7 +869,16 @@ namespace ERP.Infrastructure.Sales
                     TaxPercent = i.TaxPercent,
                     TaxAmount = i.TaxAmount,
                     LineTotal = i.LineTotal,
-                    SortOrder = i.SortOrder
+                    SortOrder = i.SortOrder,
+                    ResolvedPriceListId = i.ResolvedPriceListId,
+                    PriceListNumberSnapshot = i.PriceListNumberSnapshot,
+                    ResolutionStageSnapshot = i.ResolutionStageSnapshot,
+                    OriginalSellingRate = i.OriginalSellingRate,
+                    FloorPriceSnapshot = i.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = i.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = i.TaxSlabPercentSnapshot,
+                    SnapshotTimestampUtc = i.SnapshotTimestampUtc,
+                    IsCommercialDeviation = i.IsCommercialDeviation
                 }).ToList()
             };
         }
