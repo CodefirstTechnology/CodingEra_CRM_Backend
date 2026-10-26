@@ -35,17 +35,24 @@ namespace CRM.Helpers
                 await db.Database.MigrateAsync();
                 logger.LogInformation("Database schema is up to date.");
 
+                await DataProtectionKeysSchemaEnsure.EnsureAsync(db, logger);
                 await LeadDealAmountSchemaEnsure.EnsureAsync(db, logger);
+                await LeadRawPayloadSchemaEnsure.EnsureAsync(db, logger);
+                await OrganizationAddressSchemaEnsure.EnsureAsync(db, logger);
                 await CompanyProfileFaviconSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTermsSchemaEnsure.EnsureAsync(db, logger);
                 await QuotationTemplateSchemaEnsure.EnsureAsync(db, logger);
                 await LeadSyncIntervalSchemaEnsure.EnsureAsync(db, logger);
+                await SalesExecutiveReportSchemaEnsure.EnsureAsync(db, logger);
+                await TaskCallLogLinkSchemaEnsure.EnsureAsync(db, logger);
                 await DealPipelineStageSeed.EnsureAsync(db, logger);
                 await LeadStatusMovedToDealSeed.EnsureAsync(db, logger);
                 await RbacSeed.EnsureAsync(db, logger);
 
+                await UserSchemaEnsure.EnsureAsync(db, logger);
                 await LeadSyncSeed.EnsureAsync(db, logger);
                 await UserTargetTypeSeed.EnsureAsync(db, logger);
+                await LeadSourceSeed.EnsureAsync(db, logger);
             }
             catch (Exception ex)
             {

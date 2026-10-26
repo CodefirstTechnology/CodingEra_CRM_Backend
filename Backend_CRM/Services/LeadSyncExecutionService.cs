@@ -37,6 +37,8 @@ namespace CRM.Services
         public string? Requirement { get; set; }
         /// <summary>Buyer company name → linked <see cref="Organization"/>.</summary>
         public string? OrganizationName { get; set; }
+        public string? Location { get; set; }
+        public string? RawPayload { get; set; }
         public string Notes { get; set; } = string.Empty;
         public DateTime? CreatedAt { get; set; }
     }

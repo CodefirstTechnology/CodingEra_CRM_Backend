@@ -71,6 +71,9 @@ namespace CRM.models
         [Column("address")]
         public string Location { get; set; } = string.Empty;
 
+        [Column("raw_payload", TypeName = "jsonb")]
+        public string? RawPayload { get; set; }
+
         [Column("lead_date")]
         public DateTime? LeadDate { get; set; }
 
@@ -98,5 +101,12 @@ namespace CRM.models
 
         [Column("updated_by")]
         public int? UpdatedBy { get; set; }
+
+        [Column("lost_reason")]
+        [MaxLength(500)]
+        public string? LostReason { get; set; }
+
+        [Column("is_qualified")]
+        public bool IsQualified { get; set; } = false;
     }
 }

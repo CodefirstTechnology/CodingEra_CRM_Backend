@@ -133,6 +133,12 @@ namespace CRM.Controllers.Masters
                 return NotFound();
             }
 
+            var inLeads = await _context.Leads.AnyAsync(l => l.RequestTypeId == id);
+            if (inLeads)
+            {
+                return Conflict(new { message = "Cannot delete: This request type is assigned to existing leads. Please disable it instead or reassign records first." });
+            }
+
             _context.RequestTypes.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });

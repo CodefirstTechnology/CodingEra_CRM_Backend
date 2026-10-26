@@ -39,6 +39,26 @@ namespace CRM.Helpers
                     return;
                 }
 
+                // Ensure dedicated Follow-up status exists in master data
+                if (!await db.LeadStatuses.AnyAsync(s => s.Name.ToLower() == "follow-up" || s.Name.ToLower() == "follow up", cancellationToken))
+                {
+                    var statusNow = DateTime.UtcNow;
+                    await db.LeadStatuses.AddAsync(
+                        new models.LeadStatus
+                        {
+                            Name = "Follow-up",
+                            Description = "Lead is in follow-up stage",
+                            IsActive = true,
+                            IsConversionStatus = false,
+                            CreatedAt = statusNow,
+                            UpdatedAt = statusNow,
+                            LastModified = statusNow,
+                        },
+                        cancellationToken);
+                    await db.SaveChangesAsync(cancellationToken);
+                    logger.LogInformation("Created 'Follow-up' lead status in master data.");
+                }
+
                 if (flagged.Count == 1)
                 {
                     return;

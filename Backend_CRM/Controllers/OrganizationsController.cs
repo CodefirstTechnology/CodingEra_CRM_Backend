@@ -95,6 +95,17 @@ namespace CRM.Controllers
                 return err;
             }
 
+            if (!string.IsNullOrWhiteSpace(entity.Gst))
+            {
+                var normalizedGst = entity.Gst.Trim().ToUpperInvariant();
+                var duplicate = await _context.Organizations.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Gst != null && o.Gst.ToUpper() == normalizedGst);
+                if (duplicate != null)
+                {
+                    return Conflict(new { message = "An organization with this GSTIN already exists.", existingId = duplicate.Id, existingName = duplicate.Name });
+                }
+            }
+
             await _context.Organizations.AddAsync(entity);
             await _context.SaveChangesAsync();
             return Ok(await QueryWithMasters(_context.Organizations.AsNoTracking()).FirstAsync(o => o.Id == entity.Id));
@@ -142,6 +153,17 @@ namespace CRM.Controllers
                 return err;
             }
 
+            if (!string.IsNullOrWhiteSpace(existing.Gst))
+            {
+                var normalizedGst = existing.Gst.Trim().ToUpperInvariant();
+                var duplicate = await _context.Organizations.AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id != id && o.Gst != null && o.Gst.ToUpper() == normalizedGst);
+                if (duplicate != null)
+                {
+                    return Conflict(new { message = "An organization with this GSTIN already exists.", existingId = duplicate.Id, existingName = duplicate.Name });
+                }
+            }
+
             await _context.SaveChangesAsync();
             return Ok(await QueryWithMasters(_context.Organizations.AsNoTracking()).FirstAsync(o => o.Id == id));
         }
@@ -158,6 +180,7 @@ namespace CRM.Controllers
             o.Name = (dto.Name ?? string.Empty).Trim();
             o.Website = (dto.Website ?? string.Empty).Trim();
             o.Gst = (dto.Gst ?? string.Empty).Trim();
+            o.Address = (dto.Address ?? string.Empty).Trim();
             o.AnnualRevenue = dto.AnnualRevenue;
             o.IndustryId = NormalizeFk(dto.IndustryId);
             o.EmployeeCountId = NormalizeFk(dto.EmployeeCountId);
@@ -184,6 +207,11 @@ namespace CRM.Controllers
             if (dto.Gst != null)
             {
                 o.Gst = dto.Gst.Trim();
+            }
+
+            if (dto.Address != null)
+            {
+                o.Address = dto.Address.Trim();
             }
 
             if (dto.AnnualRevenue.HasValue)

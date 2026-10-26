@@ -165,6 +165,17 @@ namespace CRM.Controllers.Masters
                 return NotFound();
             }
 
+            if (entity.IsConversionStatus)
+            {
+                return Conflict(new { message = "Cannot delete: This is the designated conversion status for leads becoming deals. Please assign another conversion status first or disable it." });
+            }
+
+            var inLeads = await _context.Leads.AnyAsync(l => l.LeadStatusId == id);
+            if (inLeads)
+            {
+                return Conflict(new { message = "Cannot delete: This lead status is assigned to existing leads. Please disable it instead or reassign records first." });
+            }
+
             _context.LeadStatuses.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });

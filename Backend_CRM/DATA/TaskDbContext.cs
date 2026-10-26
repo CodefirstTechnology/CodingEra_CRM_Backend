@@ -1,10 +1,11 @@
 using CRM.Helpers;
 using CRM.models;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.DATA
 {
-    public class TaskDbcontext : DbContext
+    public class TaskDbcontext : DbContext, IDataProtectionKeyContext
     {
         public TaskDbcontext(DbContextOptions<TaskDbcontext> options) : base(options)
         {
@@ -48,7 +49,12 @@ namespace CRM.DATA
 
         public DbSet<DealStatus> DealStatuses { get; set; }
 
+        public DbSet<LeadTrackerRow> VwLeadTrackers { get; set; }
+        public DbSet<DailySalesRecognitionLog> DailySalesRecognitionLogs { get; set; }
+
         public DbSet<RequestType> RequestTypes { get; set; }
+
+        public DbSet<LeadSource> LeadSources { get; set; }
 
         public DbSet<Role> Roles { get; set; }
 
@@ -108,6 +114,7 @@ namespace CRM.DATA
         public DbSet<LeadSyncLog> LeadSyncLogs { get; set; }
 
         public DbSet<LeadSyncSourceCredentials> LeadSyncSourceCredentials { get; set; }
+        public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -184,6 +191,10 @@ namespace CRM.DATA
 
             modelBuilder.Entity<RequestType>()
                 .HasIndex(r => r.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<LeadSource>()
+                .HasIndex(s => s.Name)
                 .IsUnique();
 
             modelBuilder.Entity<Role>()
@@ -599,6 +610,17 @@ namespace CRM.DATA
                 .HasForeignKey(r => r.UpdatedBy)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<LeadSource>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.CreatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+            modelBuilder.Entity<LeadSource>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.UpdatedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<Role>()
                 .HasOne<User>()
                 .WithMany()
@@ -634,6 +656,7 @@ namespace CRM.DATA
             modelBuilder.Entity<LeadStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<DealStatus>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<RequestType>().Property(e => e.Id).UseIdentityAlwaysColumn();
+            modelBuilder.Entity<LeadSource>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Role>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<Permission>().Property(e => e.Id).UseIdentityAlwaysColumn();
             modelBuilder.Entity<User>().Property(e => e.Id).UseIdentityAlwaysColumn();
@@ -773,6 +796,10 @@ namespace CRM.DATA
                 .HasIndex(t => t.Name)
                 .IsUnique();
 
+            modelBuilder.Entity<LeadTrackerRow>()
+                .HasNoKey()
+                .ToView("vw_lead_tracker");
+
             modelBuilder.Entity<UserTargetType>()
                 .HasOne<User>()
                 .WithMany()
@@ -892,6 +919,7 @@ namespace CRM.DATA
                 AppendLeadHistorySnapshots();
                 AppendDealStageHistoryRecords();
                 StampAuditTimestamps();
+                EnsureLeadQualificationPersisted();
                 var activityBatch = ActivityCapture.Capture(this);
                 var result = base.SaveChanges(acceptAllChangesOnSuccess);
                 ActivityCapture.Flush(this, activityBatch);
@@ -916,6 +944,7 @@ namespace CRM.DATA
                 AppendLeadHistorySnapshots();
                 AppendDealStageHistoryRecords();
                 StampAuditTimestamps();
+                EnsureLeadQualificationPersisted();
                 var activityBatch = ActivityCapture.Capture(this);
                 var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
                 ActivityCapture.Flush(this, activityBatch);
@@ -967,6 +996,34 @@ namespace CRM.DATA
                     CreatedAt = (DateTime?)o[nameof(Lead.CreatedAt)],
                     UpdatedAt = (DateTime)o[nameof(Lead.UpdatedAt)]!,
                 });
+            }
+        }
+
+        /// <summary>Ensures that once a lead qualifies or converts, <see cref="Lead.IsQualified"/> is set to true and permanently stays true.</summary>
+        private void EnsureLeadQualificationPersisted()
+        {
+            foreach (var entry in ChangeTracker.Entries<Lead>())
+            {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+                {
+                    if (entry.Entity.IsQualified)
+                    {
+                        continue;
+                    }
+
+                    var statusId = entry.Entity.LeadStatusId;
+                    if (statusId.HasValue)
+                    {
+                        var st = LeadStatuses.Local.FirstOrDefault(s => s.Id == statusId.Value);
+                        if (st != null && (st.IsPositive || st.IsConversionStatus ||
+                            st.Name.ToLower().Contains("qualif") ||
+                            st.Name.ToLower().Contains("convert") ||
+                            st.Name.ToLower() == "moved to deal"))
+                        {
+                            entry.Entity.IsQualified = true;
+                        }
+                    }
+                }
             }
         }
 
@@ -1077,6 +1134,15 @@ namespace CRM.DATA
                                 if (!l.CreatedAt.HasValue)
                                 {
                                     l.CreatedAt = utc;
+                                }
+                                else if (l.CreatedAt.Value.Kind != DateTimeKind.Utc)
+                                {
+                                    l.CreatedAt = DateTime.SpecifyKind(l.CreatedAt.Value.ToUniversalTime(), DateTimeKind.Utc);
+                                }
+
+                                if (l.LeadDate.HasValue && l.LeadDate.Value.Kind != DateTimeKind.Utc)
+                                {
+                                    l.LeadDate = DateTime.SpecifyKind(l.LeadDate.Value.ToUniversalTime(), DateTimeKind.Utc);
                                 }
 
                                 break;

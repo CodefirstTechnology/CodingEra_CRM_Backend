@@ -148,6 +148,14 @@ namespace CRM.Controllers.Masters
                 return NotFound();
             }
 
+            var name = entity.Name.ToLower();
+            var inDeals = await _context.Deals.AnyAsync(d => d.DealStatusId == id || d.Status.ToLower() == name);
+            var inHistories = await _context.DealStageHistories.AnyAsync(h => h.PreviousStage.ToLower() == name || h.NewStage.ToLower() == name);
+            if (inDeals || inHistories)
+            {
+                return Conflict(new { message = "Cannot delete: This deal status is assigned to existing deals. Please disable it instead or reassign records first." });
+            }
+
             _context.DealStatuses.Remove(entity);
             await _context.SaveChangesAsync();
             return Ok(new { deleted = true });

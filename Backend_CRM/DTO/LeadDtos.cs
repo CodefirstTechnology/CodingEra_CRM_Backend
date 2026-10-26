@@ -41,5 +41,7 @@ namespace CRM.DTO
         public int? LeadOwnerId { get; set; }
         public string LeadSource { get; set; } = "Manual";
         public DateTime? CreatedAt { get; set; }
+        public string? LostReason { get; set; }
+        public bool? IsQualified { get; set; }
     }
 }
