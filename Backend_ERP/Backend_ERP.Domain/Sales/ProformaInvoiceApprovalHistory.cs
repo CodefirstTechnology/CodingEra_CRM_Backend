@@ -1,3 +1,5 @@
+using System;
+
 namespace ERP.Domain.Sales
 {
     public class ProformaInvoiceApprovalHistory
@@ -17,6 +19,12 @@ namespace ERP.Domain.Sales
         public string Remarks { get; set; } = string.Empty;
 
         public string ApprovedBy { get; set; } = string.Empty;
+
+        public string? ApproverUserId { get; set; }
+
+        public string? ApprovalToken { get; set; }
+
+        public string? IpAddress { get; set; }
 
         public DateTimeOffset ApprovedOn { get; set; }
     }

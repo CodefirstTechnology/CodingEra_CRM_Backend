@@ -4,6 +4,9 @@ namespace ERP.Application.Sales.Dtos
     {
         public string CustomerId { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
+        public string CustomerGstin { get; set; } = string.Empty;
+        public string CustomerCategory { get; set; } = "Standard";
+        public string PlaceOfSupplyStateCode { get; set; } = "27";
         public string ContactPerson { get; set; } = string.Empty;
         public string BillingAddress { get; set; } = string.Empty;
         public string ShippingAddress { get; set; } = string.Empty;
@@ -12,15 +15,29 @@ namespace ERP.Application.Sales.Dtos
     public class ProformaInvoiceItemDto
     {
         public string Id { get; set; } = string.Empty;
+        public int? SalesOrderItemId { get; set; }
+        public int? QuotationItemId { get; set; }
+        public string LineKey { get; set; } = string.Empty;
+        public string ItemCode { get; set; } = string.Empty;
         public string ItemName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string HsnCode { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
         public string Unit { get; set; } = "Nos";
         public decimal Rate { get; set; }
         public decimal Discount { get; set; }
+        public decimal DiscountAmount { get; set; }
         public decimal Gst { get; set; }
         public decimal TaxAmount { get; set; }
         public decimal Amount { get; set; }
+
+        // Frozen Snapshots
+        public decimal OriginalSellingRate { get; set; }
+        public decimal FloorPriceSnapshot { get; set; }
+        public decimal MaxDiscountPctSnapshot { get; set; }
+        public decimal TaxSlabPercentSnapshot { get; set; }
+        public string PlaceOfSupplyStateCode { get; set; } = "27";
+
         /// <summary>How much of this line has already been converted to a Sales Invoice.</summary>
         public decimal ConvertedQuantity { get; set; } = 0m;
         public decimal RemainingQuantity { get; set; }
@@ -45,8 +62,26 @@ namespace ERP.Application.Sales.Dtos
         public string Action { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public string ApprovedBy { get; set; } = string.Empty;
+        public string? ApproverUserId { get; set; }
+        public string? ApprovalToken { get; set; }
+        public string? IpAddress { get; set; }
         public string PerformedBy { get; set; } = string.Empty;
         public string Date { get; set; } = string.Empty;
+    }
+
+    public class ProformaInvoiceSettlementAllocationDto
+    {
+        public int Id { get; set; }
+        public int ProformaInvoiceId { get; set; }
+        public int AdvancePaymentId { get; set; }
+        public decimal AllocatedAmount { get; set; }
+        public decimal ExchangeRateAtSettlement { get; set; }
+        public decimal BaseCurrencyAllocatedAmount { get; set; }
+        public string ReceiptVoucherNumber { get; set; } = string.Empty;
+        public string AllocatedOn { get; set; } = string.Empty;
+        public string AllocatedBy { get; set; } = string.Empty;
+        public string Remarks { get; set; } = string.Empty;
+        public bool IsReversed { get; set; }
     }
 
     public class ProformaConversionDto
@@ -67,6 +102,9 @@ namespace ERP.Application.Sales.Dtos
         public string SalesPerson { get; set; } = string.Empty;
         public string Currency { get; set; } = "INR";
         public decimal ExchangeRate { get; set; } = 1m;
+        public string? ExchangeRateDate { get; set; }
+        public decimal BaseCurrencyEquivalentAmount { get; set; }
+        public string Incoterm { get; set; } = "EXW";
         public int? QuotationId { get; set; }
         public string QuotationNumber { get; set; } = string.Empty;
         public int? SalesOrderId { get; set; }
@@ -86,13 +124,24 @@ namespace ERP.Application.Sales.Dtos
         public decimal? MilestonePercentage { get; set; }
         public bool RequiresFinanceCreditReview { get; set; }
         public string? CreditReviewReason { get; set; }
+        public string? ApprovalToken { get; set; }
+        public string? ApprovedBy { get; set; }
+        public string? ApprovedDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public string Remarks { get; set; } = string.Empty;
         public List<ProformaInvoiceStatusHistoryDto> StatusHistory { get; set; } = new();
         public List<ProformaInvoiceApprovalHistoryDto> ApprovalHistory { get; set; } = new();
+        public List<ProformaInvoiceSettlementAllocationDto> SettlementAllocations { get; set; } = new();
         public ProformaConversionDto? Conversion { get; set; }
+
+        // Two-Tier Release Gates
         public bool IsProductionReleased { get; set; }
         public string? ProductionReleasedOn { get; set; }
+        public string? ProductionReleasedBy { get; set; }
+        public bool IsDispatchReleased { get; set; }
+        public string? DispatchReleasedOn { get; set; }
+        public string? DispatchReleasedBy { get; set; }
+
         public string CreatedBy { get; set; } = string.Empty;
         public string CreatedDate { get; set; } = string.Empty;
         public string UpdatedBy { get; set; } = string.Empty;
@@ -116,7 +165,10 @@ namespace ERP.Application.Sales.Dtos
         public string BillingType { get; set; } = "Full";
         public decimal? MilestonePercentage { get; set; }
         public bool RequiresFinanceCreditReview { get; set; }
+        public bool IsProductionReleased { get; set; }
+        public bool IsDispatchReleased { get; set; }
         public string Status { get; set; } = string.Empty;
+        public string PlaceOfSupplyStateCode { get; set; } = "27";
     }
 
     public class ProformaInvoiceCreateRequestDto
@@ -129,6 +181,7 @@ namespace ERP.Application.Sales.Dtos
         public string? SalesPerson { get; set; }
         public string Currency { get; set; } = "INR";
         public decimal? ExchangeRate { get; set; }
+        public string? Incoterm { get; set; }
         public int? QuotationId { get; set; }
         public string? QuotationNumber { get; set; }
         public int? SalesOrderId { get; set; }
@@ -160,6 +213,7 @@ namespace ERP.Application.Sales.Dtos
         public string? SalesPerson { get; set; }
         public string Currency { get; set; } = "INR";
         public decimal? ExchangeRate { get; set; }
+        public string? Incoterm { get; set; }
         public int? QuotationId { get; set; }
         public string? QuotationNumber { get; set; }
         public int? SalesOrderId { get; set; }
@@ -187,6 +241,28 @@ namespace ERP.Application.Sales.Dtos
         public string Remarks { get; set; } = string.Empty;
     }
 
+    public class ProformaSettlementRequestDto
+    {
+        public int AdvancePaymentId { get; set; }
+        public decimal AllocatedAmount { get; set; }
+        public decimal ExchangeRate { get; set; } = 1.0000m;
+        public string? ReceiptVoucherNumber { get; set; }
+        public string? Remarks { get; set; }
+    }
+
+    public class ProformaSettlementResultDto
+    {
+        public int ProformaInvoiceId { get; set; }
+        public string PiNumber { get; set; } = string.Empty;
+        public decimal TotalAmount { get; set; }
+        public decimal AdvanceReceivedAmount { get; set; }
+        public decimal RemainingUnsettledAmount { get; set; }
+        public string PaymentStatus { get; set; } = string.Empty;
+        public bool IsProductionReleased { get; set; }
+        public bool IsDispatchReleased { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
     public class ProformaInvoiceConvertRequestDto
     {
         public string? Remarks { get; set; }
@@ -200,8 +276,8 @@ namespace ERP.Application.Sales.Dtos
     );
 
     public record ConvertProformaInvoiceRequestDto(
-        string TargetType, // "TaxInvoice" or "SalesOrder"
-        List<ProformaInvoiceConversionItemDto>? Items // Null = Full conversion (backward compatibility)
+        string TargetType,
+        List<ProformaInvoiceConversionItemDto>? Items
     );
 
     public record ProformaInvoiceUpiDetailsDto(
@@ -244,6 +320,64 @@ namespace ERP.Application.Sales.Dtos
         public int ConvertedCount { get; set; }
         public decimal TotalValue { get; set; }
         public List<ProformaInvoiceListItemDto> Recent { get; set; } = new();
+    }
+
+    public class ProformaAgingBucketsDto
+    {
+        public decimal Days0To7 { get; set; }
+        public decimal Days8To15 { get; set; }
+        public decimal Days16To30 { get; set; }
+        public decimal DaysOver30 { get; set; }
+        public int Count0To7 { get; set; }
+        public int Count8To15 { get; set; }
+        public int Count16To30 { get; set; }
+        public int CountOver30 { get; set; }
+    }
+
+    public class ProformaStatusDistributionDto
+    {
+        public string Status { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public decimal TotalAmount { get; set; }
+    }
+
+    public class ProformaDashboardTelemetryDto
+    {
+        public decimal TotalIssuedValue { get; set; }
+        public int TotalIssuedCount { get; set; }
+        public decimal PendingAdvanceValue { get; set; }
+        public int PendingAdvanceCount { get; set; }
+        public decimal ConversionRatePercentage { get; set; }
+        public decimal AverageAgingDays { get; set; }
+        public ProformaAgingBucketsDto Aging { get; set; } = new();
+        public List<ProformaStatusDistributionDto> StatusDistribution { get; set; } = new();
+        public List<ProformaInvoiceListItemDto> RecentInvoices { get; set; } = new();
+    }
+
+    public class ProformaTaxVarianceReportDto
+    {
+        public int ProformaInvoiceId { get; set; }
+        public string PiNumber { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string? SalesOrderNumber { get; set; }
+        public string? ConvertedInvoiceNumber { get; set; }
+        public decimal ProformaGrandTotal { get; set; }
+        public decimal ActualInvoicedTotal { get; set; }
+        public decimal VarianceAmount { get; set; }
+        public decimal VariancePercentage { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public class ProformaStateTaxProjectionReportDto
+    {
+        public string StateCode { get; set; } = string.Empty;
+        public string StateName { get; set; } = string.Empty;
+        public int ProformaCount { get; set; }
+        public decimal TaxableAmount { get; set; }
+        public decimal ProjectedCgst { get; set; }
+        public decimal ProjectedSgst { get; set; }
+        public decimal ProjectedIgst { get; set; }
+        public decimal TotalProjectedTax { get; set; }
     }
 
     public class ProformaReportResultDto

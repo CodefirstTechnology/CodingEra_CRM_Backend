@@ -10341,6 +10341,23 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasDefaultValue(0m);
 
+                    b.Property<string>("ApprovalToken")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("ApprovedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("BaseCurrencyEquivalentAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("BillingAddress")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -10352,6 +10369,12 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasDefaultValue("Full");
+
+                    b.Property<uint>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.Property<string>("ContactPerson")
                         .IsRequired()
@@ -10381,6 +10404,18 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)");
 
+                    b.Property<string>("CustomerCategory")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("Standard");
+
+                    b.Property<string>("CustomerGstin")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)");
+
                     b.Property<string>("CustomerId")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -10405,13 +10440,30 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("DispatchReleasedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("DispatchReleasedOn")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal>("ExchangeRate")
                         .HasPrecision(18, 6)
                         .HasColumnType("numeric(18,6)");
 
+                    b.Property<DateOnly?>("ExchangeRateDate")
+                        .HasColumnType("date");
+
                     b.Property<decimal>("GrandTotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Incoterm")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("EXW");
 
                     b.Property<string>("InternalNotes")
                         .IsRequired()
@@ -10423,6 +10475,11 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDispatchReleased")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsProductionReleased")
                         .ValueGeneratedOnAdd()
@@ -10449,6 +10506,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<string>("PlaceOfSupplyStateCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("27");
+
+                    b.Property<string>("ProductionReleasedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<DateTimeOffset?>("ProductionReleasedOn")
                         .HasColumnType("timestamp with time zone");
@@ -10505,6 +10573,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -10529,8 +10604,14 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
+                    b.HasIndex("TenantId", "PiNumber");
+
                     b.HasIndex("SalesOrderId", "Status", "IsDeleted")
                         .HasDatabaseName("IX_proforma_invoices_so_lookup");
+
+                    b.HasIndex("TenantId", "CustomerId", "PaymentStatus");
+
+                    b.HasIndex("TenantId", "Status", "InvoiceDate");
 
                     b.HasIndex("Status", "ValidUntil", "AdvanceReceivedAmount", "IsDeleted")
                         .HasDatabaseName("IX_proforma_invoices_expiry_scan");
@@ -10551,6 +10632,10 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("ApprovalToken")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("ApprovedBy")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -10559,6 +10644,10 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("ApprovedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ApproverUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Decision")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -10566,6 +10655,10 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.Property<string>("EntryKey")
                         .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("IpAddress")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
@@ -10633,9 +10726,35 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(9, 4)
                         .HasColumnType("numeric(9,4)");
 
+                    b.Property<decimal>("DiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("FloorPriceSnapshot")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("Gst")
                         .HasPrecision(9, 4)
                         .HasColumnType("numeric(9,4)");
+
+                    b.Property<string>("HsnCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("");
 
                     b.Property<string>("ItemName")
                         .IsRequired()
@@ -10647,6 +10766,25 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<decimal>("MaxDiscountPctSnapshot")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("OriginalSellingRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("PlaceOfSupplyStateCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("27");
+
                     b.Property<int>("ProformaInvoiceId")
                         .HasColumnType("integer");
 
@@ -10654,9 +10792,15 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<int?>("QuotationItemId")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("Rate")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
+
+                    b.Property<int?>("SalesOrderItemId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
@@ -10665,6 +10809,12 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<decimal>("TaxSlabPercentSnapshot")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -10672,9 +10822,81 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SalesOrderItemId");
+
                     b.HasIndex("ProformaInvoiceId", "SortOrder");
 
                     b.ToTable("proforma_invoice_items", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.ProformaInvoiceSettlementAllocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AdvancePaymentId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("AllocatedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("AllocatedBy")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("AllocatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("BaseCurrencyAllocatedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("ExchangeRateAtSettlement")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(1.0000m);
+
+                    b.Property<bool>("IsReversed")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ProformaInvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReceiptVoucherNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Remarks")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("ReversedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdvancePaymentId");
+
+                    b.HasIndex("ProformaInvoiceId", "AdvancePaymentId");
+
+                    b.HasIndex("TenantId", "AllocatedOn");
+
+                    b.ToTable("proforma_invoice_settlement_allocations", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.ProformaInvoiceStatusHistory", b =>
@@ -14116,6 +14338,25 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("ProformaInvoice");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Sales.ProformaInvoiceSettlementAllocation", b =>
+                {
+                    b.HasOne("ERP.Domain.Sales.AdvancePayment", "AdvancePayment")
+                        .WithMany()
+                        .HasForeignKey("AdvancePaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Sales.ProformaInvoice", "ProformaInvoice")
+                        .WithMany("SettlementAllocations")
+                        .HasForeignKey("ProformaInvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdvancePayment");
+
+                    b.Navigation("ProformaInvoice");
+                });
+
             modelBuilder.Entity("ERP.Domain.Sales.ProformaInvoiceStatusHistory", b =>
                 {
                     b.HasOne("ERP.Domain.Sales.ProformaInvoice", "ProformaInvoice")
@@ -14621,6 +14862,8 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("ApprovalHistory");
 
                     b.Navigation("Items");
+
+                    b.Navigation("SettlementAllocations");
 
                     b.Navigation("StatusHistory");
                 });

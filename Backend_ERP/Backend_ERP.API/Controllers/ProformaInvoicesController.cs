@@ -14,17 +14,29 @@ namespace ERP.API.Controllers
     public class ProformaInvoicesController : ControllerBase
     {
         private readonly IProformaInvoiceService _service;
+        private readonly IProformaApprovalService _approvalService;
+        private readonly IProformaSettlementService _settlementService;
+        private readonly IProformaDashboardService _dashboardService;
+        private readonly IProformaReportService _reportService;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
         private readonly IErpWorkflowAuthorizationService _workflowAuthService;
 
         public ProformaInvoicesController(
             IProformaInvoiceService service,
+            IProformaApprovalService approvalService,
+            IProformaSettlementService settlementService,
+            IProformaDashboardService dashboardService,
+            IProformaReportService reportService,
             ICurrentUser currentUser,
             IErpAuthorizationService authService,
             IErpWorkflowAuthorizationService workflowAuthService)
         {
             _service = service;
+            _approvalService = approvalService;
+            _settlementService = settlementService;
+            _dashboardService = dashboardService;
+            _reportService = reportService;
             _currentUser = currentUser;
             _authService = authService;
             _workflowAuthService = workflowAuthService;
@@ -215,6 +227,99 @@ namespace ERP.API.Controllers
             }
         }
 
+        [HttpPost("{id:int}/submit")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Edit)]
+        public async Task<ActionResult<ProformaInvoiceDto>> Submit(
+            int id,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ProformaInvoiceApprovalRequestDto? request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanSubmitProformaInvoice(existing.Status, existing.SalesPersonId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot submit this proforma invoice in its current workflow state." });
+                }
+
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var req = request ?? new ProformaInvoiceApprovalRequestDto();
+                req.Kind = "submit";
+                req.Decision = "Submitted";
+                var updated = await _approvalService.ProcessDecisionAsync(id, req, ResolveActingUser(userId), ipAddress, cancellationToken);
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/approve")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Approve)]
+        public async Task<ActionResult<ProformaInvoiceDto>> Approve(
+            int id,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ProformaInvoiceApprovalRequestDto? request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanApproveProformaInvoice(existing.Status, existing.SalesPersonId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot approve this proforma invoice in its current workflow state." });
+                }
+
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var req = request ?? new ProformaInvoiceApprovalRequestDto();
+                req.Kind = "approve";
+                req.Decision = "Approved";
+                var updated = await _approvalService.ProcessDecisionAsync(id, req, ResolveActingUser(userId), ipAddress, cancellationToken);
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/reject")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Approve)]
+        public async Task<ActionResult<ProformaInvoiceDto>> Reject(
+            int id,
+            [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ProformaInvoiceApprovalRequestDto? request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                if (!_workflowAuthService.CanRejectProformaInvoice(existing.Status, existing.SalesPersonId))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot reject this proforma invoice in its current workflow state." });
+                }
+
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var req = request ?? new ProformaInvoiceApprovalRequestDto();
+                req.Kind = "reject";
+                req.Decision = "Rejected";
+                var updated = await _approvalService.ProcessDecisionAsync(id, req, ResolveActingUser(userId), ipAddress, cancellationToken);
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPost("{id:int}/approval")]
         public async Task<ActionResult<ProformaInvoiceDto>> Approval(
             int id,
@@ -242,8 +347,36 @@ namespace ERP.API.Controllers
                     return StatusCode(StatusCodes.Status403Forbidden, new { message = $"You cannot {kind} this proforma invoice in its current workflow state." });
                 }
 
-                var updated = await _service.ApplyApprovalAsync(id, request, ResolveActingUser(userId), cancellationToken);
-                return updated is null ? NotFound() : Ok(updated);
+                var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+                var updated = await _approvalService.ProcessDecisionAsync(id, request, ResolveActingUser(userId), ipAddress, cancellationToken);
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("{id:int}/settle")]
+        [RequirePermission(ErpPermissions.ProformaInvoices.Edit)]
+        public async Task<ActionResult<ProformaSettlementResultDto>> Settle(
+            int id,
+            [FromBody] ProformaSettlementRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var existing = await _service.GetByIdAsync(id, cancellationToken);
+                if (existing is null) return NotFound();
+
+                var result = await _settlementService.SettleReceiptAsync(
+                    id,
+                    request,
+                    ResolveActingUser(userId),
+                    cancellationToken);
+
+                return Ok(result);
             }
             catch (InvalidOperationException ex)
             {
@@ -447,6 +580,18 @@ namespace ERP.API.Controllers
             return Ok(await _service.GetDashboardAsync(cancellationToken));
         }
 
+        [HttpGet("dashboard/kpis")]
+        public async Task<ActionResult<ProformaDashboardTelemetryDto>> DashboardKpis(
+            [FromQuery] bool? forceRefresh,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var tenantId = "default";
+            var result = await _dashboardService.GetDashboardTelemetryAsync(tenantId, forceRefresh ?? false, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpGet("approvals")]
         public async Task<ActionResult<ProformaApprovalDashboardDto>> Approvals(
             [FromQuery] string? search,
@@ -528,6 +673,30 @@ namespace ERP.API.Controllers
         {
             _ = userId;
             return Ok(await _service.ExportReportsAsync(request, cancellationToken));
+        }
+
+        [HttpGet("reports/variance")]
+        public async Task<ActionResult<IReadOnlyList<ProformaTaxVarianceReportDto>>> ReportVariance(
+            [FromQuery] string? dateFrom,
+            [FromQuery] string? dateTo,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var result = await _reportService.GetTaxVarianceReportAsync(dateFrom, dateTo, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("reports/state-tax-projection")]
+        public async Task<ActionResult<IReadOnlyList<ProformaStateTaxProjectionReportDto>>> ReportStateTaxProjection(
+            [FromQuery] string? dateFrom,
+            [FromQuery] string? dateTo,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            _ = userId;
+            var result = await _reportService.GetStateTaxProjectionReportAsync(dateFrom, dateTo, cancellationToken);
+            return Ok(result);
         }
 
         [HttpPost("{id:int}/pdf")]

@@ -92,7 +92,14 @@ namespace ERP.Infrastructure.Sales
             SalesOrder? linkedSalesOrder = null;
             if (salesOrderId.HasValue && salesOrderId.Value > 0)
             {
+                if (_context.Database.IsRelational())
+                {
+                    await _context.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM sales_orders WHERE \"Id\" = {salesOrderId.Value} FOR UPDATE;");
+                    await _context.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM sales_order_items WHERE \"SalesOrderId\" = {salesOrderId.Value} ORDER BY \"Id\" ASC FOR UPDATE;");
+                }
+
                 linkedSalesOrder = await _context.SalesOrders
+                    .Include(x => x.Items)
                     .FirstOrDefaultAsync(x => x.Id == salesOrderId.Value, cancellationToken);
 
                 if (linkedSalesOrder is not null)
@@ -109,12 +116,43 @@ namespace ERP.Infrastructure.Sales
                             $"Cannot create PI for ₹{totals.GrandTotal:N2}. Maximum allowable unbilled balance for SO '{linkedSalesOrder.SalesOrderNumber}' is ₹{availableBalanceToInvoice:N2}.");
                     }
 
+                    // Check individual item ceilings
+                    foreach (var item in prepared)
+                    {
+                        var soItem = linkedSalesOrder.Items.FirstOrDefault(x =>
+                            (item.SalesOrderItemId.HasValue && x.Id == item.SalesOrderItemId.Value) ||
+                            (!string.IsNullOrEmpty(item.ItemCode) && x.ItemCode == item.ItemCode));
+
+                        if (soItem != null)
+                        {
+                            var activePiItemQty = await _context.ProformaInvoiceItems
+                                .Where(piItem => piItem.SalesOrderItemId == soItem.Id &&
+                                                 !piItem.ProformaInvoice.IsDeleted &&
+                                                 piItem.ProformaInvoice.Status != ProformaInvoiceStatuses.Cancelled &&
+                                                 piItem.ProformaInvoice.Status != ProformaInvoiceStatuses.Rejected)
+                                .SumAsync(piItem => piItem.Quantity, cancellationToken);
+
+                            var existingInvoiced = Math.Max(soItem.ProformaInvoicedQuantity, activePiItemQty);
+                            var unbilledBalance = Math.Max(0m, soItem.Quantity - existingInvoiced);
+
+                            if (item.Quantity > (unbilledBalance + 0.001m))
+                            {
+                                throw new InvalidOperationException(
+                                    $"Requested quantity {item.Quantity} for item '{item.ItemName}' exceeds unbilled balance ({unbilledBalance}) on Sales Order item #{soItem.Id}.");
+                            }
+
+                            soItem.ProformaInvoicedQuantity = existingInvoiced + item.Quantity;
+                            item.SalesOrderItemId = soItem.Id;
+                        }
+                    }
+
                     linkedSalesOrder.ProformaInvoicedAmount = activeExistingPiTotal + totals.GrandTotal;
                 }
             }
 
             var entity = new ProformaInvoice
             {
+                TenantId = "default",
                 PiNumber = number,
                 InvoiceDate = invoiceDate,
                 ValidUntil = validUntil,
@@ -122,15 +160,21 @@ namespace ERP.Infrastructure.Sales
                 MilestonePercentage = milestonePercentage,
                 CustomerId = request.Customer.CustomerId?.Trim() ?? string.Empty,
                 CustomerName = request.Customer.CustomerName.Trim(),
+                CustomerGstin = request.Customer.CustomerGstin?.Trim() ?? string.Empty,
+                CustomerCategory = request.Customer.CustomerCategory?.Trim() ?? "Standard",
+                PlaceOfSupplyStateCode = string.IsNullOrWhiteSpace(request.Customer.PlaceOfSupplyStateCode) ? "27" : request.Customer.PlaceOfSupplyStateCode.Trim(),
                 ContactPerson = request.Customer.ContactPerson?.Trim() ?? string.Empty,
                 BillingAddress = request.Customer.BillingAddress?.Trim() ?? string.Empty,
                 ShippingAddress = request.Customer.ShippingAddress?.Trim() ?? string.Empty,
+                Incoterm = string.IsNullOrWhiteSpace(request.Incoterm) ? "EXW" : request.Incoterm.Trim(),
                 SalesPersonUserId = salesPersonUserId,
                 SalesPerson = string.IsNullOrWhiteSpace(request.SalesPerson)
                     ? salesPersonUserId.ToString()
                     : request.SalesPerson.Trim(),
                 Currency = request.Currency.Trim().ToUpperInvariant(),
                 ExchangeRate = request.ExchangeRate is > 0 ? request.ExchangeRate.Value : 1m,
+                ExchangeRateDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                BaseCurrencyEquivalentAmount = Math.Round(totals.GrandTotal * (request.ExchangeRate is > 0 ? request.ExchangeRate.Value : 1m), 2),
                 QuotationId = request.QuotationId,
                 QuotationNumber = request.QuotationNumber?.Trim() ?? string.Empty,
                 SalesOrderId = salesOrderId,
@@ -226,15 +270,20 @@ namespace ERP.Infrastructure.Sales
             entity.ValidUntil = validUntil;
             entity.CustomerId = request.Customer.CustomerId?.Trim() ?? string.Empty;
             entity.CustomerName = request.Customer.CustomerName.Trim();
+            entity.CustomerGstin = request.Customer.CustomerGstin?.Trim() ?? entity.CustomerGstin;
+            entity.CustomerCategory = request.Customer.CustomerCategory?.Trim() ?? entity.CustomerCategory;
+            entity.PlaceOfSupplyStateCode = string.IsNullOrWhiteSpace(request.Customer.PlaceOfSupplyStateCode) ? entity.PlaceOfSupplyStateCode : request.Customer.PlaceOfSupplyStateCode.Trim();
             entity.ContactPerson = request.Customer.ContactPerson?.Trim() ?? string.Empty;
             entity.BillingAddress = request.Customer.BillingAddress?.Trim() ?? string.Empty;
             entity.ShippingAddress = request.Customer.ShippingAddress?.Trim() ?? string.Empty;
+            entity.Incoterm = string.IsNullOrWhiteSpace(request.Incoterm) ? entity.Incoterm : request.Incoterm.Trim();
             entity.SalesPersonUserId = salesPersonUserId;
             entity.SalesPerson = string.IsNullOrWhiteSpace(request.SalesPerson)
                 ? salesPersonUserId.ToString()
                 : request.SalesPerson.Trim();
             entity.Currency = request.Currency.Trim().ToUpperInvariant();
             entity.ExchangeRate = request.ExchangeRate is > 0 ? request.ExchangeRate.Value : 1m;
+            entity.BaseCurrencyEquivalentAmount = Math.Round(totals.GrandTotal * entity.ExchangeRate, 2);
             entity.QuotationId = request.QuotationId;
             entity.QuotationNumber = request.QuotationNumber?.Trim() ?? string.Empty;
             entity.SalesOrderId = salesOrderId;
@@ -328,6 +377,12 @@ namespace ERP.Infrastructure.Sales
             decimal? milestonePercentage = null,
             CancellationToken cancellationToken = default)
         {
+            if (_context.Database.IsRelational())
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync($"SELECT \"Id\" FROM sales_orders WHERE \"Id\" = {salesOrderId} FOR UPDATE", cancellationToken);
+                await _context.Database.ExecuteSqlInterpolatedAsync($"SELECT \"Id\" FROM sales_order_items WHERE \"SalesOrderId\" = {salesOrderId} ORDER BY \"Id\" ASC FOR UPDATE", cancellationToken);
+            }
+
             var salesOrder = await _repo.FindSalesOrderWithItemsAsync(salesOrderId, cancellationToken);
             if (salesOrder is null)
             {
@@ -353,7 +408,8 @@ namespace ERP.Infrastructure.Sales
             }
 
             billingType = string.IsNullOrWhiteSpace(billingType) ? "Full" : billingType.Trim();
-            var isMilestone = string.Equals(billingType, "MilestonePercentage", StringComparison.OrdinalIgnoreCase);
+            var isMilestone = string.Equals(billingType, "MilestonePercentage", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(billingType, "Milestone", StringComparison.OrdinalIgnoreCase);
             decimal scaleFactor = 1m;
             if (isMilestone)
             {
@@ -372,15 +428,24 @@ namespace ERP.Infrastructure.Sales
                 return new ProformaInvoiceItemDto
                 {
                     Id = Guid.NewGuid().ToString("N"),
+                    SalesOrderItemId = item.Id,
+                    ItemCode = item.ItemCode ?? string.Empty,
                     ItemName = isMilestone ? $"{item.ItemName} ({milestonePercentage:0.#}% Milestone)" : item.ItemName,
                     Description = item.Description ?? string.Empty,
+                    HsnCode = string.Empty,
                     Quantity = item.Quantity,
                     Unit = item.Unit ?? "Nos",
                     Rate = effectiveRate,
                     Discount = item.Discount,
+                    DiscountAmount = Math.Round(effectiveRate * item.Quantity * (item.Discount / 100m), 2),
                     Gst = item.Gst,
                     TaxAmount = effectiveTax,
-                    Amount = effectiveAmount
+                    Amount = effectiveAmount,
+                    OriginalSellingRate = item.OriginalSellingRate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot,
+                    PlaceOfSupplyStateCode = item.PlaceOfSupplyStateCode ?? salesOrder.PlaceOfSupplyStateCode ?? "27"
                 };
             }).ToList();
 
@@ -398,7 +463,8 @@ namespace ERP.Infrastructure.Sales
                     Discount = 0m,
                     Gst = 18m,
                     TaxAmount = Math.Round(baseAmount * 0.18m, 2),
-                    Amount = baseAmount
+                    Amount = baseAmount,
+                    PlaceOfSupplyStateCode = salesOrder.PlaceOfSupplyStateCode ?? "27"
                 });
             }
 
@@ -408,8 +474,11 @@ namespace ERP.Infrastructure.Sales
                 ValidUntil = DateHelper.FormatDate(DateOnly.FromDateTime(DateTime.UtcNow).AddDays(30)),
                 Customer = new ProformaInvoiceCustomerDto
                 {
-                    CustomerId = string.Empty,
+                    CustomerId = salesOrder.CustomerId.ToString(),
                     CustomerName = salesOrder.CustomerName,
+                    CustomerGstin = string.Empty,
+                    CustomerCategory = salesOrder.CustomerCategory ?? "Standard",
+                    PlaceOfSupplyStateCode = salesOrder.PlaceOfSupplyStateCode ?? "27",
                     ContactPerson = salesOrder.ContactPerson ?? string.Empty,
                     BillingAddress = salesOrder.BillingAddress ?? string.Empty,
                     ShippingAddress = salesOrder.ShippingAddress ?? string.Empty
@@ -418,6 +487,7 @@ namespace ERP.Infrastructure.Sales
                 SalesPerson = salesOrder.SalesPerson,
                 Currency = "INR",
                 ExchangeRate = 1m,
+                Incoterm = "EXW",
                 QuotationId = salesOrder.QuotationId,
                 QuotationNumber = salesOrder.QuotationNumber,
                 SalesOrderId = salesOrder.Id,
@@ -1031,15 +1101,25 @@ namespace ERP.Infrastructure.Sales
                 return new ProformaInvoiceItemDto
                 {
                     Id = item.Id,
+                    SalesOrderItemId = item.SalesOrderItemId,
+                    QuotationItemId = item.QuotationItemId,
+                    ItemCode = item.ItemCode ?? string.Empty,
                     ItemName = item.ItemName,
                     Description = item.Description,
+                    HsnCode = item.HsnCode ?? string.Empty,
                     Quantity = item.Quantity,
                     Unit = item.Unit,
                     Rate = item.Rate,
                     Discount = item.Discount,
+                    DiscountAmount = item.DiscountAmount > 0 ? item.DiscountAmount : Math.Round(item.Quantity * item.Rate * (item.Discount / 100m), 2),
                     Gst = item.Gst,
                     TaxAmount = tax,
-                    Amount = amount
+                    Amount = amount,
+                    OriginalSellingRate = item.OriginalSellingRate > 0 ? item.OriginalSellingRate : item.Rate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot > 0 ? item.TaxSlabPercentSnapshot : item.Gst,
+                    PlaceOfSupplyStateCode = item.PlaceOfSupplyStateCode ?? "27"
                 };
             }).ToList();
 
@@ -1053,15 +1133,25 @@ namespace ERP.Infrastructure.Sales
                 {
                     LineKey = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id.Trim(),
                     SortOrder = i,
+                    SalesOrderItemId = item.SalesOrderItemId,
+                    QuotationItemId = item.QuotationItemId,
+                    ItemCode = item.ItemCode ?? string.Empty,
                     ItemName = item.ItemName.Trim(),
                     Description = item.Description?.Trim() ?? string.Empty,
+                    HsnCode = item.HsnCode ?? string.Empty,
                     Quantity = item.Quantity,
                     Unit = string.IsNullOrWhiteSpace(item.Unit) ? "Nos" : item.Unit.Trim(),
                     Rate = item.Rate,
                     Discount = item.Discount,
+                    DiscountAmount = item.DiscountAmount,
                     Gst = item.Gst,
                     TaxAmount = item.TaxAmount,
-                    Amount = item.Amount
+                    Amount = item.Amount,
+                    OriginalSellingRate = item.OriginalSellingRate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot,
+                    PlaceOfSupplyStateCode = item.PlaceOfSupplyStateCode ?? "27"
                 });
             }
 
@@ -1116,14 +1206,30 @@ namespace ERP.Infrastructure.Sales
 
         private async Task SyncSalesOrderProformaAmountAsync(int salesOrderId, int excludedPiId, CancellationToken cancellationToken)
         {
-            var so = await _context.SalesOrders.FirstOrDefaultAsync(x => x.Id == salesOrderId, cancellationToken);
+            var so = await _context.SalesOrders
+                .Include(x => x.Items)
+                .FirstOrDefaultAsync(x => x.Id == salesOrderId, cancellationToken);
+
             if (so != null)
             {
-                var activeTotal = await _context.ProformaInvoices
+                var activePis = await _context.ProformaInvoices
+                    .Include(x => x.Items)
                     .Where(x => x.SalesOrderId == salesOrderId && x.Id != excludedPiId && !x.IsDeleted &&
                                 x.Status != ProformaInvoiceStatuses.Cancelled && x.Status != ProformaInvoiceStatuses.Rejected)
-                    .SumAsync(x => x.GrandTotal, cancellationToken);
-                so.ProformaInvoicedAmount = activeTotal;
+                    .ToListAsync(cancellationToken);
+
+                so.ProformaInvoicedAmount = activePis.Sum(x => x.GrandTotal);
+
+                foreach (var soItem in so.Items)
+                {
+                    var totalQty = activePis
+                        .SelectMany(p => p.Items)
+                        .Where(i => i.SalesOrderItemId == soItem.Id || (i.SalesOrderItemId == null && i.ItemCode == soItem.ItemCode))
+                        .Sum(i => i.Quantity);
+
+                    soItem.ProformaInvoicedQuantity = totalQty;
+                }
+
                 await _context.SaveChangesAsync(cancellationToken);
             }
         }

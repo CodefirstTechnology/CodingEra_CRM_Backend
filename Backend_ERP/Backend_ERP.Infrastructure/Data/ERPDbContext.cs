@@ -31,6 +31,8 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ProformaInvoiceDocumentSequence> ProformaInvoiceDocumentSequences => Set<ProformaInvoiceDocumentSequence>();
 
+        public DbSet<ProformaInvoiceSettlementAllocation> ProformaInvoiceSettlementAllocations => Set<ProformaInvoiceSettlementAllocation>();
+
         public DbSet<AdvancePayment> AdvancePayments => Set<AdvancePayment>();
 
         public DbSet<AdvancePaymentApplication> AdvancePaymentApplications => Set<AdvancePaymentApplication>();
