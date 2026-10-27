@@ -393,8 +393,7 @@ namespace CRM.Controllers
             {
                 var st = await _context.LeadStatuses.AsNoTracking().FirstOrDefaultAsync(s => s.Id == resolvedStatusId.Value);
                 var stName = st?.Name?.Trim().ToLowerInvariant() ?? string.Empty;
-                bool isTerminalLost = resolvedStatusId.Value == 4 || resolvedStatusId.Value == 6
-                    || stName == "unqualified" || stName == "junk" || stName == "lost";
+                bool isTerminalLost = stName == "unqualified" || stName == "junk" || stName == "lost";
                 if (isTerminalLost)
                 {
                     var reason = !string.IsNullOrWhiteSpace(dto.LostReason)
@@ -416,7 +415,7 @@ namespace CRM.Controllers
                 lead.LeadStatusId = resolvedStatusId.Value;
 
                 if (st != null && (st.IsPositive || st.IsConversionStatus ||
-                    st.Name.ToLower().Contains("qualif") ||
+                    st.Name.ToLower().Contains("qualify") ||
                     st.Name.ToLower().Contains("convert") ||
                     st.Name.ToLower() == "moved to deal"))
                 {
