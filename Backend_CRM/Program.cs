@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using CRM.Configuration;
 using CRM.DATA;
 using CRM.DTO;
 using CRM.Hubs;
@@ -17,6 +18,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Options Configuration
+builder.Services.Configure<JustdialWebhookOptions>(
+    builder.Configuration.GetSection(JustdialWebhookOptions.SectionName));
+builder.Services.Configure<IndiaMartWebhookOptions>(
+    builder.Configuration.GetSection(IndiaMartWebhookOptions.SectionName));
 
 // Add services to the container.
 builder.Services.AddControllers();
