@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace ERP.Domain.Sales
 {
     public class SalesOrder
@@ -18,13 +21,19 @@ namespace ERP.Domain.Sales
 
         public string SourceType { get; set; } = SalesOrderSourceTypes.Manual;
 
+        public int CustomerId { get; set; }
+
         public string CustomerName { get; set; } = string.Empty;
+
+        public string CustomerCategory { get; set; } = "Standard";
 
         public string ContactPerson { get; set; } = string.Empty;
 
         public string BillingAddress { get; set; } = string.Empty;
 
         public string ShippingAddress { get; set; } = string.Empty;
+
+        public string PlaceOfSupplyStateCode { get; set; } = "27";
 
         public string? CustomerEmail { get; set; }
 
@@ -56,11 +65,35 @@ namespace ERP.Domain.Sales
 
         public decimal ProformaInvoicedAmount { get; set; } = 0m;
 
+        public decimal FinalInvoicedAmount { get; set; } = 0m;
+
         public decimal TotalAmount => GrandTotal;
 
+        // Two-Tier Release Gates
+        public bool IsProductionReleased { get; set; } = false;
+
+        public DateTimeOffset? ProductionReleasedDate { get; set; }
+
+        public string? ProductionReleasedBy { get; set; }
+
+        public bool IsDispatchReleased { get; set; } = false;
+
+        public DateTimeOffset? DispatchReleasedDate { get; set; }
+
+        public string? DispatchReleasedBy { get; set; }
+
+        // Lifecycle & Credit Management
         public string Status { get; set; } = SalesOrderStatuses.Draft;
 
+        public string? CreditHoldReason { get; set; }
+
+        public DateTimeOffset? CreditApprovedDate { get; set; }
+
+        public string? CreditApprovedBy { get; set; }
+
         public string Remarks { get; set; } = string.Empty;
+
+        public bool IsDeleted { get; set; } = false;
 
         public string CreatedBy { get; set; } = string.Empty;
 
@@ -75,6 +108,8 @@ namespace ERP.Domain.Sales
         public DateTimeOffset? LastCommunicationDate { get; set; }
 
         public ICollection<SalesOrderItem> Items { get; set; } = new List<SalesOrderItem>();
+
+        public ICollection<SalesOrderAllocation> Allocations { get; set; } = new List<SalesOrderAllocation>();
 
         public ICollection<SalesOrderStatusHistory> StatusHistory { get; set; } = new List<SalesOrderStatusHistory>();
 

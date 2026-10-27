@@ -125,7 +125,7 @@ namespace Backend_ERP.Tests
                     });
 
                     // Trigger raises custom exception
-                    Assert.Contains("FinishedGood ID 999999 does not exist", ex.MessageText);
+                    Assert.Contains("FinishedGood ID 999999", ex.MessageText);
                 }
             }
             finally

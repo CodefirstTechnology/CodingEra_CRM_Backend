@@ -20,10 +20,13 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.QuotationNumber).HasMaxLength(64);
             builder.Property(x => x.ApprovalToken).HasMaxLength(256);
             builder.Property(x => x.SourceType).HasMaxLength(32).IsRequired();
+            builder.Property(x => x.CustomerId).IsRequired();
             builder.Property(x => x.CustomerName).HasMaxLength(256).IsRequired();
+            builder.Property(x => x.CustomerCategory).HasMaxLength(64).HasDefaultValue("Standard");
             builder.Property(x => x.ContactPerson).HasMaxLength(256);
             builder.Property(x => x.BillingAddress).HasMaxLength(2000);
             builder.Property(x => x.ShippingAddress).HasMaxLength(2000);
+            builder.Property(x => x.PlaceOfSupplyStateCode).HasMaxLength(8).HasDefaultValue("27");
             builder.Property(x => x.CustomerEmail).HasMaxLength(256);
             builder.Property(x => x.CustomerPhone).HasMaxLength(64);
             builder.Property(x => x.SalesPerson).HasMaxLength(256);
@@ -31,23 +34,41 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.PaymentTerms).HasMaxLength(128);
             builder.Property(x => x.DeliveryTerms).HasMaxLength(128);
             builder.Property(x => x.Status).HasMaxLength(64).IsRequired();
+            builder.Property(x => x.CreditHoldReason).HasMaxLength(1000);
+            builder.Property(x => x.CreditApprovedBy).HasMaxLength(256);
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.CreatedBy).HasMaxLength(256);
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
 
+            // Two-Tier Operational Release Gates
+            builder.Property(x => x.IsProductionReleased).HasDefaultValue(false);
+            builder.Property(x => x.ProductionReleasedBy).HasMaxLength(256);
+            builder.Property(x => x.IsDispatchReleased).HasDefaultValue(false);
+            builder.Property(x => x.DispatchReleasedBy).HasMaxLength(256);
+
+            // Financial Precisions
             builder.Property(x => x.Subtotal).HasPrecision(18, 2);
             builder.Property(x => x.DiscountTotal).HasPrecision(18, 2);
             builder.Property(x => x.GstTotal).HasPrecision(18, 2);
             builder.Property(x => x.GrandTotal).HasPrecision(18, 2);
             builder.Property(x => x.AdvanceAllocatedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
             builder.Property(x => x.ProformaInvoicedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+            builder.Property(x => x.FinalInvoicedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
 
+            // Composite Indexes
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.OrderDate);
             builder.HasIndex(x => x.CustomerName);
             builder.HasIndex(x => new { x.TenantId, x.SalesOrderNumber });
+            builder.HasIndex(x => new { x.TenantId, x.Status, x.OrderDate });
+            builder.HasIndex(x => new { x.TenantId, x.CustomerId, x.Status });
 
             builder.HasMany(x => x.Items)
+                .WithOne(x => x.SalesOrder)
+                .HasForeignKey(x => x.SalesOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.Allocations)
                 .WithOne(x => x.SalesOrder)
                 .HasForeignKey(x => x.SalesOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -82,14 +103,22 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.ItemName).HasMaxLength(512).IsRequired();
             builder.Property(x => x.Description).HasMaxLength(2000);
             builder.Property(x => x.Unit).HasMaxLength(32);
+            builder.Property(x => x.PlaceOfSupplyStateCode).HasMaxLength(8).HasDefaultValue("27");
+
+            // Quantities
             builder.Property(x => x.Quantity).HasPrecision(18, 4);
+            builder.Property(x => x.AllocatedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.DispatchedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.InvoicedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.ProformaInvoicedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+
+            // Commercials
             builder.Property(x => x.Rate).HasPrecision(18, 4);
             builder.Property(x => x.Discount).HasPrecision(9, 4);
             builder.Property(x => x.Gst).HasPrecision(9, 4);
             builder.Property(x => x.Amount).HasPrecision(18, 2);
 
+            // Frozen Commercial Snapshots
             builder.Property(x => x.PriceListNumberSnapshot).HasMaxLength(64);
             builder.Property(x => x.OriginalSellingRate).HasPrecision(18, 4);
             builder.Property(x => x.FloorPriceSnapshot).HasPrecision(18, 4);
@@ -99,6 +128,54 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => new { x.SalesOrderId, x.SortIndex });
             builder.HasIndex(x => new { x.TenantId, x.SalesOrderId });
             builder.HasIndex(x => new { x.TenantId, x.WarehouseId, x.ItemId });
+
+            builder.HasMany(x => x.Allocations)
+                .WithOne(x => x.SalesOrderItem)
+                .HasForeignKey(x => x.SalesOrderItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class SalesOrderAllocationConfiguration : IEntityTypeConfiguration<SalesOrderAllocation>
+    {
+        public void Configure(EntityTypeBuilder<SalesOrderAllocation> builder)
+        {
+            builder.ToTable("sales_order_allocations");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Version).IsRowVersion();
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+            builder.Property(x => x.BatchNumber).HasMaxLength(64).HasDefaultValue(string.Empty).IsRequired();
+            builder.Property(x => x.AllocatedQuantity).HasPrecision(18, 4);
+            builder.Property(x => x.AllocationStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+            builder.Property(x => x.AllocatedBy).HasMaxLength(256);
+            builder.Property(x => x.ReleaseRemarks).HasMaxLength(500);
+
+            builder.HasOne(x => x.SalesOrder)
+                .WithMany(x => x.Allocations)
+                .HasForeignKey(x => x.SalesOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.SalesOrderItem)
+                .WithMany(x => x.Allocations)
+                .HasForeignKey(x => x.SalesOrderItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.FinishedGood)
+                .WithMany()
+                .HasForeignKey(x => x.FinishedGoodId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.Warehouse)
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasIndex(x => new { x.TenantId, x.FinishedGoodId, x.WarehouseId, x.AllocationStatus })
+                .HasDatabaseName("ix_so_allocations_lookup");
+
+            builder.HasIndex(x => new { x.TenantId, x.SalesOrderId, x.AllocationStatus })
+                .HasDatabaseName("ix_so_allocations_order_status");
         }
     }
 

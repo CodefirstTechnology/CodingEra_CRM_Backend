@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
@@ -10,23 +15,30 @@ namespace ERP.Infrastructure.Sales
     public class SalesOrderService : ISalesOrderService
     {
         private readonly ERPDbContext _db;
+        private readonly ISalesOrderAllocationService _allocationService;
 
-        public SalesOrderService(ERPDbContext db)
+        public SalesOrderService(ERPDbContext db, ISalesOrderAllocationService allocationService)
         {
             _db = db;
+            _allocationService = allocationService;
         }
 
         public async Task<IReadOnlyList<SalesOrderListItemDto>> GetAllAsync(
             SalesOrderListQueryDto? query,
             CancellationToken cancellationToken = default)
         {
-            var q = _db.SalesOrders.AsNoTracking();
+            var q = _db.SalesOrders.AsNoTracking().Include(x => x.Items).AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(query?.Status))
             {
                 var status = SalesOrderStatusRules.Normalize(query.Status)
                     ?? query.Status.Trim();
                 q = q.Where(x => x.Status == status);
+            }
+
+            if (query?.CustomerId.HasValue == true && query.CustomerId.Value > 0)
+            {
+                q = q.Where(x => x.CustomerId == query.CustomerId.Value);
             }
 
             var dateFrom = SalesOrderMapper.ParseOptionalDate(query?.DateFrom);
@@ -111,13 +123,17 @@ namespace ERP.Infrastructure.Sales
                 QuotationId = request.QuotationId,
                 QuotationNumber = request.QuotationNumber?.Trim() ?? string.Empty,
                 SourceType = sourceType,
+                CustomerId = request.Customer.CustomerId > 0 ? request.Customer.CustomerId : 1,
                 CustomerName = request.Customer.CustomerName.Trim(),
+                CustomerCategory = string.IsNullOrWhiteSpace(request.Customer.CustomerCategory) ? "Standard" : request.Customer.CustomerCategory.Trim(),
                 ContactPerson = request.Customer.ContactPerson?.Trim() ?? string.Empty,
                 BillingAddress = request.Customer.BillingAddress?.Trim() ?? string.Empty,
                 ShippingAddress = request.Customer.ShippingAddress?.Trim() ?? string.Empty,
+                PlaceOfSupplyStateCode = string.IsNullOrWhiteSpace(request.Customer.PlaceOfSupplyStateCode) ? "27" : request.Customer.PlaceOfSupplyStateCode.Trim(),
                 CustomerEmail = NullIfEmpty(request.Customer.CustomerEmail),
                 CustomerPhone = NullIfEmpty(request.Customer.CustomerPhone),
                 SalesPerson = request.SalesPerson?.Trim() ?? string.Empty,
+                SalesPersonUserId = request.SalesPersonUserId,
                 Notes = request.Notes?.Trim() ?? string.Empty,
                 OrderDate = orderDate,
                 ExpectedDeliveryDate = SalesOrderMapper.ParseOptionalDate(request.ExpectedDeliveryDate),
@@ -138,18 +154,32 @@ namespace ERP.Infrastructure.Sales
             for (var i = 0; i < preparedItems.Count; i++)
             {
                 var item = preparedItems[i];
+                var cleanName = item.ItemName.Trim().ToLower();
+                var fg = await _db.FinishedGoods
+                    .FirstOrDefaultAsync(f => f.ProductName.ToLower() == cleanName, cancellationToken);
+
                 entity.Items.Add(new SalesOrderItem
                 {
                     LineKey = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id.Trim(),
                     SortIndex = i,
+                    ItemId = item.ItemId ?? fg?.Id,
+                    ItemCode = !string.IsNullOrWhiteSpace(item.ItemCode) ? item.ItemCode : (fg?.ProductCode ?? string.Empty),
+                    WarehouseId = item.WarehouseId ?? fg?.WarehouseId,
                     ItemName = item.ItemName.Trim(),
                     Description = item.Description?.Trim() ?? string.Empty,
                     Quantity = item.Quantity,
-                    Unit = string.IsNullOrWhiteSpace(item.Unit) ? "Nos" : item.Unit.Trim(),
+                    Unit = string.IsNullOrWhiteSpace(item.Unit) ? (fg?.Unit ?? "Nos") : item.Unit.Trim(),
                     Rate = item.Rate,
                     Discount = item.Discount,
                     Gst = item.Gst,
-                    Amount = item.Amount
+                    Amount = item.Amount,
+                    ResolvedPriceListId = item.ResolvedPriceListId,
+                    PriceListNumberSnapshot = item.PriceListNumberSnapshot,
+                    OriginalSellingRate = item.OriginalSellingRate > 0 ? item.OriginalSellingRate : item.Rate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot > 0 ? item.TaxSlabPercentSnapshot : item.Gst,
+                    PlaceOfSupplyStateCode = !string.IsNullOrWhiteSpace(item.PlaceOfSupplyStateCode) ? item.PlaceOfSupplyStateCode : entity.PlaceOfSupplyStateCode
                 });
             }
 
@@ -162,6 +192,59 @@ namespace ERP.Infrastructure.Sales
 
             _db.SalesOrders.Add(entity);
             await _db.SaveChangesAsync(cancellationToken);
+
+            // If created from a quotation, transition quotation to ConvertedToSO and copy snapshots
+            if (request.QuotationId.HasValue && request.QuotationId.Value > 0)
+            {
+                var quote = await _db.Quotations
+                    .Include(q => q.Items)
+                    .FirstOrDefaultAsync(q => q.Id == request.QuotationId.Value, cancellationToken);
+
+                if (quote != null)
+                {
+                    quote.Status = QuotationStatuses.ConvertedToSO;
+                    quote.ConvertedSalesOrderId = entity.Id;
+                    quote.ConvertedSalesOrderNumber = entity.SalesOrderNumber;
+                    quote.ConvertedOn = now;
+                    quote.UpdatedBy = actingUser;
+                    quote.UpdatedDate = now;
+
+                    var matchingQa = await _db.QuotationApprovals
+                        .FirstOrDefaultAsync(qa => qa.QuotationId == quote.Id && !qa.IsDeleted, cancellationToken);
+                    if (matchingQa != null)
+                    {
+                        matchingQa.SalesOrderId = entity.Id;
+                        matchingQa.SalesOrderNumber = entity.SalesOrderNumber;
+                        matchingQa.Status = "Converted";
+                        matchingQa.UpdatedBy = actingUser;
+                        matchingQa.UpdatedDate = now;
+                    }
+
+                    for (var i = 0; i < entity.Items.Count; i++)
+                    {
+                        var soItem = entity.Items.ElementAt(i);
+                        var matchingQItem = quote.Items.FirstOrDefault(qi =>
+                            string.Equals(qi.ItemName.Trim(), soItem.ItemName.Trim(), StringComparison.OrdinalIgnoreCase))
+                            ?? quote.Items.ElementAtOrDefault(i);
+
+                        if (matchingQItem != null)
+                        {
+                            soItem.ItemId = matchingQItem.ItemId ?? soItem.ItemId;
+                            soItem.ItemCode = string.IsNullOrWhiteSpace(soItem.ItemCode) ? matchingQItem.ItemCode : soItem.ItemCode;
+                            soItem.WarehouseId = matchingQItem.WarehouseId ?? soItem.WarehouseId;
+                            soItem.ItemType = matchingQItem.ItemType;
+                            soItem.ResolvedPriceListId = matchingQItem.ResolvedPriceListId;
+                            soItem.PriceListNumberSnapshot = matchingQItem.PriceListNumberSnapshot;
+                            soItem.OriginalSellingRate = matchingQItem.OriginalSellingRate;
+                            soItem.FloorPriceSnapshot = matchingQItem.FloorPriceSnapshot;
+                            soItem.MaxDiscountPctSnapshot = matchingQItem.MaxDiscountPctSnapshot;
+                            soItem.TaxSlabPercentSnapshot = matchingQItem.TaxSlabPercentSnapshot;
+                        }
+                    }
+
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+            }
 
             return SalesOrderMapper.ToDto(await LoadTrackedAsync(entity.Id, false, cancellationToken)
                 ?? entity);
@@ -179,10 +262,10 @@ namespace ERP.Infrastructure.Sales
                 return null;
             }
 
-            if (entity.Status is SalesOrderStatuses.Completed or SalesOrderStatuses.Cancelled)
+            if (entity.Status != SalesOrderStatuses.Draft && entity.Status != SalesOrderStatuses.Submitted)
             {
                 throw new InvalidOperationException(
-                    $"Cannot update a sales order in '{entity.Status}' status.");
+                    $"Cannot update a sales order in '{entity.Status}' status. Only Draft or Submitted orders can be modified.");
             }
 
             ValidateCustomer(request.Customer);
@@ -214,13 +297,17 @@ namespace ERP.Infrastructure.Sales
                 StringComparison.OrdinalIgnoreCase)
                 ? SalesOrderSourceTypes.Quotation
                 : SalesOrderSourceTypes.Manual;
+            entity.CustomerId = request.Customer.CustomerId > 0 ? request.Customer.CustomerId : entity.CustomerId;
             entity.CustomerName = request.Customer.CustomerName.Trim();
+            entity.CustomerCategory = string.IsNullOrWhiteSpace(request.Customer.CustomerCategory) ? entity.CustomerCategory : request.Customer.CustomerCategory.Trim();
             entity.ContactPerson = request.Customer.ContactPerson?.Trim() ?? string.Empty;
             entity.BillingAddress = request.Customer.BillingAddress?.Trim() ?? string.Empty;
             entity.ShippingAddress = request.Customer.ShippingAddress?.Trim() ?? string.Empty;
+            entity.PlaceOfSupplyStateCode = string.IsNullOrWhiteSpace(request.Customer.PlaceOfSupplyStateCode) ? entity.PlaceOfSupplyStateCode : request.Customer.PlaceOfSupplyStateCode.Trim();
             entity.CustomerEmail = NullIfEmpty(request.Customer.CustomerEmail);
             entity.CustomerPhone = NullIfEmpty(request.Customer.CustomerPhone);
             entity.SalesPerson = request.SalesPerson?.Trim() ?? string.Empty;
+            entity.SalesPersonUserId = request.SalesPersonUserId ?? entity.SalesPersonUserId;
             entity.Notes = request.Notes?.Trim() ?? string.Empty;
             entity.OrderDate = SalesOrderMapper.ParseDate(request.OrderDate, entity.OrderDate);
             entity.ExpectedDeliveryDate = SalesOrderMapper.ParseOptionalDate(request.ExpectedDeliveryDate);
@@ -242,6 +329,9 @@ namespace ERP.Infrastructure.Sales
                 {
                     LineKey = string.IsNullOrWhiteSpace(item.Id) ? Guid.NewGuid().ToString("N") : item.Id.Trim(),
                     SortIndex = i,
+                    ItemId = item.ItemId,
+                    ItemCode = item.ItemCode,
+                    WarehouseId = item.WarehouseId,
                     ItemName = item.ItemName.Trim(),
                     Description = item.Description?.Trim() ?? string.Empty,
                     Quantity = item.Quantity,
@@ -249,7 +339,14 @@ namespace ERP.Infrastructure.Sales
                     Rate = item.Rate,
                     Discount = item.Discount,
                     Gst = item.Gst,
-                    Amount = item.Amount
+                    Amount = item.Amount,
+                    ResolvedPriceListId = item.ResolvedPriceListId,
+                    PriceListNumberSnapshot = item.PriceListNumberSnapshot,
+                    OriginalSellingRate = item.OriginalSellingRate > 0 ? item.OriginalSellingRate : item.Rate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot > 0 ? item.TaxSlabPercentSnapshot : item.Gst,
+                    PlaceOfSupplyStateCode = !string.IsNullOrWhiteSpace(item.PlaceOfSupplyStateCode) ? item.PlaceOfSupplyStateCode : entity.PlaceOfSupplyStateCode
                 });
             }
 
@@ -298,6 +395,16 @@ namespace ERP.Infrastructure.Sales
                 request.Remarks?.Trim() ?? string.Empty,
                 SalesOrderStatusRules.TimelineLabel(target)));
 
+            // If cancelled, release soft allocations
+            if (string.Equals(target, SalesOrderStatuses.Cancelled, StringComparison.OrdinalIgnoreCase))
+            {
+                await _allocationService.ReleaseOrderAllocationsAsync(
+                    id,
+                    request.Remarks?.Trim() ?? "Sales order cancelled.",
+                    actingUser,
+                    cancellationToken);
+            }
+
             await _db.SaveChangesAsync(cancellationToken);
             return SalesOrderMapper.ToDto(await LoadTrackedAsync(id, false, cancellationToken) ?? entity);
         }
@@ -319,31 +426,106 @@ namespace ERP.Infrastructure.Sales
                 cancellationToken);
         }
 
-        public async Task<IReadOnlyList<SalesOrderStatusHistoryDto>?> GetStatusHistoryAsync(
+        public async Task<SalesOrderDto?> SetCreditHoldAsync(
             int id,
+            string reason,
+            string actingUser,
             CancellationToken cancellationToken = default)
         {
-            var exists = await _db.SalesOrders.AsNoTracking()
-                .AnyAsync(x => x.Id == id, cancellationToken);
-            if (!exists)
-            {
-                return null;
-            }
+            var entity = await LoadTrackedAsync(id, asTracking: true, cancellationToken);
+            if (entity is null) return null;
 
-            var rows = await _db.SalesOrderStatusHistories.AsNoTracking()
-                .Where(x => x.SalesOrderId == id)
-                .OrderBy(x => x.Date)
-                .ToListAsync(cancellationToken);
+            var now = DateTimeOffset.UtcNow;
+            entity.Status = SalesOrderStatuses.OnCreditHold;
+            entity.CreditHoldReason = reason;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+            entity.StatusHistory.Add(NewHistory(
+                SalesOrderStatuses.OnCreditHold,
+                now,
+                actingUser,
+                reason,
+                "Credit Hold"));
 
-            return rows.Select(h => new SalesOrderStatusHistoryDto
-            {
-                Id = h.EntryKey,
-                Status = h.Status,
-                Date = DateHelper.FormatDateTime(h.Date),
-                User = h.User,
-                Remarks = h.Remarks,
-                Label = h.Label
-            }).ToList();
+            await _db.SaveChangesAsync(cancellationToken);
+            return SalesOrderMapper.ToDto(await LoadTrackedAsync(id, false, cancellationToken) ?? entity);
+        }
+
+        public async Task<SalesOrderDto?> OverrideCreditHoldAsync(
+            int id,
+            string justification,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var entity = await LoadTrackedAsync(id, asTracking: true, cancellationToken);
+            if (entity is null) return null;
+
+            var now = DateTimeOffset.UtcNow;
+            entity.Status = SalesOrderStatuses.Confirmed;
+            entity.CreditApprovedBy = actingUser;
+            entity.CreditApprovedDate = now;
+            entity.Remarks = $"Credit Hold Overridden: {justification}";
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+            entity.StatusHistory.Add(NewHistory(
+                SalesOrderStatuses.Confirmed,
+                now,
+                actingUser,
+                $"Credit Override: {justification}",
+                "Credit Approved"));
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return SalesOrderMapper.ToDto(await LoadTrackedAsync(id, false, cancellationToken) ?? entity);
+        }
+
+        public async Task<SalesOrderDto?> SetProductionReleasedAsync(
+            int id,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var entity = await LoadTrackedAsync(id, asTracking: true, cancellationToken);
+            if (entity is null) return null;
+
+            var now = DateTimeOffset.UtcNow;
+            entity.IsProductionReleased = true;
+            entity.ProductionReleasedDate = now;
+            entity.ProductionReleasedBy = actingUser;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+            entity.StatusHistory.Add(NewHistory(
+                entity.Status,
+                now,
+                actingUser,
+                "Order released to shop-floor production planning.",
+                "Production Released"));
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return SalesOrderMapper.ToDto(await LoadTrackedAsync(id, false, cancellationToken) ?? entity);
+        }
+
+        public async Task<SalesOrderDto?> SetDispatchReleasedAsync(
+            int id,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var entity = await LoadTrackedAsync(id, asTracking: true, cancellationToken);
+            if (entity is null) return null;
+
+            var now = DateTimeOffset.UtcNow;
+            entity.IsDispatchReleased = true;
+            entity.DispatchReleasedDate = now;
+            entity.DispatchReleasedBy = actingUser;
+            entity.UpdatedBy = actingUser;
+            entity.UpdatedDate = now;
+            entity.StatusHistory.Add(NewHistory(
+                entity.Status,
+                now,
+                actingUser,
+                "Order released to dispatch logistics and gate pass generation.",
+                "Dispatch Released"));
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return SalesOrderMapper.ToDto(await LoadTrackedAsync(id, false, cancellationToken) ?? entity);
         }
 
         public async Task<SalesOrderDto> ConvertQuotationAsync(
@@ -354,10 +536,20 @@ namespace ERP.Infrastructure.Sales
             await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
 
             // 1. Try locking canonical Quotation row with row-level pessimistic lock (SELECT ... FOR UPDATE)
-            var quote = await _db.Quotations
-                .FromSqlRaw(@"SELECT *, xmin FROM quotations WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
-                .Include(x => x.Items)
-                .FirstOrDefaultAsync(cancellationToken);
+            Quotation? quote;
+            if (_db.Database.IsRelational())
+            {
+                quote = await _db.Quotations
+                    .FromSqlRaw(@"SELECT *, xmin FROM quotations WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
+                    .Include(x => x.Items)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+            else
+            {
+                quote = await _db.Quotations
+                    .Include(x => x.Items)
+                    .FirstOrDefaultAsync(x => x.Id == quotationApprovalId && !x.IsDeleted, cancellationToken);
+            }
 
             var now = DateTimeOffset.UtcNow;
             var number = await NextNumberAsync(cancellationToken);
@@ -391,14 +583,26 @@ namespace ERP.Infrastructure.Sales
                 {
                     LineKey = Guid.NewGuid().ToString("N"),
                     SortIndex = idx + 1,
+                    ItemType = item.ItemType,
+                    ItemId = item.ItemId,
+                    ItemCode = item.ItemCode,
                     ItemName = item.ItemName,
+                    WarehouseId = item.WarehouseId,
                     Description = item.Description ?? string.Empty,
                     Quantity = item.Quantity,
                     Unit = item.Unit ?? "NOS",
+                    BaseStockUom = item.BaseStockUom ?? "NOS",
                     Rate = item.UnitPrice,
                     Discount = item.DiscountPercent,
                     Gst = item.TaxPercent,
-                    Amount = item.LineTotal
+                    Amount = item.LineTotal,
+                    ResolvedPriceListId = item.ResolvedPriceListId,
+                    PriceListNumberSnapshot = item.PriceListNumberSnapshot,
+                    OriginalSellingRate = item.OriginalSellingRate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot,
+                    PlaceOfSupplyStateCode = "27"
                 }).ToList();
 
                 if (salesOrderItems.Count == 0)
@@ -424,10 +628,12 @@ namespace ERP.Infrastructure.Sales
                     QuotationId = quote.Id,
                     QuotationNumber = quote.QuotationNumber,
                     SourceType = SalesOrderSourceTypes.Quotation,
+                    CustomerId = int.TryParse(quote.CustomerId, out var cId) ? cId : 1,
                     CustomerName = quote.CustomerName,
                     ContactPerson = quote.ContactPerson,
                     BillingAddress = quote.BillingAddress,
                     ShippingAddress = quote.ShippingAddress,
+                    PlaceOfSupplyStateCode = "27",
                     CustomerEmail = quote.CustomerEmail,
                     CustomerPhone = quote.CustomerPhone,
                     SalesPerson = quote.SalesPerson,
@@ -466,13 +672,14 @@ namespace ERP.Infrastructure.Sales
                 quote.UpdatedBy = actingUser;
                 quote.UpdatedDate = now;
 
-                // Also update any matching legacy QuotationApproval record if one exists
+                // Also update matching legacy QuotationApproval if present
                 var matchingQa = await _db.QuotationApprovals
                     .FirstOrDefaultAsync(x => x.QuotationId == quote.Id && !x.IsDeleted, cancellationToken);
                 if (matchingQa is not null)
                 {
                     matchingQa.SalesOrderId = order.Id;
                     matchingQa.SalesOrderNumber = order.SalesOrderNumber;
+                    matchingQa.Status = "Converted";
                     matchingQa.UpdatedBy = actingUser;
                     matchingQa.UpdatedDate = now;
                 }
@@ -484,11 +691,21 @@ namespace ERP.Infrastructure.Sales
                     await LoadTrackedAsync(order.Id, asTracking: false, cancellationToken) ?? order);
             }
 
-            // 2. Fallback for legacy QuotationApproval records
-            var qa = await _db.QuotationApprovals
-                .FromSqlRaw(@"SELECT *, xmin FROM ""QuotationApprovals"" WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
-                .Include(x => x.History)
-                .FirstOrDefaultAsync(cancellationToken);
+            // Fallback for legacy QuotationApproval records
+            QuotationApproval? qa;
+            if (_db.Database.IsRelational())
+            {
+                qa = await _db.QuotationApprovals
+                    .FromSqlRaw(@"SELECT *, xmin FROM ""QuotationApprovals"" WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", quotationApprovalId)
+                    .Include(x => x.History)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+            else
+            {
+                qa = await _db.QuotationApprovals
+                    .Include(x => x.History)
+                    .FirstOrDefaultAsync(x => x.Id == quotationApprovalId && !x.IsDeleted, cancellationToken);
+            }
 
             if (qa is null)
             {
@@ -505,18 +722,6 @@ namespace ERP.Infrastructure.Sales
             {
                 throw new InvalidOperationException(
                     $"Quotation approval '{qa.ApprovalNumber}' has already been converted to Sales Order '{qa.SalesOrderNumber}'.");
-            }
-
-            if (qa.QuotationId > 0)
-            {
-                var existingSo = await _db.SalesOrders
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.QuotationId == qa.QuotationId && x.Status != SalesOrderStatuses.Cancelled, cancellationToken);
-                if (existingSo is not null)
-                {
-                    throw new InvalidOperationException(
-                        $"A Sales Order ({existingSo.SalesOrderNumber}) already exists for Quotation '{qa.QuotationNumber}'.");
-                }
             }
 
             var legacyItems = new List<SalesOrderItemDto>
@@ -552,12 +757,11 @@ namespace ERP.Infrastructure.Sales
                 QuotationId = qa.QuotationId,
                 QuotationNumber = qa.QuotationNumber,
                 SourceType = SalesOrderSourceTypes.Quotation,
+                CustomerId = 1,
                 CustomerName = customer.CustomerName,
                 ContactPerson = customer.ContactPerson,
                 BillingAddress = customer.BillingAddress,
                 ShippingAddress = customer.ShippingAddress,
-                CustomerEmail = customer.CustomerEmail,
-                CustomerPhone = customer.CustomerPhone,
                 SalesPerson = qa.SalesPersonUserId.ToString(),
                 Notes = qa.Reason,
                 OrderDate = DateOnly.FromDateTime(DateTime.UtcNow),
@@ -600,23 +804,41 @@ namespace ERP.Infrastructure.Sales
 
             qa.SalesOrderId = legacyOrder.Id;
             qa.SalesOrderNumber = legacyOrder.SalesOrderNumber;
+            qa.Status = "Converted";
             qa.UpdatedBy = actingUser;
             qa.UpdatedDate = now;
-            qa.History.Add(new QuotationApprovalHistory
-            {
-                Action = QuotationApprovalHistoryActions.Updated,
-                OldStatus = qa.Status,
-                NewStatus = qa.Status,
-                Remarks = $"Converted to Sales Order {legacyOrder.SalesOrderNumber}",
-                PerformedBy = actingUser,
-                PerformedOn = now
-            });
 
             await _db.SaveChangesAsync(cancellationToken);
             await tx.CommitAsync(cancellationToken);
 
             return SalesOrderMapper.ToDto(
                 await LoadTrackedAsync(legacyOrder.Id, asTracking: false, cancellationToken) ?? legacyOrder);
+        }
+
+        public async Task<IReadOnlyList<SalesOrderStatusHistoryDto>?> GetStatusHistoryAsync(
+            int id,
+            CancellationToken cancellationToken = default)
+        {
+            var exists = await _db.SalesOrders.AnyAsync(x => x.Id == id, cancellationToken);
+            if (!exists)
+            {
+                return null;
+            }
+
+            var rows = await _db.SalesOrderStatusHistories.AsNoTracking()
+                .Where(x => x.SalesOrderId == id)
+                .OrderBy(x => x.Date)
+                .ToListAsync(cancellationToken);
+
+            return rows.Select(h => new SalesOrderStatusHistoryDto
+            {
+                Id = h.EntryKey,
+                Status = h.Status,
+                Date = DateHelper.FormatDateTime(h.Date),
+                User = h.User,
+                Remarks = h.Remarks,
+                Label = h.Label
+            }).ToList();
         }
 
         public async Task<SalesOrderPdfResultDto?> GeneratePdfAsync(
@@ -702,7 +924,6 @@ namespace ERP.Infrastructure.Sales
                 "sales-orders.email"
             ]);
 
-
         private async Task<SalesOrder?> LoadTrackedAsync(
             int id,
             bool asTracking,
@@ -710,6 +931,7 @@ namespace ERP.Infrastructure.Sales
         {
             IQueryable<SalesOrder> q = _db.SalesOrders
                 .Include(x => x.Items)
+                .Include(x => x.Allocations)
                 .Include(x => x.StatusHistory)
                 .Include(x => x.EmailHistory);
 
@@ -750,6 +972,9 @@ namespace ERP.Infrastructure.Sales
                 return new SalesOrderItemDto
                 {
                     Id = item.Id,
+                    ItemId = item.ItemId,
+                    ItemCode = item.ItemCode,
+                    WarehouseId = item.WarehouseId,
                     ItemName = item.ItemName,
                     Description = item.Description,
                     Quantity = item.Quantity,
@@ -757,12 +982,37 @@ namespace ERP.Infrastructure.Sales
                     Rate = item.Rate,
                     Discount = item.Discount,
                     Gst = item.Gst,
-                    Amount = amount
+                    Amount = amount,
+                    ResolvedPriceListId = item.ResolvedPriceListId,
+                    PriceListNumberSnapshot = item.PriceListNumberSnapshot,
+                    OriginalSellingRate = item.OriginalSellingRate,
+                    FloorPriceSnapshot = item.FloorPriceSnapshot,
+                    MaxDiscountPctSnapshot = item.MaxDiscountPctSnapshot,
+                    TaxSlabPercentSnapshot = item.TaxSlabPercentSnapshot,
+                    PlaceOfSupplyStateCode = item.PlaceOfSupplyStateCode
                 };
             }).ToList();
         }
 
-        private static void ValidateCustomer(SalesOrderCustomerDto customer)
+        private static SalesOrderStatusHistory NewHistory(
+            string status,
+            DateTimeOffset date,
+            string user,
+            string remarks,
+            string? label = null) => new()
+            {
+                EntryKey = Guid.NewGuid().ToString("N"),
+                Status = status,
+                Date = date,
+                User = user,
+                Remarks = remarks,
+                Label = label
+            };
+
+        private static string? NullIfEmpty(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        private static void ValidateCustomer(SalesOrderCustomerDto? customer)
         {
             if (customer is null || string.IsNullOrWhiteSpace(customer.CustomerName))
             {
@@ -770,9 +1020,9 @@ namespace ERP.Infrastructure.Sales
             }
         }
 
-        private static void ValidateItems(IList<SalesOrderItemDto> items)
+        private static void ValidateItems(IEnumerable<SalesOrderItemDto>? items)
         {
-            if (items is null || items.Count == 0)
+            if (items is null || !items.Any())
             {
                 throw new InvalidOperationException("At least one line item is required.");
             }
@@ -781,32 +1031,19 @@ namespace ERP.Infrastructure.Sales
             {
                 if (string.IsNullOrWhiteSpace(item.ItemName))
                 {
-                    throw new InvalidOperationException("Each line item requires an item name.");
+                    throw new InvalidOperationException("Item name is required for all line items.");
                 }
 
                 if (item.Quantity <= 0)
                 {
-                    throw new InvalidOperationException("Line item quantity must be greater than zero.");
+                    throw new InvalidOperationException("Item quantity must be greater than zero.");
+                }
+
+                if (item.Rate < 0)
+                {
+                    throw new InvalidOperationException("Item rate cannot be negative.");
                 }
             }
         }
-
-        private static SalesOrderStatusHistory NewHistory(
-            string status,
-            DateTimeOffset date,
-            string user,
-            string remarks,
-            string? label) => new()
-        {
-            EntryKey = Guid.NewGuid().ToString("N"),
-            Status = status,
-            Date = date,
-            User = user,
-            Remarks = remarks,
-            Label = label
-        };
-
-        private static string? NullIfEmpty(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }

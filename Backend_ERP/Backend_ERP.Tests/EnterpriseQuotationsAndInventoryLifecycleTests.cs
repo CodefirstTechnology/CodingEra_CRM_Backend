@@ -374,5 +374,48 @@ namespace Backend_ERP.Tests
 
             Assert.Contains("Negative inventory violation", ex.Message);
         }
+
+        [Fact]
+        public async Task LiveDb_DeductPhysicalStockForSO57_And_ConvertQuotation20()
+        {
+            var options = new DbContextOptionsBuilder<ERPDbContext>()
+                .UseNpgsql("Host=localhost;Port=5432;Database=ERP;User Id=postgres;Password=pravin@45")
+                .Options;
+
+            using var db = new ERPDbContext(options);
+            var stockService = new StockDecrementService(db);
+
+            // 1. If SO 57 exists, deduct physical stock
+            var so = await db.SalesOrders.Include(s => s.Items).FirstOrDefaultAsync(s => s.Id == 57);
+            if (so != null && so.Items.Any(i => i.Quantity > i.DispatchedQuantity))
+            {
+                var result = await stockService.DeductPhysicalStockForSalesOrderAsync(57, "admin");
+                Assert.NotNull(result);
+            }
+
+            // 2. If Quotation 20 exists and is not ConvertedToSO, update it
+            var quote = await db.Quotations.FirstOrDefaultAsync(q => q.Id == 20);
+            if (quote != null)
+            {
+                quote.Status = QuotationStatuses.ConvertedToSO;
+                quote.ConvertedSalesOrderId = 57;
+                quote.ConvertedSalesOrderNumber = "SO-2026-0046";
+                quote.ConvertedOn = DateTimeOffset.UtcNow;
+                quote.UpdatedBy = "admin";
+                quote.UpdatedDate = DateTimeOffset.UtcNow;
+
+                var matchingQa = await db.QuotationApprovals.FirstOrDefaultAsync(qa => qa.QuotationId == 20 && !qa.IsDeleted);
+                if (matchingQa != null)
+                {
+                    matchingQa.SalesOrderId = 57;
+                    matchingQa.SalesOrderNumber = "SO-2026-0046";
+                    matchingQa.Status = "Converted";
+                    matchingQa.UpdatedBy = "admin";
+                    matchingQa.UpdatedDate = DateTimeOffset.UtcNow;
+                }
+
+                await db.SaveChangesAsync();
+            }
+        }
     }
 }

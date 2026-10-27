@@ -15,6 +15,10 @@ namespace ERP.API.Controllers
     public class SalesOrdersController : ControllerBase
     {
         private readonly ISalesOrderService _salesOrders;
+        private readonly ISalesOrderAllocationService _allocationService;
+        private readonly ICustomerCreditAssessmentService _creditService;
+        private readonly ISalesOrderAdvanceGateService _advanceGateService;
+        private readonly IMtoProductionTriggerService _mtoService;
         private readonly IProformaInvoiceService _proformaInvoices;
         private readonly IAdvancePaymentService _advancePayments;
         private readonly ERP.Application.Sales.Quotations.IStockDecrementService _stockDecrementService;
@@ -24,6 +28,10 @@ namespace ERP.API.Controllers
 
         public SalesOrdersController(
             ISalesOrderService salesOrders,
+            ISalesOrderAllocationService allocationService,
+            ICustomerCreditAssessmentService creditService,
+            ISalesOrderAdvanceGateService advanceGateService,
+            IMtoProductionTriggerService mtoService,
             IProformaInvoiceService proformaInvoices,
             IAdvancePaymentService advancePayments,
             ERP.Application.Sales.Quotations.IStockDecrementService stockDecrementService,
@@ -32,6 +40,10 @@ namespace ERP.API.Controllers
             IErpWorkflowAuthorizationService workflowAuthService)
         {
             _salesOrders = salesOrders;
+            _allocationService = allocationService;
+            _creditService = creditService;
+            _advanceGateService = advanceGateService;
+            _mtoService = mtoService;
             _proformaInvoices = proformaInvoices;
             _advancePayments = advancePayments;
             _stockDecrementService = stockDecrementService;
@@ -217,6 +229,17 @@ namespace ERP.API.Controllers
                 if (updated is null)
                 {
                     return NotFound();
+                }
+
+                // Stage 3 Inventory Deduction: When Sales Order completes, automatically decrement physical finished goods stock
+                if (string.Equals(target, SalesOrderStatuses.Completed, StringComparison.OrdinalIgnoreCase))
+                {
+                    await _stockDecrementService.DeductPhysicalStockForSalesOrderAsync(
+                        id,
+                        ResolveActingUser(userId),
+                        cancellationToken);
+
+                    updated = await _salesOrders.GetByIdAsync(id, cancellationToken);
                 }
 
                 return Ok(updated);
@@ -442,6 +465,190 @@ namespace ERP.API.Controllers
 
                 var actingUser = ResolveActingUser(userId);
                 var result = await _stockDecrementService.DeductPhysicalStockForSalesOrderAsync(id, actingUser, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/approve")]
+        [RequirePermission(ErpPermissions.SalesOrders.Confirm, ErpPermissions.SalesOrders.Approve)]
+        public async Task<ActionResult<SalesOrderDto>> ApproveOrder(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken ct)
+        {
+            try
+            {
+                var existing = await _salesOrders.GetByIdAsync(id, ct);
+                if (existing is null) return NotFound();
+
+                var actingUser = ResolveActingUser(userId);
+
+                // 1. Dynamic Credit Assessment
+                var creditCheck = await _creditService.AssessCustomerExposureAsync(
+                    existing.CustomerId,
+                    existing.GrandTotal,
+                    ct);
+
+                if (creditCheck.IsOnHold)
+                {
+                    await _salesOrders.SetCreditHoldAsync(id, creditCheck.Reason, actingUser, ct);
+                    return StatusCode(StatusCodes.Status422UnprocessableEntity, new
+                    {
+                        message = creditCheck.Reason,
+                        isOnHold = true,
+                        exposure = creditCheck.TotalExposure,
+                        creditLimit = creditCheck.ApprovedCreditLimit
+                    });
+                }
+
+                // 2. Transition Status to Confirmed
+                var updated = await _salesOrders.UpdateStatusAsync(id,
+                    new SalesOrderStatusUpdateRequestDto
+                    {
+                        Status = SalesOrderStatuses.Confirmed,
+                        Remarks = "Credit exposure verified. Order confirmed."
+                    },
+                    actingUser,
+                    ct);
+
+                // 3. Execute Soft Inventory Allocation
+                await _allocationService.AllocateOrderInventoryAsync(id, actingUser, ct);
+
+                return Ok(await _salesOrders.GetByIdAsync(id, ct) ?? updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/override-credit")]
+        [RequirePermission(ErpPermissions.SalesOrders.CreditOverride, ErpPermissions.SalesOrders.Approve)]
+        public async Task<ActionResult<SalesOrderDto>> OverrideCredit(
+            int id,
+            [FromBody] CreditOverrideRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken ct)
+        {
+            try
+            {
+                var existing = await _salesOrders.GetByIdAsync(id, ct);
+                if (existing is null) return NotFound();
+
+                var actingUser = ResolveActingUser(userId);
+                var justification = string.IsNullOrWhiteSpace(request?.Justification)
+                    ? "Managerial finance credit override"
+                    : request.Justification.Trim();
+
+                var updated = await _salesOrders.OverrideCreditHoldAsync(id, justification, actingUser, ct);
+                if (updated is null) return NotFound();
+
+                // Allocate soft stock after credit override
+                await _allocationService.AllocateOrderInventoryAsync(id, actingUser, ct);
+
+                return Ok(await _salesOrders.GetByIdAsync(id, ct) ?? updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/release-production")]
+        [RequirePermission(ErpPermissions.SalesOrders.Process)]
+        public async Task<ActionResult<SalesOrderDto>> ReleaseToProduction(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken ct)
+        {
+            try
+            {
+                var existing = await _salesOrders.GetByIdAsync(id, ct);
+                if (existing is null) return NotFound();
+
+                var gateCheck = await _advanceGateService.CanReleaseToProductionAsync(id, ct);
+                if (gateCheck.IsLocked)
+                {
+                    return StatusCode(StatusCodes.Status422UnprocessableEntity, new
+                    {
+                        message = gateCheck.LockReason,
+                        required = gateCheck.RequiredAmount,
+                        allocated = gateCheck.AllocatedAmount
+                    });
+                }
+
+                var actingUser = ResolveActingUser(userId);
+
+                // Auto-evaluate Net Deficit & spawn MTO production plans & work orders
+                await _mtoService.EvaluateAndSpawnProductionAsync(id, actingUser, ct);
+
+                var updated = await _salesOrders.SetProductionReleasedAsync(id, actingUser, ct);
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpPost("{id:int}/release-dispatch")]
+        [RequirePermission(ErpPermissions.SalesOrders.Process)]
+        public async Task<ActionResult<SalesOrderDto>> ReleaseToDispatch(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken ct)
+        {
+            try
+            {
+                var existing = await _salesOrders.GetByIdAsync(id, ct);
+                if (existing is null) return NotFound();
+
+                var gateCheck = await _advanceGateService.CanReleaseToDispatchAsync(id, ct);
+                if (gateCheck.IsLocked)
+                {
+                    return StatusCode(StatusCodes.Status422UnprocessableEntity, new
+                    {
+                        message = gateCheck.LockReason,
+                        required = gateCheck.RequiredAmount,
+                        allocated = gateCheck.AllocatedAmount
+                    });
+                }
+
+                var actingUser = ResolveActingUser(userId);
+                var updated = await _salesOrders.SetDispatchReleasedAsync(id, actingUser, ct);
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        [HttpGet("{id:int}/allocations")]
+        public async Task<ActionResult<IReadOnlyList<SalesOrderAllocationDto>>> GetAllocations(
+            int id,
+            CancellationToken ct)
+        {
+            var allocations = await _allocationService.GetAllocationsForOrderAsync(id, ct);
+            return Ok(allocations);
+        }
+
+        [HttpPost("{id:int}/split-warehouse")]
+        [RequirePermission(ErpPermissions.SalesOrders.Edit)]
+        public async Task<ActionResult<AllocationResultDto>> SplitWarehouse(
+            int id,
+            [FromBody] SplitAllocationRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken ct)
+        {
+            try
+            {
+                var actingUser = ResolveActingUser(userId);
+                var result = await _allocationService.SplitWarehouseAllocationAsync(id, request, actingUser, ct);
                 return Ok(result);
             }
             catch (InvalidOperationException ex)

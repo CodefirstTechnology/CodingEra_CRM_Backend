@@ -53,6 +53,8 @@ namespace ERP.Shared.Security
             public const string Edit = "sales-orders.edit";
             public const string Submit = "sales-orders.submit";
             public const string Confirm = "sales-orders.confirm";
+            public const string Approve = "sales-orders.approve";
+            public const string CreditOverride = "sales-orders.credit-override";
             public const string Process = "sales-orders.process";
             public const string Complete = "sales-orders.complete";
             public const string Cancel = "sales-orders.cancel";

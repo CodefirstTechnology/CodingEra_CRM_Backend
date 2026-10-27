@@ -68,9 +68,17 @@ namespace ERP.Application.Sales
         private static readonly Dictionary<string, string[]> AllowedTransitions = new(StringComparer.OrdinalIgnoreCase)
         {
             [SalesOrderStatuses.Draft] = [SalesOrderStatuses.Submitted, SalesOrderStatuses.Cancelled],
-            [SalesOrderStatuses.Submitted] = [SalesOrderStatuses.Confirmed, SalesOrderStatuses.Cancelled],
-            [SalesOrderStatuses.Confirmed] = [SalesOrderStatuses.Processing, SalesOrderStatuses.Cancelled],
+            [SalesOrderStatuses.Submitted] = [SalesOrderStatuses.Confirmed, SalesOrderStatuses.OnCreditHold, SalesOrderStatuses.Cancelled],
+            [SalesOrderStatuses.OnCreditHold] = [SalesOrderStatuses.Confirmed, SalesOrderStatuses.Cancelled],
+            [SalesOrderStatuses.Confirmed] = [SalesOrderStatuses.Processing, SalesOrderStatuses.ReadyForDispatch, SalesOrderStatuses.Cancelled],
             [SalesOrderStatuses.Processing] =
+            [
+                SalesOrderStatuses.ReadyForDispatch,
+                SalesOrderStatuses.PartiallyDelivered,
+                SalesOrderStatuses.Completed,
+                SalesOrderStatuses.Cancelled
+            ],
+            [SalesOrderStatuses.ReadyForDispatch] =
             [
                 SalesOrderStatuses.PartiallyDelivered,
                 SalesOrderStatuses.Completed,
@@ -79,9 +87,11 @@ namespace ERP.Application.Sales
             [SalesOrderStatuses.PartiallyDelivered] =
             [
                 SalesOrderStatuses.Completed,
+                SalesOrderStatuses.Closed,
                 SalesOrderStatuses.Cancelled
             ],
             [SalesOrderStatuses.Completed] = [],
+            [SalesOrderStatuses.Closed] = [],
             [SalesOrderStatuses.Cancelled] = []
         };
 
@@ -116,10 +126,13 @@ namespace ERP.Application.Sales
         {
             SalesOrderStatuses.Draft => "Draft Saved",
             SalesOrderStatuses.Submitted => "Submitted",
+            SalesOrderStatuses.OnCreditHold => "On Credit Hold",
             SalesOrderStatuses.Confirmed => "Confirmed",
             SalesOrderStatuses.Processing => "Processing",
+            SalesOrderStatuses.ReadyForDispatch => "Ready For Dispatch",
             SalesOrderStatuses.PartiallyDelivered => "Partially Delivered",
             SalesOrderStatuses.Completed => "Completed",
+            SalesOrderStatuses.Closed => "Closed",
             SalesOrderStatuses.Cancelled => "Cancelled",
             _ => status
         };

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace ERP.Domain.Sales
 {
     public class SalesOrderItem
@@ -30,7 +32,11 @@ namespace ERP.Domain.Sales
 
         public decimal Quantity { get; set; }
 
+        public decimal AllocatedQuantity { get; set; } = 0m;
+
         public decimal DispatchedQuantity { get; set; } = 0m;
+
+        public decimal InvoicedQuantity { get; set; } = 0m;
 
         public decimal ProformaInvoicedQuantity { get; set; } = 0m;
 
@@ -49,7 +55,7 @@ namespace ERP.Domain.Sales
         /// <summary>Line amount after discount + GST.</summary>
         public decimal Amount { get; set; }
 
-        // Frozen Commercial Snapshots Promoted from Quotation
+        // Frozen Commercial Snapshots Promoted from Quotation or Resolved from Price List
         public int? ResolvedPriceListId { get; set; }
 
         public string PriceListNumberSnapshot { get; set; } = string.Empty;
@@ -61,5 +67,9 @@ namespace ERP.Domain.Sales
         public decimal MaxDiscountPctSnapshot { get; set; }
 
         public decimal TaxSlabPercentSnapshot { get; set; }
+
+        public string PlaceOfSupplyStateCode { get; set; } = "27";
+
+        public ICollection<SalesOrderAllocation> Allocations { get; set; } = new List<SalesOrderAllocation>();
     }
 }

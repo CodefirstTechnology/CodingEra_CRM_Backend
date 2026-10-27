@@ -13,6 +13,8 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
 
+        public DbSet<SalesOrderAllocation> SalesOrderAllocations => Set<SalesOrderAllocation>();
+
         public DbSet<SalesOrderStatusHistory> SalesOrderStatusHistories => Set<SalesOrderStatusHistory>();
 
         public DbSet<SalesOrderEmailHistory> SalesOrderEmailHistories => Set<SalesOrderEmailHistory>();

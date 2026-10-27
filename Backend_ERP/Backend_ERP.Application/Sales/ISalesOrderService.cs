@@ -52,6 +52,28 @@ namespace ERP.Application.Sales
             string actingUser,
             CancellationToken cancellationToken = default);
 
+        Task<SalesOrderDto?> SetCreditHoldAsync(
+            int id,
+            string reason,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesOrderDto?> OverrideCreditHoldAsync(
+            int id,
+            string justification,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesOrderDto?> SetProductionReleasedAsync(
+            int id,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesOrderDto?> SetDispatchReleasedAsync(
+            int id,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<string>> GetPermissionsAsync();
     }
 }

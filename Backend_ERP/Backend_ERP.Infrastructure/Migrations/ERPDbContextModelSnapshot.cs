@@ -11361,9 +11361,30 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CreditApprovedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("CreditApprovedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreditHoldReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("CustomerCategory")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("Standard");
+
                     b.Property<string>("CustomerEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("CustomerName")
                         .IsRequired()
@@ -11383,8 +11404,21 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("DispatchReleasedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("DispatchReleasedDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateOnly?>("ExpectedDeliveryDate")
                         .HasColumnType("date");
+
+                    b.Property<decimal>("FinalInvoicedAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("GrandTotal")
                         .HasPrecision(18, 2)
@@ -11393,6 +11427,19 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<decimal>("GstTotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDispatchReleased")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsProductionReleased")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTimeOffset?>("LastCommunicationDate")
                         .HasColumnType("timestamp with time zone");
@@ -11411,6 +11458,20 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("character varying(128)");
 
                     b.Property<DateTimeOffset?>("PdfGeneratedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PlaceOfSupplyStateCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("27");
+
+                    b.Property<string>("ProductionReleasedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("ProductionReleasedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("ProformaInvoicedAmount")
@@ -11498,7 +11559,94 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "SalesOrderNumber");
 
+                    b.HasIndex("TenantId", "CustomerId", "Status");
+
+                    b.HasIndex("TenantId", "Status", "OrderDate");
+
                     b.ToTable("sales_orders", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesOrderAllocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("AllocatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AllocatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<decimal>("AllocatedQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("AllocationStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("BatchNumber")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("");
+
+                    b.Property<int>("FinishedGoodId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReleaseRemarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("ReleasedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SalesOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SalesOrderItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<int>("WarehouseId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinishedGoodId");
+
+                    b.HasIndex("SalesOrderId");
+
+                    b.HasIndex("SalesOrderItemId");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.HasIndex("TenantId", "SalesOrderId", "AllocationStatus")
+                        .HasDatabaseName("ix_so_allocations_order_status");
+
+                    b.HasIndex("TenantId", "FinishedGoodId", "WarehouseId", "AllocationStatus")
+                        .HasDatabaseName("ix_so_allocations_lookup");
+
+                    b.ToTable("sales_order_allocations", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesOrderDocumentSequence", b =>
@@ -11572,6 +11720,12 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("AllocatedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -11606,6 +11760,12 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(9, 4)
                         .HasColumnType("numeric(9,4)");
 
+                    b.Property<decimal>("InvoicedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("ItemCode")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -11638,6 +11798,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<decimal>("OriginalSellingRate")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("PlaceOfSupplyStateCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("27");
 
                     b.Property<string>("PriceListNumberSnapshot")
                         .IsRequired()
@@ -14017,6 +14184,41 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("Quotation");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Sales.SalesOrderAllocation", b =>
+                {
+                    b.HasOne("ERP.Domain.Procurement.FinishedGood", "FinishedGood")
+                        .WithMany()
+                        .HasForeignKey("FinishedGoodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Sales.SalesOrder", "SalesOrder")
+                        .WithMany("Allocations")
+                        .HasForeignKey("SalesOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Sales.SalesOrderItem", "SalesOrderItem")
+                        .WithMany("Allocations")
+                        .HasForeignKey("SalesOrderItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Procurement.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FinishedGood");
+
+                    b.Navigation("SalesOrder");
+
+                    b.Navigation("SalesOrderItem");
+
+                    b.Navigation("Warehouse");
+                });
+
             modelBuilder.Entity("ERP.Domain.Sales.SalesOrderEmailHistory", b =>
                 {
                     b.HasOne("ERP.Domain.Sales.SalesOrder", "SalesOrder")
@@ -14439,11 +14641,18 @@ namespace Backend_ERP.Infrastructure.Migrations
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesOrder", b =>
                 {
+                    b.Navigation("Allocations");
+
                     b.Navigation("EmailHistory");
 
                     b.Navigation("Items");
 
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesOrderItem", b =>
+                {
+                    b.Navigation("Allocations");
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesTarget", b =>

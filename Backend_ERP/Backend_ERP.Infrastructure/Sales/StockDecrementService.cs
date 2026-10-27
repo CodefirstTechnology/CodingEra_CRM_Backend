@@ -33,9 +33,15 @@ namespace ERP.Infrastructure.Sales
                 .FirstOrDefaultAsync(so => so.Id == salesOrderId, cancellationToken)
                 ?? throw new InvalidOperationException($"Sales Order with ID {salesOrderId} not found.");
 
-            if (salesOrder.Status == SalesOrderStatuses.Completed)
+            var remainingToDispatchTotal = salesOrder.Items.Sum(i => Math.Max(0m, i.Quantity - i.DispatchedQuantity));
+            if (remainingToDispatchTotal <= 0)
             {
-                throw new InvalidOperationException($"Sales Order {salesOrder.SalesOrderNumber} has already been completed and dispatched.");
+                return new StockDeductionResultDto
+                {
+                    SalesOrderId = salesOrder.Id,
+                    SalesOrderNumber = salesOrder.SalesOrderNumber,
+                    CompletedAtUtc = DateTime.UtcNow
+                };
             }
 
             var result = new StockDeductionResultDto
@@ -51,27 +57,42 @@ namespace ERP.Infrastructure.Sales
                 if (remainingToDispatch <= 0)
                     continue;
 
-                var warehouseId = item.WarehouseId ?? 1;
+                var warehouseId = item.WarehouseId;
 
                 FinishedGood? fg = null;
                 if (item.ItemId.HasValue && item.ItemId.Value > 0)
                 {
                     fg = await _dbContext.FinishedGoods
-                        .FirstOrDefaultAsync(f => f.Id == item.ItemId.Value && f.WarehouseId == warehouseId, cancellationToken);
+                        .FirstOrDefaultAsync(f => f.Id == item.ItemId.Value && (!warehouseId.HasValue || f.WarehouseId == warehouseId.Value), cancellationToken)
+                        ?? await _dbContext.FinishedGoods.FirstOrDefaultAsync(f => f.Id == item.ItemId.Value, cancellationToken);
                 }
 
                 if (fg is null && !string.IsNullOrWhiteSpace(item.ItemCode))
                 {
                     var cleanCode = item.ItemCode.Trim().ToLower();
                     fg = await _dbContext.FinishedGoods
-                        .FirstOrDefaultAsync(f => f.ProductCode.ToLower() == cleanCode && f.WarehouseId == warehouseId, cancellationToken);
+                        .FirstOrDefaultAsync(f => f.ProductCode.ToLower() == cleanCode && (!warehouseId.HasValue || f.WarehouseId == warehouseId.Value), cancellationToken)
+                        ?? await _dbContext.FinishedGoods.FirstOrDefaultAsync(f => f.ProductCode.ToLower() == cleanCode, cancellationToken);
+                }
+
+                if (fg is null && !string.IsNullOrWhiteSpace(item.ItemName))
+                {
+                    var cleanName = item.ItemName.Trim().ToLower();
+                    fg = await _dbContext.FinishedGoods
+                        .FirstOrDefaultAsync(f => f.ProductName.ToLower() == cleanName && (!warehouseId.HasValue || f.WarehouseId == warehouseId.Value), cancellationToken)
+                        ?? await _dbContext.FinishedGoods.FirstOrDefaultAsync(f => f.ProductName.ToLower() == cleanName, cancellationToken);
                 }
 
                 if (fg is null)
                 {
                     throw new InvalidOperationException(
-                        $"Inventory dispatch error: Finished Good '{item.ItemName}' (Code: {item.ItemCode}) was not found in Warehouse ID {warehouseId}.");
+                        $"Inventory dispatch error: Finished Good '{item.ItemName}' (Code: '{item.ItemCode}') was not found in inventory.");
                 }
+
+                // Bind resolved finished good metadata to the sales order item if previously unbound
+                item.ItemId = fg.Id;
+                item.ItemCode = fg.ProductCode;
+                item.WarehouseId = fg.WarehouseId;
 
                 // Strict Prevention of Negative Inventory
                 if (fg.FinishedQuantity < remainingToDispatch)

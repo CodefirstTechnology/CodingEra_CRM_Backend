@@ -29,6 +29,10 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Common.Security.IErpWorkflowAuthorizationService, ERP.Infrastructure.Security.ErpWorkflowAuthorizationService>();
             services.AddScoped<ERP.Application.Dashboard.IDashboardService, ERP.Infrastructure.Dashboard.DashboardService>();
 
+            services.AddScoped<ISalesOrderAllocationService, SalesOrderAllocationService>();
+            services.AddScoped<ICustomerCreditAssessmentService, CustomerCreditAssessmentService>();
+            services.AddScoped<ISalesOrderAdvanceGateService, SalesOrderAdvanceGateService>();
+            services.AddScoped<IMtoProductionTriggerService, MtoProductionTriggerService>();
             services.AddScoped<ISalesOrderService, SalesOrderService>();
             services.AddScoped<IProformaInvoiceRepository, ProformaInvoiceRepository>();
             services.AddScoped<IProformaInvoiceService, ProformaInvoiceService>();
