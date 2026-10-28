@@ -675,6 +675,210 @@ namespace CRM.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Source-wise performance summary across configured lead sources from Master Data / Advanced Settings.
+        /// Provides counts, conversion funnels, values, and 12-month trend comparisons.
+        /// </summary>
+        [HttpGet("source-performance-summary")]
+        public async Task<IActionResult> GetSourcePerformanceSummary(
+            [FromQuery] int? year = null,
+            [FromQuery] string? source = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] int timeZoneOffsetMinutes = -330)
+        {
+            var offset = TimeSpan.FromMinutes(-timeZoneOffsetMinutes);
+            var nowLocal = DateTime.UtcNow.Add(offset);
+            var targetYear = year.HasValue && year.Value > 2000 && year.Value < 2100
+                ? year.Value
+                : nowLocal.Year;
+
+            // Fetch configured sources from master data (lead_sources)
+            var configuredMasterSources = await _context.LeadSources.AsNoTracking()
+                .Where(s => s.IsActive)
+                .OrderBy(s => s.SortOrder)
+                .Select(s => s.Name.Trim())
+                .ToListAsync();
+
+            if (configuredMasterSources.Count == 0)
+            {
+                configuredMasterSources = new List<string> { "Manual", "IndiaMART", "TradeIndia", "Justdial", "Website" };
+            }
+
+            var query = _context.VwLeadTrackers.AsNoTracking();
+
+            // Date filtering
+            if (fromDate.HasValue && toDate.HasValue)
+            {
+                var startUtc = DateTime.SpecifyKind(fromDate.Value.Date, DateTimeKind.Utc);
+                var endUtc = DateTime.SpecifyKind(toDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+                query = query.Where(r => r.LeadDate >= startUtc && r.LeadDate < endUtc);
+            }
+            else
+            {
+                var startOfYearLocal = new DateTime(targetYear, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+                var endOfYearLocal = new DateTime(targetYear + 1, 1, 1, 0, 0, 0, DateTimeKind.Unspecified);
+                var startOfYearUtc = DateTime.SpecifyKind(startOfYearLocal - offset, DateTimeKind.Utc);
+                var endOfYearUtc = DateTime.SpecifyKind(endOfYearLocal - offset, DateTimeKind.Utc);
+                query = query.Where(r => r.LeadDate >= startOfYearUtc && r.LeadDate < endOfYearUtc);
+            }
+
+            // Source filter
+            if (!string.IsNullOrWhiteSpace(source) && !source.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                var sTrim = source.Trim().ToLower();
+                query = query.Where(r => (r.LeadSource ?? "").ToLower() == sTrim);
+            }
+
+            var trackerRows = await query.ToListAsync();
+
+            // Distinct sources present in either master data or active leads
+            var allKnownSources = new HashSet<string>(configuredMasterSources, StringComparer.OrdinalIgnoreCase);
+            foreach (var r in trackerRows)
+            {
+                if (!string.IsNullOrWhiteSpace(r.LeadSource))
+                {
+                    allKnownSources.Add(r.LeadSource.Trim());
+                }
+            }
+
+            // Standardize source name lookup
+            string CanonicalizeSource(string? raw)
+            {
+                if (string.IsNullOrWhiteSpace(raw)) return "Manual";
+                var trimmed = raw.Trim();
+                var match = configuredMasterSources.FirstOrDefault(m => string.Equals(m, trimmed, StringComparison.OrdinalIgnoreCase));
+                return match ?? trimmed;
+            }
+
+            var sourceItems = new List<SourceSummaryItemDto>();
+            int grandTotalLeads = trackerRows.Count;
+
+            var groupedBySource = trackerRows
+                .GroupBy(r => CanonicalizeSource(r.LeadSource), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            // Populate all known sources (even if 0 leads)
+            foreach (var srcName in allKnownSources.OrderBy(s => configuredMasterSources.IndexOf(s) >= 0 ? configuredMasterSources.IndexOf(s) : 999))
+            {
+                groupedBySource.TryGetValue(srcName, out var rows);
+                rows ??= new List<LeadTrackerRow>();
+
+                int totalLeads = rows.Count;
+                int contacted = rows.Count(r => r.IsContacted);
+                int qualified = rows.Count(r => r.IsQualified);
+                int quotes = rows.Count(r => r.QuotationValue > 0m);
+                int won = rows.Count(r => r.Status == "Won");
+                int lost = rows.Count(r => r.Status == "Lost");
+                int open = rows.Count(r => r.Status == "Open");
+
+                decimal leadVal = rows.Sum(r => r.EstimatedLeadValue);
+                decimal quoteVal = rows.Sum(r => r.QuotationValue);
+                decimal wonVal = rows.Where(r => r.Status == "Won").Sum(r => r.OrderValue);
+
+                sourceItems.Add(new SourceSummaryItemDto
+                {
+                    SourceName = srcName,
+                    TotalLeads = totalLeads,
+                    ContactedLeads = contacted,
+                    QualifiedLeads = qualified,
+                    QuotationsCount = quotes,
+                    WonOrdersCount = won,
+                    LostCount = lost,
+                    OpenCount = open,
+                    TotalLeadValue = leadVal,
+                    TotalQuotedValue = quoteVal,
+                    TotalWonRevenue = wonVal,
+                    ContactPercentage = SafePercentage(contacted, totalLeads),
+                    QualificationPercentage = SafePercentage(qualified, totalLeads),
+                    LeadToQuotePercentage = SafePercentage(quotes, totalLeads),
+                    QuoteToOrderPercentage = SafePercentage(won, quotes),
+                    ConversionRate = SafePercentage(won, totalLeads),
+                    ShareOfTotalLeadsPercentage = grandTotalLeads > 0 ? Math.Round((double)totalLeads / grandTotalLeads * 100.0, 1) : 0.0
+                });
+            }
+
+            // Calculate Monthly Trends (12 calendar months of selected year)
+            var monthNames = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+            var monthlyTrends = new List<SourceMonthlyTrendDto>();
+
+            int GetLocalMonth(DateTime? utcDt)
+            {
+                if (!utcDt.HasValue) return 0;
+                var localDt = utcDt.Value.Add(offset);
+                return localDt.Month;
+            }
+
+            for (int m = 1; m <= 12; m++)
+            {
+                var mRows = trackerRows.Where(r => GetLocalMonth(r.LeadDate) == m).ToList();
+                int mTotal = mRows.Count;
+                int mQual = mRows.Count(r => r.IsQualified);
+                int mQuotes = mRows.Count(r => r.QuotationValue > 0m);
+                int mWon = mRows.Count(r => r.Status == "Won");
+
+                decimal mLeadVal = mRows.Sum(r => r.EstimatedLeadValue);
+                decimal mQuoteVal = mRows.Sum(r => r.QuotationValue);
+                decimal mWonVal = mRows.Where(r => r.Status == "Won").Sum(r => r.OrderValue);
+
+                var trend = new SourceMonthlyTrendDto
+                {
+                    MonthLabel = $"{monthNames[m - 1]}-{targetYear}",
+                    MonthNumber = m,
+                    Year = targetYear,
+                    TotalLeads = mTotal,
+                    QualifiedLeads = mQual,
+                    QuotationsCount = mQuotes,
+                    WonOrdersCount = mWon,
+                    LeadValue = mLeadVal,
+                    QuotationValue = mQuoteVal,
+                    WonRevenue = mWonVal
+                };
+
+                // Source distribution breakdown for this month
+                foreach (var srcName in allKnownSources)
+                {
+                    var sRows = mRows.Where(r => string.Equals(CanonicalizeSource(r.LeadSource), srcName, StringComparison.OrdinalIgnoreCase)).ToList();
+                    trend.SourceLeadCounts[srcName] = sRows.Count;
+                    trend.SourceWonRevenues[srcName] = sRows.Where(r => r.Status == "Won").Sum(r => r.OrderValue);
+                }
+
+                monthlyTrends.Add(trend);
+            }
+
+            var totals = new SourceSummaryTotalsDto
+            {
+                TotalLeads = sourceItems.Sum(s => s.TotalLeads),
+                ContactedLeads = sourceItems.Sum(s => s.ContactedLeads),
+                QualifiedLeads = sourceItems.Sum(s => s.QualifiedLeads),
+                QuotationsCount = sourceItems.Sum(s => s.QuotationsCount),
+                WonOrdersCount = sourceItems.Sum(s => s.WonOrdersCount),
+                LostCount = sourceItems.Sum(s => s.LostCount),
+                OpenCount = sourceItems.Sum(s => s.OpenCount),
+                TotalLeadValue = sourceItems.Sum(s => s.TotalLeadValue),
+                TotalQuotedValue = sourceItems.Sum(s => s.TotalQuotedValue),
+                TotalWonRevenue = sourceItems.Sum(s => s.TotalWonRevenue)
+            };
+
+            totals.AverageContactPercentage = SafePercentage(totals.ContactedLeads, totals.TotalLeads);
+            totals.AverageQualificationPercentage = SafePercentage(totals.QualifiedLeads, totals.TotalLeads);
+            totals.AverageLeadToQuotePercentage = SafePercentage(totals.QuotationsCount, totals.TotalLeads);
+            totals.AverageQuoteToOrderPercentage = SafePercentage(totals.WonOrdersCount, totals.QuotationsCount);
+            totals.OverallConversionRate = SafePercentage(totals.WonOrdersCount, totals.TotalLeads);
+
+            return Ok(new SourceSummaryResponseDto
+            {
+                SelectedYear = targetYear,
+                SelectedSource = source,
+                FromDate = fromDate,
+                ToDate = toDate,
+                ConfiguredSources = configuredMasterSources,
+                Sources = sourceItems,
+                MonthlyTrends = monthlyTrends,
+                Totals = totals
+            });
+        }
+
         private static double SafePercentage(double numerator, double denominator)
         {
             if (denominator <= 0) return 0.0;
