@@ -7866,6 +7866,12 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<uint>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -7890,8 +7896,10 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.Property<decimal>("ExchangeRate")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(18, 6)
-                        .HasColumnType("numeric(18,6)");
+                        .HasColumnType("numeric(18,6)")
+                        .HasDefaultValue(1.000000m);
 
                     b.Property<decimal>("ForfeitedAmount")
                         .ValueGeneratedOnAdd()
@@ -7921,6 +7929,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("Maharashtra");
+
+                    b.Property<string>("PlaceOfSupplyStateCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasDefaultValue("27");
 
                     b.Property<int?>("QuotationId")
                         .HasColumnType("integer");
@@ -7988,6 +8003,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
                     b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -8013,14 +8035,99 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasIndex("PaymentDate");
 
-                    b.HasIndex("PaymentNumber")
-                        .IsUnique();
-
                     b.HasIndex("SalesOrderId");
 
                     b.HasIndex("Status");
 
+                    b.HasIndex("TenantId", "PaymentNumber")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "RemainingAmount")
+                        .HasDatabaseName("ix_adv_payments_unadjusted_float")
+                        .HasFilter("\"RemainingAmount\" > 0 AND NOT \"IsDeleted\"");
+
+                    b.HasIndex("TenantId", "CustomerId", "Status")
+                        .HasDatabaseName("ix_adv_payments_tenant_cust_status");
+
+                    b.HasIndex("TenantId", "ReconciliationStatus", "PaymentDate")
+                        .HasDatabaseName("ix_adv_payments_reconciliation_scan");
+
+                    b.HasIndex("TenantId", "SalesOrderId", "Status")
+                        .HasDatabaseName("ix_adv_payments_tenant_so_status");
+
                     b.ToTable("advance_payments", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.AdvancePaymentAdjustment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AdjustedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly>("AdjustmentDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("AdvancePaymentId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ExchangeRateAtAdjustment")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(1.0000m);
+
+                    b.Property<string>("Gstr1VoucherRef")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("RealizedFxGainLoss")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0.00m);
+
+                    b.Property<string>("Remarks")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int?>("SalesInvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdvancePaymentId");
+
+                    b.HasIndex("TenantId", "AdvancePaymentId", "SalesInvoiceId")
+                        .HasDatabaseName("ix_adv_adj_payment_invoice");
+
+                    b.ToTable("advance_payment_adjustments", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.AdvancePaymentApplication", b =>
@@ -8083,7 +8190,16 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("AdvancePaymentId");
 
                     b.HasIndex("AppliedOn");
 
@@ -8091,7 +8207,7 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasIndex("SalesOrderId");
 
-                    b.HasIndex("AdvancePaymentId", "SalesOrderId");
+                    b.HasIndex("TenantId", "AdvancePaymentId", "SalesOrderId");
 
                     b.ToTable("advance_payment_applications", (string)null);
                 });
@@ -8169,6 +8285,11 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)");
 
+                    b.Property<bool>("IsAdjusted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsInterState")
                         .HasColumnType("boolean");
 
@@ -8176,6 +8297,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PlaceOfSupplyStateCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasDefaultValue("27");
 
                     b.Property<decimal>("SgstAmount")
                         .HasPrecision(18, 2)
@@ -8188,6 +8316,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<decimal>("TaxableAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
 
                     b.Property<decimal>("TotalVoucherAmount")
                         .HasPrecision(18, 2)
@@ -8205,7 +8340,7 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasIndex("AdvancePaymentId");
 
-                    b.HasIndex("VoucherNumber")
+                    b.HasIndex("TenantId", "VoucherNumber")
                         .IsUnique();
 
                     b.ToTable("advance_payment_receipt_vouchers", (string)null);
@@ -14053,6 +14188,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("SalesOrder");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Sales.AdvancePaymentAdjustment", b =>
+                {
+                    b.HasOne("ERP.Domain.Sales.AdvancePayment", "AdvancePayment")
+                        .WithMany("Adjustments")
+                        .HasForeignKey("AdvancePaymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdvancePayment");
+                });
+
             modelBuilder.Entity("ERP.Domain.Sales.AdvancePaymentApplication", b =>
                 {
                     b.HasOne("ERP.Domain.Sales.AdvancePayment", "AdvancePayment")
@@ -14792,6 +14938,8 @@ namespace Backend_ERP.Infrastructure.Migrations
 
             modelBuilder.Entity("ERP.Domain.Sales.AdvancePayment", b =>
                 {
+                    b.Navigation("Adjustments");
+
                     b.Navigation("Applications");
 
                     b.Navigation("ReceiptVouchers");

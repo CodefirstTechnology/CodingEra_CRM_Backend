@@ -421,12 +421,14 @@ namespace ERP.Infrastructure.Sales
                 return await _db.AdvancePayments
                     .FromSqlRaw(@"SELECT * FROM advance_payments WHERE ""Id"" = {0} AND ""IsDeleted"" = false FOR UPDATE", id)
                     .Include(x => x.Applications)
+                    .Include(x => x.Adjustments)
                     .Include(x => x.Timeline)
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
             return await _db.AdvancePayments
                 .Include(x => x.Applications)
+                .Include(x => x.Adjustments)
                 .Include(x => x.Timeline)
                 .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
         }
@@ -450,21 +452,6 @@ namespace ERP.Infrastructure.Sales
             string actingUser,
             CancellationToken cancellationToken = default)
         {
-            var isRelational = _db.Database.IsRelational();
-            await using var tx = isRelational ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
-
-            var entity = await LockAdvancePaymentAsync(id, cancellationToken);
-            if (entity is null)
-            {
-                return null;
-            }
-
-            if (!AdvancePaymentStatusRules.CanApply(entity.Status))
-            {
-                throw new InvalidOperationException(
-                    $"Cannot apply payment from status '{entity.Status}'. Payment must be Received or PartiallyApplied.");
-            }
-
             var lines = request.Lines != null && request.Lines.Count > 0
                 ? request.Lines
                 : new List<AdvancePaymentApplyLineDto>
@@ -481,6 +468,41 @@ namespace ERP.Infrastructure.Sales
             if (lines.Count == 0)
             {
                 throw new InvalidOperationException("At least one sales order allocation line is required.");
+            }
+
+            var isRelational = _db.Database.IsRelational();
+            await using var tx = isRelational ? await _db.Database.BeginTransactionAsync(cancellationToken) : null;
+
+            // Deterministic Row Locking: Parent Sales Order(s) FIRST
+            var salesOrderIds = lines
+                .Select(l => l.SalesOrderId)
+                .Where(soId => soId > 0)
+                .Distinct()
+                .OrderBy(soId => soId)
+                .ToList();
+
+            var lockedSalesOrders = new Dictionary<int, SalesOrder>();
+            foreach (var soId in salesOrderIds)
+            {
+                var so = await LockSalesOrderAsync(soId, cancellationToken);
+                if (so is null)
+                {
+                    throw new InvalidOperationException($"Sales order '{soId}' not found.");
+                }
+                lockedSalesOrders[soId] = so;
+            }
+
+            // Deterministic Row Locking: Advance Payment SECOND
+            var entity = await LockAdvancePaymentAsync(id, cancellationToken);
+            if (entity is null)
+            {
+                return null;
+            }
+
+            if (!AdvancePaymentStatusRules.CanApply(entity.Status))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot apply payment from status '{entity.Status}'. Payment must be Received or PartiallyApplied.");
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -505,12 +527,7 @@ namespace ERP.Infrastructure.Sales
                         $"Apply amount {applyAmount} exceeds remaining amount {entity.RemainingAmount}.");
                 }
 
-                var salesOrder = await LockSalesOrderAsync(line.SalesOrderId, cancellationToken);
-                if (salesOrder is null)
-                {
-                    throw new InvalidOperationException($"Sales order '{line.SalesOrderId}' not found.");
-                }
-
+                var salesOrder = lockedSalesOrders[line.SalesOrderId];
                 var orderPayableBalance = AdvancePaymentCalculator.Round2(salesOrder.GrandTotal - salesOrder.AdvanceAllocatedAmount);
                 if (applyAmount > orderPayableBalance)
                 {

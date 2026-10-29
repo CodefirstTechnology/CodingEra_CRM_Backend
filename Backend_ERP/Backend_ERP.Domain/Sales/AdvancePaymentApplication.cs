@@ -4,6 +4,8 @@ namespace ERP.Domain.Sales
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public int AdvancePaymentId { get; set; }
 
         public AdvancePayment AdvancePayment { get; set; } = null!;

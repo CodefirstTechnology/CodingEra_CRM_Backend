@@ -17,18 +17,29 @@ namespace ERP.API.Controllers
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
         private readonly IErpWorkflowAuthorizationService _workflowAuthService;
+        private readonly IAdvancePaymentSettlementService _settlement;
+        private readonly IAdvancePaymentDashboardService _dashboardService;
+        private readonly IAdvancePaymentReportService _reportService;
 
         public AdvancePaymentsController(
             IAdvancePaymentService service,
             ICurrentUser currentUser,
             IErpAuthorizationService authService,
-            IErpWorkflowAuthorizationService workflowAuthService)
+            IErpWorkflowAuthorizationService workflowAuthService,
+            IAdvancePaymentSettlementService settlement,
+            IAdvancePaymentDashboardService dashboardService,
+            IAdvancePaymentReportService reportService)
         {
             _service = service;
             _currentUser = currentUser;
             _authService = authService;
             _workflowAuthService = workflowAuthService;
+            _settlement = settlement;
+            _dashboardService = dashboardService;
+            _reportService = reportService;
         }
+
+        // ─── List & Ledger ────────────────────────────────────────────────────────
 
         [HttpGet]
         public async Task<ActionResult<IReadOnlyList<AdvancePaymentListItemDto>>> GetAll(
@@ -54,7 +65,9 @@ namespace ERP.API.Controllers
 
             if (_currentUser.Scope == AccessScope.Own)
             {
-                rows = rows.Where(x => _authService.CanAccessRecord(x.CustomerName) || _authService.CanAccessRecord(x.PaymentNumber) || true /* fallback to service/creation filtering */).ToList();
+                rows = rows.Where(x => _authService.CanAccessRecord(x.CustomerName)
+                                    || _authService.CanAccessRecord(x.PaymentNumber)
+                                    || true).ToList();
             }
 
             return Ok(rows);
@@ -81,6 +94,11 @@ namespace ERP.API.Controllers
             }, cancellationToken));
         }
 
+        // ─── Dashboard ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// GET /api/advance-payments/dashboard — existing aggregate dashboard (via IAdvancePaymentService).
+        /// </summary>
         [HttpGet("dashboard")]
         public async Task<ActionResult<AdvancePaymentDashboardDto>> Dashboard(
             [FromQuery] int? userId,
@@ -90,6 +108,25 @@ namespace ERP.API.Controllers
             return Ok(await _service.GetDashboardAsync(cancellationToken));
         }
 
+        /// <summary>
+        /// GET /api/advance-payments/dashboard/kpis — Redis-cached telemetry KPIs (5-min TTL).
+        /// </summary>
+        [HttpGet("dashboard/kpis")]
+        public async Task<ActionResult<AdvancePaymentDashboardKpiDto>> DashboardKpis(
+            [FromQuery] string? tenantId,
+            CancellationToken cancellationToken)
+        {
+            var dto = await _dashboardService.GetDashboardKpisAsync(
+                tenantId ?? "default",
+                cancellationToken);
+            return Ok(dto);
+        }
+
+        // ─── Reports ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// GET /api/advance-payments/reports — existing full report (via IAdvancePaymentService).
+        /// </summary>
         [HttpGet("reports")]
         public async Task<ActionResult<AdvancePaymentReportDto>> Reports(
             [FromQuery] string? search,
@@ -109,6 +146,36 @@ namespace ERP.API.Controllers
             }, cancellationToken));
         }
 
+        /// <summary>
+        /// GET /api/advance-payments/reports/aging — unadjusted float 4-bucket aging schedule.
+        /// </summary>
+        [HttpGet("reports/aging")]
+        public async Task<ActionResult<AdvancePaymentAgingReportDto>> AgingReport(
+            [FromQuery] string? tenantId,
+            CancellationToken cancellationToken)
+        {
+            var dto = await _reportService.GetAgingScheduleReportAsync(
+                tenantId ?? "default",
+                cancellationToken);
+            return Ok(dto);
+        }
+
+        /// <summary>
+        /// GET /api/advance-payments/reports/gstr1-table11 — GSTR-1 Table 11A/11B statutory audit.
+        /// </summary>
+        [HttpGet("reports/gstr1-table11")]
+        public async Task<ActionResult<Gstr1Table11ReportDto>> Gstr1Table11Report(
+            [FromQuery] string? monthYear,
+            [FromQuery] string? tenantId,
+            CancellationToken cancellationToken)
+        {
+            var dto = await _reportService.GetGstr1Table11ReportAsync(
+                monthYear,
+                tenantId ?? "default",
+                cancellationToken);
+            return Ok(dto);
+        }
+
         [HttpPost("reports/export")]
         [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
         public async Task<ActionResult<AdvancePaymentExportMetadataDto>> ExportReports(
@@ -119,6 +186,8 @@ namespace ERP.API.Controllers
             _ = userId;
             return Ok(await _service.ExportReportsAsync(request, cancellationToken));
         }
+
+        // ─── Permissions & Lookups ────────────────────────────────────────────────
 
         [HttpGet("permissions")]
         public async Task<ActionResult<IReadOnlyList<string>>> Permissions([FromQuery] int? userId)
@@ -154,6 +223,8 @@ namespace ERP.API.Controllers
             return Ok(await _service.LookupQuotationsAsync(cancellationToken));
         }
 
+        // ─── CRUD ─────────────────────────────────────────────────────────────────
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult<AdvancePaymentDto>> GetById(
             int id,
@@ -166,7 +237,8 @@ namespace ERP.API.Controllers
 
             if (!_authService.CanAccessRecord(row.CreatedBy))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to this advance payment." });
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { message = "You do not have access to this advance payment." });
             }
 
             return Ok(row);
@@ -205,7 +277,8 @@ namespace ERP.API.Controllers
 
                 if (!_workflowAuthService.CanEditAdvancePayment(existing.Status, existing.CreatedBy))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot modify this advance payment in its current workflow state." });
+                    return StatusCode(StatusCodes.Status403Forbidden,
+                        new { message = "You cannot modify this advance payment in its current workflow state." });
                 }
 
                 var updated = await _service.UpdateAsync(id, request, ResolveActingUser(userId), cancellationToken);
@@ -235,6 +308,8 @@ namespace ERP.API.Controllers
             }
         }
 
+        // ─── Workflow Transitions ─────────────────────────────────────────────────
+
         [HttpPost("{id:int}/submit")]
         [RequirePermission(ErpPermissions.AdvancePayments.Create)]
         public async Task<ActionResult<AdvancePaymentDto>> Submit(
@@ -248,7 +323,8 @@ namespace ERP.API.Controllers
 
             if (!_workflowAuthService.CanSubmitAdvancePayment(existing.Status, existing.CreatedBy))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot submit this advance payment in its current workflow state." });
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { message = "You cannot submit this advance payment in its current workflow state." });
             }
 
             return await Workflow(id, request, userId, _service.SubmitAsync, cancellationToken);
@@ -267,7 +343,8 @@ namespace ERP.API.Controllers
 
             if (!_workflowAuthService.CanVerifyAdvancePayment(existing.Status))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot verify this advance payment in its current workflow state." });
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { message = "You cannot verify this advance payment in its current workflow state." });
             }
 
             return await Workflow(id, request, userId, _service.VerifyAsync, cancellationToken);
@@ -286,7 +363,8 @@ namespace ERP.API.Controllers
 
             if (!_workflowAuthService.CanReceiveAdvancePayment(existing.Status))
             {
-                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot receive this advance payment in its current workflow state." });
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { message = "You cannot receive this advance payment in its current workflow state." });
             }
 
             return await Workflow(id, request, userId, _service.ReceiveAsync, cancellationToken);
@@ -314,6 +392,95 @@ namespace ERP.API.Controllers
             return await Workflow(id, request, userId, _service.CancelAsync, cancellationToken);
         }
 
+        // ─── BRS Clearance & Dishonour (Settlement Service) ──────────────────────
+
+        /// <summary>
+        /// POST /api/advance-payments/{id}/clear — BRS instrument clearance gate unlock.
+        /// Validates bank statement reference, transitions to Cleared, generates GSTR-1 receipt voucher
+        /// if absent, and synchronises Two-Tier operational release gates on linked Sales Orders.
+        /// </summary>
+        [HttpPost("{id:int}/clear")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
+        public async Task<ActionResult<AdvancePaymentDto>> Clear(
+            int id,
+            [FromBody] AdvancePaymentClearRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var dto = await _settlement.ClearPaymentAsync(id, request, ResolveActingUser(userId), cancellationToken);
+                return Ok(dto);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        /// <summary>
+        /// POST /api/advance-payments/{id}/dishonor — BRS bounce rollback.
+        /// Atomically reverses all child allocations, decrements SO.AdvanceAllocatedAmount,
+        /// and trips IsDispatchReleased = false / IsProductionReleased = false (if below 30%).
+        /// </summary>
+        [HttpPost("{id:int}/dishonor")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
+        public async Task<ActionResult<AdvancePaymentDto>> Dishonor(
+            int id,
+            [FromBody] AdvancePaymentDishonorRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var dto = await _settlement.DishonorPaymentAsync(id, request, ResolveActingUser(userId), cancellationToken);
+                return Ok(dto);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        // ─── Tax Invoice Adjustment ───────────────────────────────────────────────
+
+        /// <summary>
+        /// POST /api/advance-payments/adjust — settle advance against a Tax Invoice.
+        /// Calculates Realized FX Gain/Loss, marks receipt voucher as Adjusted,
+        /// and populates Gstr1VoucherRef for GSTR-1 Table 11B offset.
+        /// </summary>
+        [HttpPost("adjust")]
+        [RequirePermission(ErpPermissions.AdvancePayments.Apply)]
+        public async Task<ActionResult<AdvancePaymentAdjustmentDto>> AdjustAgainstTaxInvoice(
+            [FromBody] AdvancePaymentAdjustmentRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var dto = await _settlement.AdjustAgainstTaxInvoiceAsync(request, ResolveActingUser(userId), cancellationToken);
+                return Ok(dto);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
+        }
+
+        // ─── Sales Order Allocation ───────────────────────────────────────────────
+
         [HttpGet("sales-orders")]
         [RequirePermission(ErpPermissions.AdvancePayments.View)]
         public async Task<ActionResult<IReadOnlyList<AdvancePaymentAvailableSalesOrderDto>>> GetAvailableSalesOrders(
@@ -339,7 +506,8 @@ namespace ERP.API.Controllers
 
                 if (!_workflowAuthService.CanApplyAdvancePayment(existing.Status, existing.RemainingAmount, existing.CreatedBy))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, new { message = "You cannot apply this advance payment in its current workflow state." });
+                    return StatusCode(StatusCodes.Status403Forbidden,
+                        new { message = "You cannot apply this advance payment in its current workflow state." });
                 }
 
                 var updated = await _service.ApplyAsync(id, request, ResolveActingUser(userId), cancellationToken);
@@ -372,6 +540,8 @@ namespace ERP.API.Controllers
                 return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
+
+        // ─── Refund & Forfeiture ──────────────────────────────────────────────────
 
         [HttpPost("{id:int}/refund")]
         [RequirePermission(ErpPermissions.AdvancePayments.Verify)]
@@ -416,6 +586,8 @@ namespace ERP.API.Controllers
                 return ValidationProblem(detail: ex.Message, statusCode: StatusCodes.Status400BadRequest);
             }
         }
+
+        // ─── Vouchers & History ───────────────────────────────────────────────────
 
         [HttpGet("{id:int}/receipt-vouchers")]
         public async Task<ActionResult<IReadOnlyList<ReceiptVoucherDto>>> GetReceiptVouchers(
@@ -467,6 +639,8 @@ namespace ERP.API.Controllers
             var rows = await _service.GetTimelineAsync(id, cancellationToken);
             return rows is null ? NotFound() : Ok(rows);
         }
+
+        // ─── Private helpers ──────────────────────────────────────────────────────
 
         private async Task<ActionResult<AdvancePaymentDto>> Workflow(
             int id,

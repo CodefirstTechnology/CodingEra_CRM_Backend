@@ -6,6 +6,8 @@ namespace ERP.Domain.Sales
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public string VoucherNumber { get; set; } = string.Empty;
 
         public int AdvancePaymentId { get; set; }
@@ -17,6 +19,8 @@ namespace ERP.Domain.Sales
         public string CustomerName { get; set; } = string.Empty;
 
         public string PlaceOfSupply { get; set; } = string.Empty;
+
+        public string PlaceOfSupplyStateCode { get; set; } = "27";
 
         public bool IsInterState { get; set; }
 
@@ -37,6 +41,8 @@ namespace ERP.Domain.Sales
         public decimal TotalVoucherAmount { get; set; }
 
         public DateOnly VoucherDate { get; set; }
+
+        public bool IsAdjusted { get; set; } = false;
 
         public DateTimeOffset CreatedDate { get; set; } = DateTimeOffset.UtcNow;
 

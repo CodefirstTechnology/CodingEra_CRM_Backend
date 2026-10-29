@@ -1,4 +1,4 @@
-using ERP.Application.Sales.Dtos;
+﻿using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
 using ERP.Shared.Helpers;
 
@@ -6,7 +6,7 @@ namespace ERP.Infrastructure.Sales
 {
     internal static class AdvancePaymentMapper
     {
-        // Delegated to shared DateHelper — kept for backward-compat callsites in this class
+        // Delegated to shared DateHelper â€” kept for backward-compat callsites in this class
         private static string FormatDate(DateOnly date) => DateHelper.FormatDate(date);
         private static string FormatDateTime(DateTimeOffset value) => DateHelper.FormatDateTime(value);
         public static string? FormatOptionalDateTime(DateTimeOffset? value) =>
@@ -35,6 +35,7 @@ namespace ERP.Infrastructure.Sales
             AppliedAmount = e.AppliedAmount,
             RemainingAmount = e.RemainingAmount,
             Status = e.Status,
+            ReconciliationStatus = e.ReconciliationStatus,
             ReferenceNumber = e.ReferenceNumber
         };
 
@@ -50,6 +51,7 @@ namespace ERP.Infrastructure.Sales
             AppliedAmount = e.AppliedAmount,
             RemainingAmount = e.RemainingAmount,
             Status = e.Status,
+            ReconciliationStatus = e.ReconciliationStatus,
             ReferenceNumber = e.ReferenceNumber,
             SalesOrderNumber = e.SalesOrderNumber,
             QuotationNumber = e.QuotationNumber
@@ -102,6 +104,7 @@ namespace ERP.Infrastructure.Sales
             CreatedDate = FormatDateTime(e.CreatedDate),
             UpdatedBy = e.UpdatedBy,
             UpdatedDate = FormatDateTime(e.UpdatedDate),
+            ConcurrencyVersion = e.ConcurrencyVersion,
             Applications = e.Applications
                 .OrderBy(a => a.AppliedOn)
                 .Select(a => new AdvancePaymentApplicationDto
@@ -119,6 +122,10 @@ namespace ERP.Infrastructure.Sales
                     AppliedBy = a.AppliedBy,
                     AppliedOn = FormatDateTime(a.AppliedOn)
                 }).ToList(),
+            Adjustments = e.Adjustments
+                .OrderByDescending(adj => adj.CreatedDate)
+                .Select(ToAdjustmentDto)
+                .ToList(),
             Timeline = e.Timeline
                 .OrderBy(t => t.PerformedOn)
                 .Select(ToTimelineDto)
@@ -131,6 +138,22 @@ namespace ERP.Infrastructure.Sales
                 .OrderByDescending(v => v.CreatedDate)
                 .Select(ToRefundVoucherDto)
                 .ToList()
+        };
+
+        public static AdvancePaymentAdjustmentDto ToAdjustmentDto(AdvancePaymentAdjustment a) => new()
+        {
+            Id = a.Id,
+            AdvancePaymentId = a.AdvancePaymentId,
+            SalesInvoiceId = a.SalesInvoiceId,
+            InvoiceNumber = a.InvoiceNumber,
+            AdjustedAmount = a.AdjustedAmount,
+            AdjustmentDate = FormatDate(a.AdjustmentDate),
+            ExchangeRateAtAdjustment = a.ExchangeRateAtAdjustment,
+            RealizedFxGainLoss = a.RealizedFxGainLoss,
+            Gstr1VoucherRef = a.Gstr1VoucherRef,
+            Remarks = a.Remarks,
+            CreatedDate = FormatDateTime(a.CreatedDate),
+            CreatedBy = a.CreatedBy
         };
 
         public static ReceiptVoucherDto ToReceiptVoucherDto(AdvancePaymentReceiptVoucher v) => new()

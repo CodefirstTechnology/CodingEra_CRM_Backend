@@ -11,8 +11,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("advance_payments");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
             builder.Property(x => x.PaymentNumber).HasMaxLength(64).IsRequired();
-            builder.HasIndex(x => x.PaymentNumber).IsUnique();
+            builder.HasIndex(x => new { x.TenantId, x.PaymentNumber }).IsUnique();
 
             builder.Property(x => x.CustomerId).HasMaxLength(64).IsRequired();
             builder.Property(x => x.CustomerName).HasMaxLength(256).IsRequired();
@@ -21,7 +22,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.PaymentMode).HasMaxLength(64).IsRequired();
             builder.Property(x => x.ReferenceNumber).HasMaxLength(128).IsRequired();
             builder.Property(x => x.Currency).HasMaxLength(8).IsRequired();
-            builder.Property(x => x.ExchangeRate).HasPrecision(18, 6);
+            builder.Property(x => x.ExchangeRate).HasPrecision(18, 6).HasDefaultValue(1.000000m);
             builder.Property(x => x.AdvanceAmount).HasPrecision(18, 2);
             builder.Property(x => x.AppliedAmount).HasPrecision(18, 2);
             builder.Property(x => x.RemainingAmount).HasPrecision(18, 2);
@@ -32,6 +33,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.ReconciliationStatus).HasMaxLength(32).HasDefaultValue("Unreconciled");
             builder.Property(x => x.BankStatementReference).HasMaxLength(100);
             builder.Property(x => x.PlaceOfSupply).HasMaxLength(50).HasDefaultValue("Maharashtra");
+            builder.Property(x => x.PlaceOfSupplyStateCode).HasMaxLength(4).HasDefaultValue("27");
             builder.Property(x => x.Status).HasMaxLength(64).IsRequired();
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.AttachmentName).HasMaxLength(512);
@@ -40,12 +42,29 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.CreatedBy).HasMaxLength(64);
             builder.Property(x => x.UpdatedBy).HasMaxLength(64);
 
+            // Optimistic Concurrency Token via PostgreSQL xmin
+            builder.Property(x => x.ConcurrencyVersion).IsRowVersion();
+
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.PaymentDate);
             builder.HasIndex(x => x.CustomerName);
             builder.HasIndex(x => x.IsDeleted);
             builder.HasIndex(x => x.SalesOrderId);
             builder.HasIndex(x => x.BankAccountId);
+
+            // Composite Indexes
+            builder.HasIndex(x => new { x.TenantId, x.CustomerId, x.Status })
+                .HasDatabaseName("ix_adv_payments_tenant_cust_status");
+
+            builder.HasIndex(x => new { x.TenantId, x.SalesOrderId, x.Status })
+                .HasDatabaseName("ix_adv_payments_tenant_so_status");
+
+            builder.HasIndex(x => new { x.TenantId, x.ReconciliationStatus, x.PaymentDate })
+                .HasDatabaseName("ix_adv_payments_reconciliation_scan");
+
+            builder.HasIndex(x => new { x.TenantId, x.RemainingAmount })
+                .HasDatabaseName("ix_adv_payments_unadjusted_float")
+                .HasFilter("\"RemainingAmount\" > 0 AND NOT \"IsDeleted\"");
 
             builder.HasOne(x => x.SalesOrder)
                 .WithMany()
@@ -58,6 +77,11 @@ namespace ERP.Infrastructure.Data.Configurations
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(x => x.Applications)
+                .WithOne(x => x.AdvancePayment)
+                .HasForeignKey(x => x.AdvancePaymentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(x => x.Adjustments)
                 .WithOne(x => x.AdvancePayment)
                 .HasForeignKey(x => x.AdvancePaymentId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -86,6 +110,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("advance_payment_applications");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
             builder.Property(x => x.SalesOrderNumber).HasMaxLength(64).IsRequired();
             builder.Property(x => x.ApplyAmount).HasPrecision(18, 2);
             builder.Property(x => x.ExchangeRateAtAllocation).HasPrecision(18, 4).HasDefaultValue(1.0000m);
@@ -95,7 +120,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.AppliedBy).HasMaxLength(64);
 
-            builder.HasIndex(x => new { x.AdvancePaymentId, x.SalesOrderId });
+            builder.HasIndex(x => new { x.TenantId, x.AdvancePaymentId, x.SalesOrderId });
             builder.HasIndex(x => x.SalesOrderId);
             builder.HasIndex(x => x.AppliedOn);
             builder.HasIndex(x => x.OriginalApplicationId);
@@ -107,6 +132,27 @@ namespace ERP.Infrastructure.Data.Configurations
         }
     }
 
+    public class AdvancePaymentAdjustmentConfiguration : IEntityTypeConfiguration<AdvancePaymentAdjustment>
+    {
+        public void Configure(EntityTypeBuilder<AdvancePaymentAdjustment> builder)
+        {
+            builder.ToTable("advance_payment_adjustments");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
+            builder.Property(x => x.InvoiceNumber).HasMaxLength(64).IsRequired();
+            builder.Property(x => x.AdjustedAmount).HasPrecision(18, 2).IsRequired();
+            builder.Property(x => x.ExchangeRateAtAdjustment).HasPrecision(18, 4).HasDefaultValue(1.0000m);
+            builder.Property(x => x.RealizedFxGainLoss).HasPrecision(18, 2).HasDefaultValue(0.00m);
+            builder.Property(x => x.Gstr1VoucherRef).HasMaxLength(64);
+            builder.Property(x => x.Remarks).HasMaxLength(2000);
+            builder.Property(x => x.CreatedBy).HasMaxLength(128).IsRequired();
+
+            builder.HasIndex(x => new { x.TenantId, x.AdvancePaymentId, x.SalesInvoiceId })
+                .HasDatabaseName("ix_adv_adj_payment_invoice");
+        }
+    }
+
     public class AdvancePaymentReceiptVoucherConfiguration : IEntityTypeConfiguration<AdvancePaymentReceiptVoucher>
     {
         public void Configure(EntityTypeBuilder<AdvancePaymentReceiptVoucher> builder)
@@ -114,11 +160,13 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("advance_payment_receipt_vouchers");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasMaxLength(64).HasDefaultValue("default").IsRequired();
             builder.Property(x => x.VoucherNumber).HasMaxLength(32).IsRequired();
-            builder.HasIndex(x => x.VoucherNumber).IsUnique();
+            builder.HasIndex(x => new { x.TenantId, x.VoucherNumber }).IsUnique();
 
             builder.Property(x => x.CustomerName).HasMaxLength(200);
             builder.Property(x => x.PlaceOfSupply).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.PlaceOfSupplyStateCode).HasMaxLength(4).HasDefaultValue("27");
             builder.Property(x => x.TaxableAmount).HasPrecision(18, 2);
             builder.Property(x => x.CgstRate).HasPrecision(5, 2);
             builder.Property(x => x.CgstAmount).HasPrecision(18, 2);
@@ -127,6 +175,7 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.IgstRate).HasPrecision(5, 2);
             builder.Property(x => x.IgstAmount).HasPrecision(18, 2);
             builder.Property(x => x.TotalVoucherAmount).HasPrecision(18, 2);
+            builder.Property(x => x.IsAdjusted).HasDefaultValue(false);
             builder.Property(x => x.CreatedBy).HasMaxLength(100).IsRequired();
 
             builder.HasIndex(x => x.AdvancePaymentId);

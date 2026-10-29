@@ -12,6 +12,8 @@ namespace ERP.Domain.Sales
         public const string Forfeited = "Forfeited";
         public const string Cancelled = "Cancelled";
         public const string Rejected = "Rejected";
+        public const string Cleared = "Cleared";
+        public const string Dishonored = "Dishonored";
 
         public static readonly string[] All =
         [
@@ -24,7 +26,9 @@ namespace ERP.Domain.Sales
             Refunded,
             Forfeited,
             Cancelled,
-            Rejected
+            Rejected,
+            Cleared,
+            Dishonored
         ];
     }
 
@@ -63,6 +67,9 @@ namespace ERP.Domain.Sales
         public const string Reversed = "Reversed";
         public const string Refunded = "Refunded";
         public const string Forfeited = "Forfeited";
+        public const string Cleared = "Cleared";
+        public const string Dishonored = "Dishonored";
+        public const string Adjusted = "Adjusted";
         public const string Deleted = "Deleted";
     }
 }

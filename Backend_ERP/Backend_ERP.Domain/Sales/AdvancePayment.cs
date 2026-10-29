@@ -4,6 +4,8 @@ namespace ERP.Domain.Sales
     {
         public int Id { get; set; }
 
+        public string TenantId { get; set; } = "default";
+
         public string PaymentNumber { get; set; } = string.Empty;
 
         public string CustomerId { get; set; } = string.Empty;
@@ -52,6 +54,8 @@ namespace ERP.Domain.Sales
 
         public string PlaceOfSupply { get; set; } = "Maharashtra";
 
+        public string PlaceOfSupplyStateCode { get; set; } = "27";
+
         public string? RefundReferenceNumber { get; set; }
 
         public string? RefundProcessedBy { get; set; }
@@ -82,8 +86,13 @@ namespace ERP.Domain.Sales
 
         public bool IsDeleted { get; set; }
 
+        public uint ConcurrencyVersion { get; set; }
+
         public ICollection<AdvancePaymentApplication> Applications { get; set; } =
             new List<AdvancePaymentApplication>();
+
+        public ICollection<AdvancePaymentAdjustment> Adjustments { get; set; } =
+            new List<AdvancePaymentAdjustment>();
 
         public ICollection<AdvancePaymentTimeline> Timeline { get; set; } =
             new List<AdvancePaymentTimeline>();

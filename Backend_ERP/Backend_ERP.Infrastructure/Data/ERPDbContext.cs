@@ -47,6 +47,8 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<AdvancePaymentRefundVoucher> AdvancePaymentRefundVouchers => Set<AdvancePaymentRefundVoucher>();
 
+        public DbSet<AdvancePaymentAdjustment> AdvancePaymentAdjustments => Set<AdvancePaymentAdjustment>();
+
         public DbSet<SalesTarget> SalesTargets => Set<SalesTarget>();
 
         public DbSet<SalesTargetAssignment> SalesTargetAssignments => Set<SalesTargetAssignment>();

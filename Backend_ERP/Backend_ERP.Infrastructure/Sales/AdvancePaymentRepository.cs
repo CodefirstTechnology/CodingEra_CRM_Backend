@@ -42,7 +42,8 @@ namespace ERP.Infrastructure.Sales
                     .Include(x => x.Timeline)
                     .Include(x => x.BankAccount)
                     .Include(x => x.ReceiptVouchers)
-                    .Include(x => x.RefundVouchers);
+                    .Include(x => x.RefundVouchers)
+                    .Include(x => x.Adjustments);
             }
 
             if (!asTracking)
