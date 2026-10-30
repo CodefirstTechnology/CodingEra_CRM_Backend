@@ -74,7 +74,7 @@ public class SalesTargetPhase1Tests
         db.SalesOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var handler = new SalesOrderConfirmedEventHandler(db);
+        var handler = SalesOrderConfirmedEventHandler.CreateForTest(db);
         await handler.Handle(new SalesOrderConfirmedDomainEvent(order), default);
 
         var updated = await db.SalesTargets
@@ -123,7 +123,7 @@ public class SalesTargetPhase1Tests
         db.SalesOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var handler = new SalesOrderConfirmedEventHandler(db);
+        var handler = SalesOrderConfirmedEventHandler.CreateForTest(db);
         // First emit
         await handler.Handle(new SalesOrderConfirmedDomainEvent(order), default);
         // Duplicate emit
@@ -168,7 +168,7 @@ public class SalesTargetPhase1Tests
         db.SalesOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var confirmHandler = new SalesOrderConfirmedEventHandler(db);
+        var confirmHandler = SalesOrderConfirmedEventHandler.CreateForTest(db);
         await confirmHandler.Handle(new SalesOrderConfirmedDomainEvent(order), default);
 
         var cancelHandler = new SalesOrderCancelledEventHandler(db);

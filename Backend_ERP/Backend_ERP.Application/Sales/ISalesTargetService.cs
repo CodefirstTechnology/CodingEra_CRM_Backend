@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using ERP.Application.Sales.Dtos;
 
 namespace ERP.Application.Sales
@@ -10,14 +13,48 @@ namespace ERP.Application.Sales
 
         Task<SalesTargetDto?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
+        Task<SalesTargetTreeDto> GetHierarchicalTreeAsync(
+            int? rootTargetId,
+            int fiscalYear,
+            CancellationToken cancellationToken = default);
+
         Task<SalesTargetDto> CreateAsync(
             SalesTargetCreateRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesTargetDto> AllocateChildTargetAsync(
+            int parentTargetId,
+            SalesTargetCreateRequestDto childRequest,
             string actingUser,
             CancellationToken cancellationToken = default);
 
         Task<SalesTargetDto?> UpdateAsync(
             int id,
             SalesTargetUpdateRequestDto request,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesTargetDto> ReviseTargetAsync(
+            int targetId,
+            SalesTargetRevisionRequestDto revisionRequest,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesTargetDto> SubmitForApprovalAsync(
+            int targetId,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesTargetDto> ApproveTargetAsync(
+            int targetId,
+            SalesTargetApprovalActionDto approvalDto,
+            string actingUser,
+            CancellationToken cancellationToken = default);
+
+        Task<SalesTargetDto> RejectTargetAsync(
+            int targetId,
+            SalesTargetApprovalActionDto approvalDto,
             string actingUser,
             CancellationToken cancellationToken = default);
 
@@ -96,12 +133,6 @@ namespace ERP.Application.Sales
             int id,
             ProrateTargetRequestDto request,
             string actingUser,
-            CancellationToken ct = default);
-
-        Task<ForecastMetricsDto?> GetForecastAsync(int id, CancellationToken ct = default);
-
-        Task<IEnumerable<CommissionCalculationResultDto>> GetCommissionReportAsync(
-            int financialYear,
             CancellationToken ct = default);
     }
 }

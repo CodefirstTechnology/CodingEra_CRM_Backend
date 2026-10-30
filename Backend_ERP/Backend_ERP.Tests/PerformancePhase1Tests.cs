@@ -87,7 +87,7 @@ namespace ERP.Tests
         {
             using var db = GetInMemoryDb();
             var recalcService = new PerformanceRecalculationService(db);
-            var confirmHandler = new SalesOrderConfirmedEventHandler(db, recalcService);
+            var confirmHandler = SalesOrderConfirmedEventHandler.CreateForTest(db, recalcService);
 
             // Setup Target for Salesperson 10
             db.SalesTargets.Add(new SalesTarget

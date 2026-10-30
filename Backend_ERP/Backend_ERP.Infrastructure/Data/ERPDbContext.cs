@@ -59,6 +59,9 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<SalesTargetDocumentSequence> SalesTargetDocumentSequences => Set<SalesTargetDocumentSequence>();
         public DbSet<SalesTargetRealization> SalesTargetRealizations => Set<SalesTargetRealization>();
+        public DbSet<SalesTargetItem> SalesTargetItems => Set<SalesTargetItem>();
+        public DbSet<SalesTargetSplitRule> SalesTargetSplitRules => Set<SalesTargetSplitRule>();
+        public DbSet<SalesTargetApprovalHistory> SalesTargetApprovalHistories => Set<SalesTargetApprovalHistory>();
 
         public DbSet<PerformanceSnapshot> PerformanceSnapshots => Set<PerformanceSnapshot>();
         public DbSet<SalespersonPerformance> SalespersonPerformances => Set<SalespersonPerformance>();

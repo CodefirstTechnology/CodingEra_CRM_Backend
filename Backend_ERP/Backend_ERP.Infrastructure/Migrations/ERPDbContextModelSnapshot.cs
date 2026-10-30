@@ -12275,12 +12275,26 @@ namespace Backend_ERP.Infrastructure.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("AchievedValue")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("AchievedVolume")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("AchievementPercentage")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(9, 2)
-                        .HasColumnType("numeric(9,2)");
+                        .HasColumnType("numeric(9,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("ApprovalToken")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("AssignmentType")
                         .IsRequired()
@@ -12296,7 +12310,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
-                        .HasDefaultValue(0.00m);
+                        .HasDefaultValue(0m);
+
+                    b.Property<uint>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -12308,13 +12328,18 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.Property<string>("Currency")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("INR");
 
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
 
                     b.Property<int>("FinancialYear")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FiscalYear")
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsAutoAggregated")
@@ -12330,15 +12355,35 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<decimal>("LockedExchangeRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasDefaultValue(1.000000m);
+
+                    b.Property<decimal>("MarginHurdleTarget")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
                     b.Property<decimal?>("OriginalTargetValue")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("OverAchievementValue")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<int?>("ParentTargetId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PeriodType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int?>("PredecessorTargetId")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("ProrationFactor")
@@ -12347,19 +12392,55 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("numeric(5,4)")
                         .HasDefaultValue(1.0000m);
 
+                    b.Property<decimal>("RealizedBilled")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RealizedCash")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RealizedMarginAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RealizedMarginPercentage")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RealizedRevenue")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("RegionalManager")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
                     b.Property<decimal>("RemainingValue")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<string>("Remarks")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal>("RevenueTarget")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<int>("RevisionNumber")
                         .ValueGeneratedOnAdd()
@@ -12397,29 +12478,47 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("TargetPeriod")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("TargetType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("TargetValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<int?>("TerritoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UpdatedBy")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<decimal>("TargetValue")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset>("UpdatedDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("VolumeTarget")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EndDate");
 
-                    b.HasIndex("FinancialYear");
-
                     b.HasIndex("IsDeleted");
+
+                    b.HasIndex("ParentTargetId");
 
                     b.HasIndex("SalesPersonUserId");
 
@@ -12429,16 +12528,82 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasIndex("TargetCategory");
 
-                    b.HasIndex("TargetNumber")
+                    b.HasIndex("TenantId", "TargetNumber")
                         .IsUnique();
 
-                    b.HasIndex("ParentTargetId", "Status", "IsDeleted")
-                        .HasDatabaseName("IX_sales_targets_parent_hierarchy");
+                    b.HasIndex("TenantId", "ParentTargetId", "Status")
+                        .HasDatabaseName("ix_sales_targets_parent_hierarchy")
+                        .HasFilter("\"IsDeleted\" = false");
 
-                    b.HasIndex("Status", "SalesPersonUserId", "TargetCategory", "StartDate", "EndDate", "IsDeleted")
-                        .HasDatabaseName("IX_sales_targets_active_window");
+                    b.HasIndex("TenantId", "Branch", "FiscalYear", "Status")
+                        .HasDatabaseName("ix_sales_targets_branch_fy_perf");
+
+                    b.HasIndex("TenantId", "Status", "SalesPersonUserId", "StartDate", "EndDate")
+                        .HasDatabaseName("ix_sales_targets_period_rep")
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("sales_targets", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesTargetApprovalHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ApproverName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ApproverRole")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ApproverUserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Comments")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("HmacSignatureToken")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("SalesTargetId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<DateTimeOffset>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalesTargetId");
+
+                    b.HasIndex("TenantId", "SalesTargetId", "Timestamp")
+                        .HasDatabaseName("ix_target_approval_hist_lookup");
+
+                    b.ToTable("sales_target_approval_histories", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesTargetAssignment", b =>
@@ -12524,6 +12689,86 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.ToTable("sales_target_document_sequences", (string)null);
                 });
 
+            modelBuilder.Entity("ERP.Domain.Sales.SalesTargetItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CategoryName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ItemDescription")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int?>("ItemMasterId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("MinimumMarginPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int?>("ProductCategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("RealizedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RealizedValue")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<int>("SalesTargetId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("TargetQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("TargetRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TargetValue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalesTargetId");
+
+                    b.HasIndex("TenantId", "SalesTargetId", "ProductCategoryId")
+                        .HasDatabaseName("ix_sales_target_items_cat_lookup");
+
+                    b.ToTable("sales_target_items", (string)null);
+                });
+
             modelBuilder.Entity("ERP.Domain.Sales.SalesTargetProgressHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -12580,6 +12825,9 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("AdvancePaymentId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("AppliedBy")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -12594,9 +12842,42 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<bool>("IsReversal")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal>("LockedFXRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasDefaultValue(1.000000m);
+
+                    b.Property<decimal>("MarginContributionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int?>("QuotationId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RealizationType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<decimal>("RealizedAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("RealizedQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<int?>("ReversalOfRealizationId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReversalReason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("SalesInvoiceId")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("SalesOrderId")
                         .HasColumnType("integer");
@@ -12604,17 +12885,91 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<int>("SalesTargetId")
                         .HasColumnType("integer");
 
+                    b.Property<decimal>("SourceAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("SourceCurrency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasDefaultValue("INR");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<DateTimeOffset>("TransactionDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("TransactionType")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SalesTargetId", "SalesOrderId", "IsReversal")
-                        .HasDatabaseName("IX_sales_target_realizations_lookup");
+                    b.HasIndex("SalesTargetId");
+
+                    b.HasIndex("TenantId", "AdvancePaymentId", "IsReversal")
+                        .HasDatabaseName("ix_target_realizations_advance_lookup");
+
+                    b.HasIndex("TenantId", "SalesOrderId", "IsReversal")
+                        .HasDatabaseName("ix_target_realizations_order_lookup");
+
+                    b.HasIndex("TenantId", "SalesTargetId", "RealizationType", "TransactionDate")
+                        .HasDatabaseName("ix_target_realizations_target_type_date");
 
                     b.ToTable("sales_target_realizations", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesTargetSplitRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ClosingRepPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("LeadGeneratorPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("RuleName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<decimal>("TechnicalConsultantPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "RuleName")
+                        .IsUnique();
+
+                    b.ToTable("sales_target_split_rules", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesTargetStatusHistory", b =>
@@ -14644,15 +14999,37 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasOne("ERP.Domain.Sales.SalesTarget", "ParentTarget")
                         .WithMany("ChildTargets")
                         .HasForeignKey("ParentTargetId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ParentTarget");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesTargetApprovalHistory", b =>
+                {
+                    b.HasOne("ERP.Domain.Sales.SalesTarget", "SalesTarget")
+                        .WithMany("ApprovalHistories")
+                        .HasForeignKey("SalesTargetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SalesTarget");
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesTargetAssignment", b =>
                 {
                     b.HasOne("ERP.Domain.Sales.SalesTarget", "SalesTarget")
                         .WithMany("Assignments")
+                        .HasForeignKey("SalesTargetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SalesTarget");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesTargetItem", b =>
+                {
+                    b.HasOne("ERP.Domain.Sales.SalesTarget", "SalesTarget")
+                        .WithMany("Items")
                         .HasForeignKey("SalesTargetId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -15048,9 +15425,13 @@ namespace Backend_ERP.Infrastructure.Migrations
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesTarget", b =>
                 {
+                    b.Navigation("ApprovalHistories");
+
                     b.Navigation("Assignments");
 
                     b.Navigation("ChildTargets");
+
+                    b.Navigation("Items");
 
                     b.Navigation("ProgressHistory");
 

@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Sales;
@@ -7,7 +9,6 @@ namespace ERP.Infrastructure.Sales
 {
     internal static class SalesTargetMapper
     {
-        // Delegated to shared DateHelper — kept for backward-compat callsites in this class
         private static string FormatDate(DateOnly date) => DateHelper.FormatDate(date);
         private static string FormatDateTime(DateTimeOffset value) => DateHelper.FormatDateTime(value);
         public static DateOnly ParseDate(string value, DateOnly fallback) => DateHelper.ParseDate(value, fallback);
@@ -25,23 +26,32 @@ namespace ERP.Infrastructure.Sales
             Id = e.Id,
             TargetNumber = e.TargetNumber,
             TargetName = e.TargetName,
-            TargetType = e.TargetType,
+            TargetPeriod = e.TargetPeriod,
+            PeriodType = e.PeriodType,
             TargetCategory = e.TargetCategory,
             AssignmentType = e.AssignmentType,
             SalesPersonUserId = e.SalesPersonUserId,
             SalesTeam = e.SalesTeam,
             Branch = e.Branch,
-            FinancialYear = e.FinancialYear,
+            FinancialYear = e.FiscalYear,
             StartDate = FormatDate(e.StartDate),
             EndDate = FormatDate(e.EndDate),
-            TargetValue = e.TargetValue,
+            RevenueTarget = e.RevenueTarget,
+            VolumeTarget = e.VolumeTarget,
+            AchievedVolume = e.AchievedVolume,
+            MarginHurdleTarget = e.MarginHurdleTarget,
+            RealizedRevenue = e.RealizedRevenue,
+            RealizedCash = e.RealizedCash,
+            RealizedBilled = e.RealizedBilled,
             AchievedValue = e.AchievedValue,
             RemainingValue = e.RemainingValue,
             OverAchievementValue = e.OverAchievementValue,
             AchievementPercentage = e.AchievementPercentage,
             IsLocked = e.IsLocked,
+            RevisionNumber = e.RevisionNumber,
             Currency = e.Currency,
-            Status = e.Status
+            Status = e.Status,
+            ParentTargetId = e.ParentTargetId
         };
 
         public static SalesTargetRealizationDto ToRealizationDto(SalesTargetRealization r) => new()
@@ -49,12 +59,52 @@ namespace ERP.Infrastructure.Sales
             Id = r.Id,
             SalesTargetId = r.SalesTargetId,
             SalesOrderId = r.SalesOrderId,
-            InvoiceId = r.InvoiceId,
-            TransactionType = r.TransactionType,
+            AdvancePaymentId = r.AdvancePaymentId,
+            SalesInvoiceId = r.SalesInvoiceId,
+            QuotationId = r.QuotationId,
+            RealizationType = r.RealizationType,
             RealizedAmount = r.RealizedAmount,
+            RealizedQuantity = r.RealizedQuantity,
+            MarginContributionAmount = r.MarginContributionAmount,
+            SourceCurrency = r.SourceCurrency,
+            SourceAmount = r.SourceAmount,
+            LockedFXRate = r.LockedFXRate,
             IsReversal = r.IsReversal,
+            ReversalOfRealizationId = r.ReversalOfRealizationId,
+            ReversalReason = r.ReversalReason,
+            TransactionDate = FormatDateTime(r.TransactionDate),
             AppliedOn = FormatDateTime(r.AppliedOn),
             AppliedBy = r.AppliedBy
+        };
+
+        public static SalesTargetItemDto ToItemDto(SalesTargetItem i) => new()
+        {
+            Id = i.Id,
+            SalesTargetId = i.SalesTargetId,
+            ProductCategoryId = i.ProductCategoryId,
+            CategoryName = i.CategoryName,
+            ItemMasterId = i.ItemMasterId,
+            ItemCode = i.ItemCode,
+            ItemDescription = i.ItemDescription,
+            TargetQuantity = i.TargetQuantity,
+            TargetRate = i.TargetRate,
+            TargetValue = i.TargetValue,
+            RealizedQuantity = i.RealizedQuantity,
+            RealizedValue = i.RealizedValue,
+            MinimumMarginPercentage = i.MinimumMarginPercentage
+        };
+
+        public static SalesTargetApprovalHistoryDto ToApprovalHistoryDto(SalesTargetApprovalHistory h) => new()
+        {
+            Id = h.Id,
+            SalesTargetId = h.SalesTargetId,
+            Action = h.Action,
+            ApproverUserId = h.ApproverUserId,
+            ApproverName = h.ApproverName,
+            ApproverRole = h.ApproverRole,
+            Comments = h.Comments,
+            HmacSignatureToken = h.HmacSignatureToken,
+            Timestamp = FormatDateTime(h.Timestamp)
         };
 
         public static SalesTargetAssignmentDto ToAssignmentDto(SalesTargetAssignment a) => new()
@@ -97,23 +147,36 @@ namespace ERP.Infrastructure.Sales
             Id = e.Id,
             TargetNumber = e.TargetNumber,
             TargetName = e.TargetName,
-            TargetType = e.TargetType,
+            TargetPeriod = e.TargetPeriod,
+            FiscalYear = e.FiscalYear,
+            PeriodType = e.PeriodType,
             TargetCategory = e.TargetCategory,
             AssignmentType = e.AssignmentType,
             SalesPersonUserId = e.SalesPersonUserId,
             SalesTeam = e.SalesTeam,
             Branch = e.Branch,
             RegionalManager = e.RegionalManager,
-            FinancialYear = e.FinancialYear,
+            TerritoryId = e.TerritoryId,
             StartDate = FormatDate(e.StartDate),
             EndDate = FormatDate(e.EndDate),
-            TargetValue = e.TargetValue,
+            RevenueTarget = e.RevenueTarget,
+            VolumeTarget = e.VolumeTarget,
+            AchievedVolume = e.AchievedVolume,
+            MarginHurdleTarget = e.MarginHurdleTarget,
+            RealizedRevenue = e.RealizedRevenue,
+            RealizedCash = e.RealizedCash,
+            RealizedBilled = e.RealizedBilled,
+            RealizedMarginPercentage = e.RealizedMarginPercentage,
             AchievedValue = e.AchievedValue,
             RemainingValue = e.RemainingValue,
             OverAchievementValue = e.OverAchievementValue,
             AchievementPercentage = e.AchievementPercentage,
             IsLocked = e.IsLocked,
             RevisionNumber = e.RevisionNumber,
+            PredecessorTargetId = e.PredecessorTargetId,
+            ApprovalToken = e.ApprovalToken,
+            Currency = e.Currency,
+            LockedExchangeRate = e.LockedExchangeRate,
             ParentTargetId = e.ParentTargetId,
             IsAutoAggregated = e.IsAutoAggregated,
             OriginalTargetValue = e.OriginalTargetValue,
@@ -121,17 +184,18 @@ namespace ERP.Infrastructure.Sales
             CalculatedCommissionAmount = e.CalculatedCommissionAmount,
             Forecast = SalesTargetAnalyticsService.ComputeForecast(e, DateOnly.FromDateTime(DateTime.UtcNow)),
             ChildTargets = e.ChildTargets?.Where(c => !c.IsDeleted).Select(ToListItem).ToList() ?? new(),
-            Currency = e.Currency,
+            Items = e.Items?.Select(ToItemDto).ToList() ?? new(),
             Status = e.Status,
             Remarks = e.Remarks,
             CreatedBy = e.CreatedBy,
             CreatedDate = FormatDateTime(e.CreatedDate),
             UpdatedBy = e.UpdatedBy,
             UpdatedDate = FormatDateTime(e.UpdatedDate),
-            Assignments = e.Assignments.OrderBy(a => a.AssignedDate).Select(ToAssignmentDto).ToList(),
-            ProgressHistory = e.ProgressHistory.OrderBy(p => p.UpdatedOn).Select(ToProgressDto).ToList(),
-            StatusHistory = e.StatusHistory.OrderBy(h => h.ChangedOn).Select(ToHistoryDto).ToList(),
-            Realizations = e.Realizations.OrderByDescending(r => r.AppliedOn).Select(ToRealizationDto).ToList()
+            Assignments = e.Assignments?.OrderBy(a => a.AssignedDate).Select(ToAssignmentDto).ToList() ?? new(),
+            ProgressHistory = e.ProgressHistory?.OrderBy(p => p.UpdatedOn).Select(ToProgressDto).ToList() ?? new(),
+            StatusHistory = e.StatusHistory?.OrderBy(h => h.ChangedOn).Select(ToHistoryDto).ToList() ?? new(),
+            Realizations = e.Realizations?.OrderByDescending(r => r.AppliedOn).Select(ToRealizationDto).ToList() ?? new(),
+            ApprovalHistories = e.ApprovalHistories?.OrderByDescending(h => h.Timestamp).Select(ToApprovalHistoryDto).ToList() ?? new()
         };
     }
 }

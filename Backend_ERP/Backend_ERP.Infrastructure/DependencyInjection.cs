@@ -49,6 +49,13 @@ namespace ERP.Infrastructure
             services.AddScoped<ISalesTargetNumberingService, SalesTargetNumberingService>();
             services.AddScoped<ISalesTargetRepository, SalesTargetRepository>();
             services.AddScoped<ISalesTargetService, SalesTargetService>();
+            services.AddScoped<ERP.Infrastructure.Sales.Caching.ITargetRedisCacheManager, ERP.Infrastructure.Sales.Caching.TargetRedisCacheManager>();
+            services.AddScoped<ISalesTargetRealizationEngine, SalesTargetRealizationEngine>();
+            services.AddScoped<ISalesTargetDashboardService, SalesTargetDashboardService>();
+            services.AddScoped<ISalesTargetReportService, SalesTargetReportService>();
+            services.AddScoped<ERP.Application.Common.Events.INotificationHandler<ERP.Domain.Sales.Events.AdvancePaymentClearedDomainEvent>, ERP.Infrastructure.Sales.Events.AdvancePaymentTargetEventHandler>();
+            services.AddScoped<ERP.Application.Common.Events.INotificationHandler<ERP.Domain.Sales.Events.AdvancePaymentRefundedDomainEvent>, ERP.Infrastructure.Sales.Events.AdvancePaymentTargetEventHandler>();
+            services.AddScoped<ERP.Application.Common.Events.INotificationHandler<ERP.Domain.Sales.Events.SalesInvoiceDispatchedDomainEvent>, ERP.Infrastructure.Sales.Events.InvoiceDispatchTargetEventHandler>();
             services.AddScoped<ERP.Application.Common.Events.INotificationHandler<ERP.Domain.Sales.Events.SalesOrderConfirmedDomainEvent>, ERP.Infrastructure.Sales.Events.SalesOrderConfirmedEventHandler>();
             services.AddScoped<ERP.Application.Common.Events.INotificationHandler<ERP.Domain.Sales.Events.SalesOrderCancelledDomainEvent>, ERP.Infrastructure.Sales.Events.SalesOrderCancelledEventHandler>();
             services.AddScoped<ERP.Infrastructure.Sales.Events.SalesOrderConfirmedEventHandler>();

@@ -1069,5 +1069,339 @@ namespace ERP.Infrastructure.Sales
 
             return list;
         }
-    }
+        public async Task<SalesTargetTreeDto> GetHierarchicalTreeAsync(
+            int? rootTargetId,
+            int fiscalYear,
+            CancellationToken cancellationToken = default)
+        {
+            var allTargets = await _db.SalesTargets
+                .AsNoTracking()
+                .Include(t => t.ChildTargets)
+                .Where(t => !t.IsDeleted && t.FiscalYear == fiscalYear)
+                .ToListAsync(cancellationToken);
+
+            SalesTarget? root = null;
+            if (rootTargetId.HasValue)
+            {
+                root = allTargets.FirstOrDefault(t => t.Id == rootTargetId.Value);
+            }
+            else
+            {
+                root = allTargets.FirstOrDefault(t => t.AssignmentType == SalesTargetAssignmentTypes.CompanyWide && !t.ParentTargetId.HasValue)
+                       ?? allTargets.FirstOrDefault(t => !t.ParentTargetId.HasValue);
+            }
+
+            if (root == null)
+            {
+                return new SalesTargetTreeDto
+                {
+                    TargetId = 0,
+                    TargetNumber = "ROOT",
+                    TargetName = "Company Enterprise Quota",
+                    ScopeName = "Enterprise",
+                    AssignmentType = "CompanyWide",
+                    QuotaValue = 0m,
+                    AchievedValue = 0m,
+                    AttainmentPercentage = 0m,
+                    Status = "Draft",
+                    Children = new List<SalesTargetTreeDto>()
+                };
+            }
+
+            return BuildNode(root, allTargets);
+        }
+
+        private static SalesTargetTreeDto BuildNode(SalesTarget target, List<SalesTarget> allTargets)
+        {
+            var children = allTargets
+                .Where(t => t.ParentTargetId == target.Id)
+                .Select(c => BuildNode(c, allTargets))
+                .ToList();
+
+            return new SalesTargetTreeDto
+            {
+                TargetId = target.Id,
+                TargetNumber = target.TargetNumber,
+                TargetName = target.TargetName,
+                ScopeName = !string.IsNullOrEmpty(target.Branch) ? target.Branch : (!string.IsNullOrEmpty(target.SalesTeam) ? target.SalesTeam : target.AssignmentType),
+                AssignmentType = target.AssignmentType,
+                QuotaValue = target.RevenueTarget,
+                RealizedRevenue = target.RealizedRevenue,
+                RealizedCash = target.RealizedCash,
+                RealizedBilled = target.RealizedBilled,
+                AchievedValue = target.AchievedValue,
+                AttainmentPercentage = target.AchievementPercentage,
+                Status = target.Status,
+                Children = children
+            };
+        }
+
+        public async Task<SalesTargetDto> AllocateChildTargetAsync(
+            int parentTargetId,
+            SalesTargetCreateRequestDto childRequest,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var parent = await _db.SalesTargets
+                .Include(t => t.ChildTargets)
+                .FirstOrDefaultAsync(t => t.Id == parentTargetId && !t.IsDeleted, cancellationToken);
+
+            if (parent == null)
+            {
+                throw new InvalidOperationException($"Parent sales target #{parentTargetId} not found.");
+            }
+
+            var existingChildrenSum = parent.ChildTargets
+                .Where(c => !c.IsDeleted && c.Status != SalesTargetStatuses.Cancelled)
+                .Sum(c => c.RevenueTarget);
+
+            if ((existingChildrenSum + childRequest.RevenueTarget) > parent.RevenueTarget)
+            {
+                throw new InvalidOperationException(
+                    $"Allocated child target (Rs {existingChildrenSum + childRequest.RevenueTarget:N2}) exceeds parent quota (Rs {parent.RevenueTarget:N2}). Remaining available quota: Rs {Math.Max(0, parent.RevenueTarget - existingChildrenSum):N2}.");
+            }
+
+            childRequest.ParentTargetId = parentTargetId;
+            childRequest.FinancialYear = parent.FiscalYear;
+            return await CreateAsync(childRequest, actingUser, cancellationToken);
+        }
+
+        public async Task<SalesTargetDto> ReviseTargetAsync(
+            int targetId,
+            SalesTargetRevisionRequestDto revisionRequest,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var oldTarget = await _db.SalesTargets
+                .Include(t => t.Items)
+                .Include(t => t.Realizations)
+                .Include(t => t.ProgressHistory)
+                .Include(t => t.StatusHistory)
+                .FirstOrDefaultAsync(t => t.Id == targetId && !t.IsDeleted, cancellationToken);
+
+            if (oldTarget == null)
+            {
+                throw new InvalidOperationException($"Sales target #{targetId} not found for revision.");
+            }
+
+            var oldStatus = oldTarget.Status;
+            oldTarget.Status = SalesTargetStatuses.Revised;
+            oldTarget.IsLocked = true;
+            oldTarget.UpdatedBy = actingUser;
+            oldTarget.UpdatedDate = DateTimeOffset.UtcNow;
+
+            oldTarget.StatusHistory.Add(new SalesTargetStatusHistory
+            {
+                SalesTargetId = oldTarget.Id,
+                OldStatus = oldStatus,
+                NewStatus = SalesTargetStatuses.Revised,
+                Remarks = $"Target revised to Revision #{oldTarget.RevisionNumber + 1}: {revisionRequest.RevisionReason}",
+                ChangedBy = actingUser,
+                ChangedOn = DateTimeOffset.UtcNow
+            });
+
+            var newNumber = $"{oldTarget.TargetNumber}-R{oldTarget.RevisionNumber + 1}";
+            var now = DateTimeOffset.UtcNow;
+            var newTarget = new SalesTarget
+            {
+                TenantId = oldTarget.TenantId,
+                TargetNumber = newNumber,
+                TargetName = $"{oldTarget.TargetName} (Rev {oldTarget.RevisionNumber + 1})",
+                TargetPeriod = oldTarget.TargetPeriod,
+                FiscalYear = oldTarget.FiscalYear,
+                PeriodType = oldTarget.PeriodType,
+                TargetCategory = oldTarget.TargetCategory,
+                AssignmentType = oldTarget.AssignmentType,
+                SalesPersonUserId = oldTarget.SalesPersonUserId,
+                SalesTeam = oldTarget.SalesTeam,
+                Branch = oldTarget.Branch,
+                RegionalManager = oldTarget.RegionalManager,
+                TerritoryId = oldTarget.TerritoryId,
+                StartDate = oldTarget.StartDate,
+                EndDate = oldTarget.EndDate,
+                RevenueTarget = revisionRequest.NewRevenueTarget,
+                VolumeTarget = revisionRequest.NewVolumeTarget,
+                MarginHurdleTarget = revisionRequest.NewMarginHurdleTarget,
+                Currency = oldTarget.Currency,
+                LockedExchangeRate = oldTarget.LockedExchangeRate,
+                Status = SalesTargetStatuses.Active,
+                IsLocked = false,
+                RevisionNumber = oldTarget.RevisionNumber + 1,
+                PredecessorTargetId = oldTarget.Id,
+                ParentTargetId = oldTarget.ParentTargetId,
+                IsAutoAggregated = oldTarget.IsAutoAggregated,
+                Remarks = $"Revised from #{oldTarget.TargetNumber}. Reason: {revisionRequest.RevisionReason}",
+                CreatedBy = actingUser,
+                CreatedDate = now,
+                UpdatedBy = actingUser,
+                UpdatedDate = now
+            };
+
+            _db.SalesTargets.Add(newTarget);
+            await _db.SaveChangesAsync(cancellationToken);
+
+            if (revisionRequest.ProrateExistingRealizations && oldTarget.Realizations.Any())
+            {
+                foreach (var r in oldTarget.Realizations.Where(x => !x.IsReversal))
+                {
+                    _db.SalesTargetRealizations.Add(new SalesTargetRealization
+                    {
+                        TenantId = r.TenantId,
+                        SalesTargetId = newTarget.Id,
+                        SalesOrderId = r.SalesOrderId,
+                        AdvancePaymentId = r.AdvancePaymentId,
+                        SalesInvoiceId = r.SalesInvoiceId,
+                        QuotationId = r.QuotationId,
+                        RealizationType = r.RealizationType,
+                        RealizedAmount = r.RealizedAmount,
+                        RealizedQuantity = r.RealizedQuantity,
+                        MarginContributionAmount = r.MarginContributionAmount,
+                        SourceCurrency = r.SourceCurrency,
+                        SourceAmount = r.SourceAmount,
+                        LockedFXRate = r.LockedFXRate,
+                        IsReversal = false,
+                        TransactionDate = r.TransactionDate,
+                        AppliedOn = DateTimeOffset.UtcNow,
+                        AppliedBy = $"SYSTEM_REVISION_FROM_#{oldTarget.Id}"
+                    });
+                }
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+
+            return SalesTargetMapper.ToDto(newTarget);
+        }
+
+        public async Task<SalesTargetDto> SubmitForApprovalAsync(
+            int targetId,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var target = await _db.SalesTargets
+                .Include(t => t.StatusHistory)
+                .FirstOrDefaultAsync(t => t.Id == targetId && !t.IsDeleted, cancellationToken);
+
+            if (target == null) throw new InvalidOperationException($"Sales target #{targetId} not found.");
+
+            var oldStatus = target.Status;
+            target.Status = SalesTargetStatuses.PendingApproval;
+            target.UpdatedBy = actingUser;
+            target.UpdatedDate = DateTimeOffset.UtcNow;
+
+            target.StatusHistory.Add(new SalesTargetStatusHistory
+            {
+                SalesTargetId = target.Id,
+                OldStatus = oldStatus,
+                NewStatus = SalesTargetStatuses.PendingApproval,
+                Remarks = "Submitted for managerial quota sign-off.",
+                ChangedBy = actingUser,
+                ChangedOn = DateTimeOffset.UtcNow
+            });
+
+            _db.SalesTargetApprovalHistories.Add(new SalesTargetApprovalHistory
+            {
+                TenantId = target.TenantId,
+                SalesTargetId = target.Id,
+                Action = "Submitted",
+                ApproverUserId = actingUser,
+                ApproverName = actingUser,
+                ApproverRole = "SalesOps",
+                Comments = "Quota submitted for approval",
+                Timestamp = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return SalesTargetMapper.ToDto(target);
+        }
+
+        public async Task<SalesTargetDto> ApproveTargetAsync(
+            int targetId,
+            SalesTargetApprovalActionDto approvalDto,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var target = await _db.SalesTargets
+                .Include(t => t.StatusHistory)
+                .FirstOrDefaultAsync(t => t.Id == targetId && !t.IsDeleted, cancellationToken);
+
+            if (target == null) throw new InvalidOperationException($"Sales target #{targetId} not found.");
+
+            var token = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes($"{target.TenantId}:{target.TargetNumber}:{actingUser}:{DateTime.UtcNow}")));
+
+            var oldStatus = target.Status;
+            target.Status = SalesTargetStatuses.Active;
+            target.ApprovalToken = token;
+            target.UpdatedBy = actingUser;
+            target.UpdatedDate = DateTimeOffset.UtcNow;
+
+            target.StatusHistory.Add(new SalesTargetStatusHistory
+            {
+                SalesTargetId = target.Id,
+                OldStatus = oldStatus,
+                NewStatus = SalesTargetStatuses.Active,
+                Remarks = $"Target approved: {approvalDto.Comments}",
+                ChangedBy = actingUser,
+                ChangedOn = DateTimeOffset.UtcNow
+            });
+
+            _db.SalesTargetApprovalHistories.Add(new SalesTargetApprovalHistory
+            {
+                TenantId = target.TenantId,
+                SalesTargetId = target.Id,
+                Action = "Approved",
+                ApproverUserId = actingUser,
+                ApproverName = actingUser,
+                ApproverRole = "SalesDirector",
+                Comments = approvalDto.Comments,
+                HmacSignatureToken = token,
+                Timestamp = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return SalesTargetMapper.ToDto(target);
+        }
+
+        public async Task<SalesTargetDto> RejectTargetAsync(
+            int targetId,
+            SalesTargetApprovalActionDto approvalDto,
+            string actingUser,
+            CancellationToken cancellationToken = default)
+        {
+            var target = await _db.SalesTargets
+                .Include(t => t.StatusHistory)
+                .FirstOrDefaultAsync(t => t.Id == targetId && !t.IsDeleted, cancellationToken);
+
+            if (target == null) throw new InvalidOperationException($"Sales target #{targetId} not found.");
+
+            var oldStatus = target.Status;
+            target.Status = SalesTargetStatuses.Draft;
+            target.UpdatedBy = actingUser;
+            target.UpdatedDate = DateTimeOffset.UtcNow;
+
+            target.StatusHistory.Add(new SalesTargetStatusHistory
+            {
+                SalesTargetId = target.Id,
+                OldStatus = oldStatus,
+                NewStatus = SalesTargetStatuses.Draft,
+                Remarks = $"Target rejected: {approvalDto.Comments}",
+                ChangedBy = actingUser,
+                ChangedOn = DateTimeOffset.UtcNow
+            });
+
+            _db.SalesTargetApprovalHistories.Add(new SalesTargetApprovalHistory
+            {
+                TenantId = target.TenantId,
+                SalesTargetId = target.Id,
+                Action = "Rejected",
+                ApproverUserId = actingUser,
+                ApproverName = actingUser,
+                ApproverRole = "SalesDirector",
+                Comments = approvalDto.Comments,
+                Timestamp = DateTimeOffset.UtcNow
+            });
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return SalesTargetMapper.ToDto(target);
+        }
+}
 }
