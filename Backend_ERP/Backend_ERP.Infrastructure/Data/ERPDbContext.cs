@@ -124,6 +124,14 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.VendorDocumentSequence> VendorDocumentSequences => Set<ERP.Domain.Procurement.VendorDocumentSequence>();
 
+        public DbSet<ERP.Domain.Procurement.VendorBankAccount> VendorBankAccounts => Set<ERP.Domain.Procurement.VendorBankAccount>();
+
+        public DbSet<ERP.Domain.Procurement.VendorItemCatalog> VendorItemCatalogs => Set<ERP.Domain.Procurement.VendorItemCatalog>();
+
+        public DbSet<ERP.Domain.Procurement.VendorPerformanceScore> VendorPerformanceScores => Set<ERP.Domain.Procurement.VendorPerformanceScore>();
+
+        public DbSet<ERP.Domain.Procurement.VendorApprovalHistory> VendorApprovalHistories => Set<ERP.Domain.Procurement.VendorApprovalHistory>();
+
         // Procurement Phase 2 PR & RFQ DbSets
         public DbSet<ERP.Domain.Procurement.PurchaseRequisition> PurchaseRequisitions => Set<ERP.Domain.Procurement.PurchaseRequisition>();
 

@@ -109,6 +109,10 @@ namespace ERP.Infrastructure
             // Procurement Phase 1 Vendor Master Services
             services.AddScoped<ERP.Infrastructure.Procurement.VendorNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IVendorService, ERP.Infrastructure.Procurement.VendorService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorCatalogService, ERP.Infrastructure.Procurement.VendorCatalogService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorScoringEngine, ERP.Infrastructure.Procurement.VendorScoringEngine>();
+            services.AddScoped<ERP.Application.Procurement.IVendorDashboardService, ERP.Infrastructure.Procurement.VendorDashboardService>();
+            services.AddScoped<ERP.Application.Procurement.IVendorReportService, ERP.Infrastructure.Procurement.VendorReportService>();
 
             // Procurement Phase 2 PR & RFQ Services
             services.AddScoped<ERP.Infrastructure.Procurement.PurchaseRequisitionNumberingService>();

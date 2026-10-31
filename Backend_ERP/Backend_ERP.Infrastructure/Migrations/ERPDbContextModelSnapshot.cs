@@ -5692,6 +5692,20 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("ApprovalToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Cin")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<uint>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -5706,6 +5720,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasDefaultValue(0m);
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("INR");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -5719,15 +5740,35 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<string>("GSTIN")
                         .IsRequired()
                         .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("GSTIN");
+
+                    b.Property<string>("Incoterms")
+                        .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsKycVerified")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsMsmeRegistered")
                         .HasColumnType("boolean");
 
                     b.Property<string>("LegalName")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("MsmeCategory")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("MsmeRegistrationNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -5742,25 +5783,59 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<string>("PAN")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("PAN");
 
                     b.Property<int?>("PaymentTermId")
                         .HasColumnType("integer");
+
+                    b.Property<int>("PaymentTermsDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30);
 
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<decimal>("RatingScore")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)")
+                        .HasDefaultValue(100.00m);
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("Tan")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("TaxIdentificationNumber")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<decimal>("TotalOpenCommitment")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0.00m);
+
+                    b.Property<string>("TradeName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -5775,6 +5850,11 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("VendorType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Website")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -5782,18 +5862,23 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GSTIN");
-
-                    b.HasIndex("Name");
-
-                    b.HasIndex("PAN");
-
                     b.HasIndex("PaymentTermId");
 
-                    b.HasIndex("Status");
+                    b.HasIndex("TenantId", "GSTIN")
+                        .HasDatabaseName("ix_vendors_tenant_gstin");
 
-                    b.HasIndex("VendorCode")
-                        .IsUnique();
+                    b.HasIndex("TenantId", "PAN")
+                        .HasDatabaseName("ix_vendors_tenant_pan");
+
+                    b.HasIndex("TenantId", "VendorCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vendors_tenant_code");
+
+                    b.HasIndex("TenantId", "MsmeCategory", "IsMsmeRegistered")
+                        .HasDatabaseName("ix_vendors_tenant_msme_compliance");
+
+                    b.HasIndex("TenantId", "Status", "RatingScore")
+                        .HasDatabaseName("ix_vendors_tenant_status_rating");
 
                     b.ToTable("vendors", (string)null);
                 });
@@ -5857,6 +5942,151 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasIndex("VendorId");
 
                     b.ToTable("vendor_addresses", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorApprovalHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("ActionedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ActionedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ActionedByUserName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ApprovalToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Comments")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("NewStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("PreviousStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "VendorId", "ActionedAt")
+                        .HasDatabaseName("ix_vendor_approvals_tenant_vendor_date");
+
+                    b.ToTable("vendor_approval_histories", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorBankAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Current");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("BeneficiaryName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Branch")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CancelledChequeUrl")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("IfscCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("VerificationStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerifiedBy")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "VendorId", "AccountNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vendor_banks_tenant_vendor_account");
+
+                    b.ToTable("vendor_bank_accounts", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Procurement.VendorComparison", b =>
@@ -6186,7 +6416,8 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<string>("GSTIN")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("GSTIN");
 
                     b.Property<bool>("GSTRegistered")
                         .HasColumnType("boolean");
@@ -6202,7 +6433,8 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<string>("PAN")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("PAN");
 
                     b.Property<string>("Remarks")
                         .IsRequired()
@@ -6238,6 +6470,11 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("Department")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("Designation")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -6264,10 +6501,21 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<string>("Mobile")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
 
                     b.Property<int>("VendorId")
                         .HasColumnType("integer");
@@ -6275,6 +6523,8 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "VendorId");
 
                     b.ToTable("vendor_contacts", (string)null);
                 });
@@ -6300,6 +6550,105 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("vendor_document_sequences", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorItemCatalog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BaseUomConversionMultiplier")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasDefaultValue(1.000000m);
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("INR");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("ItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("MinimumOrderQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(1.0000m);
+
+                    b.Property<decimal>("OrderMultiple")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(1.0000m);
+
+                    b.Property<string>("PackagingUnit")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("StandardLeadTimeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SupplierPartNumber")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("TechnicalRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<decimal>("UnitPriceSnapshot")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "ItemCode", "IsApproved")
+                        .HasDatabaseName("ix_vendor_catalog_tenant_avl_lookup");
+
+                    b.HasIndex("TenantId", "VendorId", "ItemCode", "EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vendor_catalog_tenant_vendor_item_effective");
+
+                    b.ToTable("vendor_item_catalogs", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Procurement.VendorLedgerEntry", b =>
@@ -6497,6 +6846,79 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("vendor_payment_terms", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorPerformanceScore", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BlendedRatingScore")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<DateTime>("CalculatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ComplianceScore")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<decimal>("DefectPartsPerMillion")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("OtifPercentage")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<string>("PeriodKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("PriceVarianceScore")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<decimal>("QualityPassRate")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<int>("TotalLotsReceived")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TotalLotsRejected")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("VendorId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "VendorId", "PeriodKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vendor_perf_tenant_vendor_period");
+
+                    b.ToTable("vendor_performance_scores", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Procurement.VendorQuotation", b =>
@@ -14565,6 +14987,28 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("Vendor");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorApprovalHistory", b =>
+                {
+                    b.HasOne("ERP.Domain.Procurement.Vendor", "Vendor")
+                        .WithMany("ApprovalHistories")
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorBankAccount", b =>
+                {
+                    b.HasOne("ERP.Domain.Procurement.Vendor", "Vendor")
+                        .WithMany("BankAccounts")
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Vendor");
+                });
+
             modelBuilder.Entity("ERP.Domain.Procurement.VendorComparison", b =>
                 {
                     b.HasOne("ERP.Domain.Procurement.RequestForQuotation", "RFQ")
@@ -14651,6 +15095,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("Vendor");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorItemCatalog", b =>
+                {
+                    b.HasOne("ERP.Domain.Procurement.Vendor", "Vendor")
+                        .WithMany("ItemCatalogs")
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Vendor");
+                });
+
             modelBuilder.Entity("ERP.Domain.Procurement.VendorLedgerEntry", b =>
                 {
                     b.HasOne("ERP.Domain.Procurement.PurchaseBill", "PurchaseBill")
@@ -14696,6 +15151,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("PurchaseBill");
 
                     b.Navigation("VendorPayment");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorPerformanceScore", b =>
+                {
+                    b.HasOne("ERP.Domain.Procurement.Vendor", "Vendor")
+                        .WithMany("PerformanceScores")
+                        .HasForeignKey("VendorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Vendor");
                 });
 
             modelBuilder.Entity("ERP.Domain.Procurement.VendorQuotation", b =>
@@ -15750,9 +16216,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                 {
                     b.Navigation("Addresses");
 
+                    b.Navigation("ApprovalHistories");
+
+                    b.Navigation("BankAccounts");
+
                     b.Navigation("Compliance");
 
                     b.Navigation("Contacts");
+
+                    b.Navigation("ItemCatalogs");
+
+                    b.Navigation("PerformanceScores");
 
                     b.Navigation("StatusHistory");
                 });

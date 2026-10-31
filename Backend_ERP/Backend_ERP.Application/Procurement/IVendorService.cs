@@ -29,5 +29,21 @@ namespace ERP.Application.Procurement
         Task<VendorPerformanceSummaryDto?> GetPerformanceSummaryAsync(int id, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<string>> GetPermissionsAsync();
+
+        // KYC Verification Workflow
+        Task<VendorDto?> SubmitForKycApprovalAsync(int id, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<VendorDto?> ApproveVendorKycAsync(int id, VendorKycApprovalRequestDto request, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<VendorDto?> RejectVendorKycAsync(int id, string reason, string actingUser, CancellationToken cancellationToken = default);
+
+        // Bank Account Management & Penny Drop
+        Task<VendorBankAccountDto> AddBankAccountAsync(int vendorId, VendorBankAccountDto dto, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<VendorBankAccountDto?> UpdateBankAccountAsync(int vendorId, int bankAccountId, VendorBankAccountDto dto, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<bool> DeleteBankAccountAsync(int vendorId, int bankAccountId, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<VendorBankAccountDto?> VerifyBankAccountPennyDropAsync(int vendorId, int bankAccountId, string actingUser, CancellationToken cancellationToken = default);
     }
 }
