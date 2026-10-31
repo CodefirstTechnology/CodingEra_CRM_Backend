@@ -66,6 +66,10 @@ namespace ERP.Infrastructure.Data
         public DbSet<PerformanceSnapshot> PerformanceSnapshots => Set<PerformanceSnapshot>();
         public DbSet<SalespersonPerformance> SalespersonPerformances => Set<SalespersonPerformance>();
         public DbSet<SalespersonPerformanceSnapshot> SalespersonPerformanceSnapshots => Set<SalespersonPerformanceSnapshot>();
+        public DbSet<SalesIncentiveScheme> SalesIncentiveSchemes => Set<SalesIncentiveScheme>();
+        public DbSet<SalesCommissionLedger> SalesCommissionLedgers => Set<SalesCommissionLedger>();
+        public DbSet<SalesRepBadge> SalesRepBadges => Set<SalesRepBadge>();
+        public DbSet<SalesLeaderboardSnapshot> SalesLeaderboardSnapshots => Set<SalesLeaderboardSnapshot>();
 
         public DbSet<PerformanceHistory> PerformanceHistory => Set<PerformanceHistory>();
 

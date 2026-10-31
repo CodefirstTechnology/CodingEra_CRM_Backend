@@ -63,6 +63,11 @@ namespace ERP.Infrastructure
             services.AddScoped<IPerformanceRepository, PerformanceRepository>();
             services.AddScoped<IPerformanceService, PerformanceService>();
             services.AddScoped<IPerformanceRecalculationService, PerformanceRecalculationService>();
+            services.AddScoped<ERP.Application.Sales.IPerformanceScoringEngine, ERP.Infrastructure.Sales.PerformanceScoringEngine>();
+            services.AddScoped<ERP.Application.Sales.IPerformanceRedisCacheManager, ERP.Infrastructure.Sales.Caching.PerformanceRedisCacheManager>();
+            services.AddScoped<ERP.Application.Sales.ISalesIncentiveEngine, ERP.Infrastructure.Sales.SalesIncentiveEngine>();
+            services.AddScoped<ERP.Application.Sales.IPerformanceHubService, ERP.Infrastructure.Sales.PerformanceHubService>();
+            services.AddScoped<ERP.Application.Sales.IPerformanceReportService, ERP.Infrastructure.Sales.PerformanceReportService>();
             services.AddMemoryCache();
             var redisConn = configuration.GetConnectionString("Redis");
             if (!string.IsNullOrWhiteSpace(redisConn))

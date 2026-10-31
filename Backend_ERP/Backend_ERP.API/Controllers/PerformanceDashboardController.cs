@@ -1,12 +1,17 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using ERP.API.Security;
 using ERP.Application.Common.Security;
 using ERP.Application.Sales;
 using ERP.Application.Sales.Dtos;
 using ERP.Domain.Enums;
-using ERP.Shared.Security;
-using Microsoft.AspNetCore.Mvc;
-
 using ERP.Infrastructure.Data;
+using ERP.Shared.Security;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.API.Controllers
@@ -17,21 +22,194 @@ namespace ERP.API.Controllers
     public class PerformanceDashboardController : ControllerBase
     {
         private readonly IPerformanceService _service;
+        private readonly IPerformanceHubService _hubService;
+        private readonly IPerformanceReportService _reportService;
         private readonly ICurrentUser _currentUser;
         private readonly IErpAuthorizationService _authService;
         private readonly ERPDbContext _context;
 
         public PerformanceDashboardController(
             IPerformanceService service,
+            IPerformanceHubService hubService,
+            IPerformanceReportService reportService,
             ICurrentUser currentUser,
             IErpAuthorizationService authService,
             ERPDbContext context)
         {
             _service = service;
+            _hubService = hubService;
+            _reportService = reportService;
             _currentUser = currentUser;
             _authService = authService;
             _context = context;
         }
+
+        // =========================================================================
+        // SUBMODULE 7 ENTERPRISE HUBS: COCKPIT, LEADERBOARD, SCHEMES & COMMISSIONS
+        // =========================================================================
+
+        [HttpGet("overview/{userId:int?}")]
+        public async Task<ActionResult<RepOverviewCockpitDto>> GetOverview(
+            int? userId,
+            [FromQuery] int financialYear = 2026,
+            CancellationToken ct = default)
+        {
+            int targetUserId = userId ?? _currentUser.UserId ?? 1;
+
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue && targetUserId != _currentUser.UserId.Value)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to another salesperson's performance profile." });
+            }
+
+            var overview = await _hubService.GetRepOverviewAsync(targetUserId, financialYear, ct);
+            return Ok(overview);
+        }
+
+        [HttpGet("leaderboard")]
+        [RequirePermission(ErpPermissions.Performance.LeaderboardView)]
+        public async Task<ActionResult<LeaderboardPodiumDto>> GetLeaderboard(
+            [FromQuery] LeaderboardFilterDto filter,
+            CancellationToken ct = default)
+        {
+            var result = await _hubService.GetLeaderboardAsync(filter, ct);
+            return Ok(result);
+        }
+
+        [HttpGet("schemes")]
+        public async Task<ActionResult<List<IncentiveSchemeDto>>> GetSchemes(
+            [FromQuery] int financialYear = 2026,
+            CancellationToken ct = default)
+        {
+            var schemes = await _hubService.GetIncentiveSchemesAsync(financialYear, ct);
+            return Ok(schemes);
+        }
+
+        [HttpPost("schemes")]
+        public async Task<ActionResult<IncentiveSchemeDto>> CreateScheme(
+            [FromBody] CreateIncentiveSchemeDto request,
+            CancellationToken ct = default)
+        {
+            int creatorId = _currentUser.UserId ?? 1;
+            var created = await _hubService.CreateIncentiveSchemeAsync(request, creatorId, ct);
+            return Ok(created);
+        }
+
+        [HttpPost("schemes/{id:int}/toggle-active")]
+        public async Task<ActionResult<bool>> ToggleScheme(
+            int id,
+            [FromQuery] bool isActive,
+            CancellationToken ct = default)
+        {
+            var success = await _hubService.ToggleSchemeActiveAsync(id, isActive, ct);
+            return Ok(success);
+        }
+
+        [HttpGet("commissions/{userId:int}/ledger")]
+        public async Task<ActionResult<List<SalesCommissionLedgerDto>>> GetCommissionLedger(
+            int userId,
+            [FromQuery] int financialYear = 2026,
+            CancellationToken ct = default)
+        {
+            if (_currentUser.Scope == AccessScope.Own && _currentUser.UserId.HasValue && userId != _currentUser.UserId.Value)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "You do not have access to another salesperson's commission ledgers." });
+            }
+
+            var ledgers = await _hubService.GetRepCommissionLedgerAsync(userId, financialYear, ct);
+            return Ok(ledgers);
+        }
+
+        [HttpPost("commissions/{ledgerId:int}/approve")]
+        public async Task<ActionResult<bool>> ApproveCommission(
+            int ledgerId,
+            [FromBody] CommissionApprovalRequestDto request,
+            CancellationToken ct = default)
+        {
+            request.LedgerId = ledgerId;
+            int approverId = _currentUser.UserId ?? 1;
+            var success = await _hubService.ApproveCommissionEntryAsync(request, approverId, ct);
+            return Ok(success);
+        }
+
+        [HttpPost("commissions/disburse")]
+        public async Task<ActionResult<bool>> DisburseCommission(
+            [FromBody] CommissionDisbursementRequestDto request,
+            CancellationToken ct = default)
+        {
+            int disburserId = _currentUser.UserId ?? 1;
+            var success = await _hubService.DisburseCommissionPayoutAsync(request, disburserId, ct);
+            return Ok(success);
+        }
+
+        // =========================================================================
+        // SUBMODULE 7 ANALYTICAL EXECUTIVE REPORTS
+        // =========================================================================
+
+        [HttpGet("reports/commission-statement")]
+        [RequirePermission(ErpPermissions.Performance.ReportView)]
+        public async Task<ActionResult<ExecutiveCommissionPayoutReportDto>> GetCommissionStatement(
+            [FromQuery] int financialYear = 2026,
+            [FromQuery] string? branch = null,
+            [FromQuery] string? salesTeam = null,
+            CancellationToken ct = default)
+        {
+            var report = await _reportService.GetExecutiveCommissionPayoutStatementAsync(financialYear, branch, salesTeam, ct);
+            return Ok(report);
+        }
+
+        [HttpGet("reports/velocity-matrix")]
+        [RequirePermission(ErpPermissions.Performance.ReportView)]
+        public async Task<ActionResult<RepCohortVelocityMatrixReportDto>> GetVelocityMatrix(
+            [FromQuery] int financialYear = 2026,
+            [FromQuery] string? branch = null,
+            [FromQuery] string? salesTeam = null,
+            CancellationToken ct = default)
+        {
+            var report = await _reportService.GetRepCohortVelocityMatrixAsync(financialYear, branch, salesTeam, ct);
+            return Ok(report);
+        }
+
+        [HttpGet("reports/margin-erosion")]
+        [RequirePermission(ErpPermissions.Performance.ReportView)]
+        public async Task<ActionResult<DiscountMarginErosionReportDto>> GetMarginErosion(
+            [FromQuery] int financialYear = 2026,
+            [FromQuery] string? branch = null,
+            [FromQuery] string? salesTeam = null,
+            CancellationToken ct = default)
+        {
+            var report = await _reportService.GetDiscountMarginErosionReportAsync(financialYear, branch, salesTeam, ct);
+            return Ok(report);
+        }
+
+        [HttpGet("reports/pip-audit")]
+        [RequirePermission(ErpPermissions.Performance.ReportView)]
+        public async Task<ActionResult<PipEarlyWarningAuditReportDto>> GetPipAudit(
+            [FromQuery] int financialYear = 2026,
+            [FromQuery] string? branch = null,
+            [FromQuery] string? salesTeam = null,
+            CancellationToken ct = default)
+        {
+            var report = await _reportService.GetPipEarlyWarningAuditAsync(financialYear, branch, salesTeam, ct);
+            return Ok(report);
+        }
+
+        [HttpGet("reports/export-csv")]
+        [RequirePermission(ErpPermissions.Performance.Export)]
+        public async Task<IActionResult> ExportCsv(
+            [FromQuery] string reportType = "commission",
+            [FromQuery] int financialYear = 2026,
+            [FromQuery] string? branch = null,
+            [FromQuery] string? salesTeam = null,
+            CancellationToken ct = default)
+        {
+            var csvBytes = await _reportService.ExportReportToCsvAsync(reportType, financialYear, branch, salesTeam, ct);
+            string fileName = $"performance-{reportType}-fy{financialYear}-{DateTime.UtcNow:yyyyMMdd}.csv";
+            return File(csvBytes, "text/csv", fileName);
+        }
+
+        // =========================================================================
+        // LEGACY DASHBOARD, REPORTS & LOOKUP ENDPOINTS (100% BACKWARD COMPATIBLE)
+        // =========================================================================
 
         [HttpGet("dashboard")]
         public Task<ActionResult<PerformanceDashboardDto>> Dashboard(

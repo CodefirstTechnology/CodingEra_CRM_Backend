@@ -11682,6 +11682,279 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.ToTable("quotation_items", (string)null);
                 });
 
+            modelBuilder.Entity("ERP.Domain.Sales.SalesCommissionLedger", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AcceleratorMultiplier")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("numeric(4,2)");
+
+                    b.Property<decimal>("AccruedCommission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("AccruedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("AdvancePaymentId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ApprovalToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ApprovedByUserId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ClawbackReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<decimal>("CommissionRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<int?>("IncentiveSchemeId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsClawback")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PaymentVoucherReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("PayoutDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayoutStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Accrued");
+
+                    b.Property<int>("ProfileId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ReversalOfLedgerId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SalesInvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SalesOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SalesPersonUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<decimal>("TransactionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IncentiveSchemeId");
+
+                    b.HasIndex("ProfileId");
+
+                    b.HasIndex("TenantId", "SalesOrderId")
+                        .HasDatabaseName("ix_commission_ledger_order");
+
+                    b.HasIndex("TenantId", "SalesPersonUserId", "PayoutStatus")
+                        .HasDatabaseName("ix_commission_ledger_rep_status");
+
+                    b.ToTable("sales_commission_ledgers", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesIncentiveScheme", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AcceleratorTiersJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<decimal>("BaseCommissionRate")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("MarginHurdlePercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<decimal>("MinCashClearancePercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<decimal>("MinimumAttainmentThreshold")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<string>("PeriodType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Monthly");
+
+                    b.Property<bool>("RequiresCashClearance")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SchemeCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SchemeName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "SchemeCode", "FiscalYear")
+                        .IsUnique()
+                        .HasDatabaseName("ix_incentive_schemes_tenant_code_fy");
+
+                    b.ToTable("sales_incentive_schemes", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesLeaderboardSnapshot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AttainmentPercentage")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<int>("FinancialYear")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("GrossMarginPercentage")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<string>("PartitionType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Global");
+
+                    b.Property<string>("PartitionValue")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasDefaultValue("ALL");
+
+                    b.Property<string>("PeriodKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SalesPersonName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("SalesPersonUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("SnapshotDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<string>("TierBadge")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Silver");
+
+                    b.Property<decimal>("TotalBookedRevenue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalCashCollected")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("WeightedScore")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "FinancialYear", "PeriodKey", "PartitionType", "PartitionValue", "Rank")
+                        .HasDatabaseName("ix_leaderboard_snapshots_period_rank");
+
+                    b.ToTable("sales_leaderboard_snapshots", (string)null);
+                });
+
             modelBuilder.Entity("ERP.Domain.Sales.SalesOrder", b =>
                 {
                     b.Property<int>("Id")
@@ -12264,6 +12537,75 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasIndex("SalesOrderId", "Date");
 
                     b.ToTable("sales_order_status_histories", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesRepBadge", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("AwardedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("BadgeCategory")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("Quota");
+
+                    b.Property<string>("BadgeCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("BadgeTitle")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("emerald");
+
+                    b.Property<string>("EvaluationCriteriaSnapshot")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("trophy");
+
+                    b.Property<int>("ProfileId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SalesPersonUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfileId");
+
+                    b.HasIndex("TenantId", "SalesPersonUserId", "BadgeCode")
+                        .HasDatabaseName("ix_rep_badges_user_code");
+
+                    b.ToTable("sales_rep_badges", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesTarget", b =>
@@ -13025,13 +13367,16 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<decimal>("AttainmentPercentage")
-                        .HasColumnType("numeric");
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
 
                     b.Property<decimal>("AvgDealVelocityDays")
-                        .HasColumnType("numeric");
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
 
                     b.Property<string>("Branch")
-                        .HasColumnType("text");
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<decimal>("CalculatedCommission")
                         .HasColumnType("numeric");
@@ -13040,56 +13385,150 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<decimal>("ConversionRate")
-                        .HasColumnType("numeric");
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
 
                     b.Property<DateTimeOffset>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CurrentRank")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("DiscountDisciplineScore")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
 
                     b.Property<int>("FinancialYear")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("GrossMarginPercentage")
-                        .HasColumnType("numeric");
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<decimal>("PacingIndex")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
 
                     b.Property<string>("PeriodType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("FiscalYear");
+
+                    b.Property<int>("PreviousRank")
+                        .HasColumnType("integer");
 
                     b.Property<string>("RegionalManager")
-                        .HasColumnType("text");
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("SalesPersonName")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<int>("SalesPersonUserId")
                         .HasColumnType("integer");
 
                     b.Property<string>("SalesTeam")
-                        .HasColumnType("text");
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("default");
+
+                    b.Property<int?>("TerritoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TierBadge")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Silver");
+
+                    b.Property<decimal>("TotalAccruedCommission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("TotalAchievedValue")
                         .HasColumnType("numeric");
+
+                    b.Property<decimal>("TotalBookedRevenue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalCashCollected")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalClawbackCommission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalDispatchedRevenue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalGrossMarginAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalPaidCommission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<int>("TotalQuotationCount")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("TotalTargetValue")
-                        .HasColumnType("numeric");
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<DateTimeOffset>("UpdatedDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<decimal>("WeightedScore")
-                        .HasColumnType("numeric");
+                        .HasPrecision(7, 2)
+                        .HasColumnType("numeric(7,2)");
+
+                    b.Property<int>("WinningStreakMonths")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SalespersonPerformances");
+                    b.HasIndex("TenantId", "Branch", "FinancialYear")
+                        .HasDatabaseName("ix_perf_profiles_branch_fy");
+
+                    b.HasIndex("TenantId", "FinancialYear", "SalesPersonUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_perf_profiles_tenant_fy_user");
+
+                    b.HasIndex("TenantId", "FinancialYear", "WeightedScore")
+                        .HasDatabaseName("ix_perf_profiles_leaderboard_rank");
+
+                    b.HasIndex("TenantId", "SalesTeam", "FinancialYear")
+                        .HasDatabaseName("ix_perf_profiles_team_fy");
+
+                    b.ToTable("salesperson_performances", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalespersonPerformanceSnapshot", b =>
@@ -14926,6 +15365,24 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("Quotation");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Sales.SalesCommissionLedger", b =>
+                {
+                    b.HasOne("ERP.Domain.Sales.SalesIncentiveScheme", "IncentiveScheme")
+                        .WithMany()
+                        .HasForeignKey("IncentiveSchemeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ERP.Domain.Sales.SalespersonPerformance", "Profile")
+                        .WithMany("CommissionEntries")
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("IncentiveScheme");
+
+                    b.Navigation("Profile");
+                });
+
             modelBuilder.Entity("ERP.Domain.Sales.SalesOrderAllocation", b =>
                 {
                     b.HasOne("ERP.Domain.Procurement.FinishedGood", "FinishedGood")
@@ -14992,6 +15449,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("SalesOrder");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalesRepBadge", b =>
+                {
+                    b.HasOne("ERP.Domain.Sales.SalespersonPerformance", "Profile")
+                        .WithMany("Badges")
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Profile");
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.SalesTarget", b =>
@@ -15438,6 +15906,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("Realizations");
 
                     b.Navigation("StatusHistory");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Sales.SalespersonPerformance", b =>
+                {
+                    b.Navigation("Badges");
+
+                    b.Navigation("CommissionEntries");
                 });
 
             modelBuilder.Entity("ERP.Domain.Sales.TransportDetail", b =>
