@@ -7,6 +7,8 @@ namespace ERP.Domain.Procurement
     {
         public int Id { get; set; }
 
+        public int TenantId { get; set; } = 1;
+
         public string QuotationNumber { get; set; } = string.Empty;
 
         public int? RequestForQuotationId { get; set; }
@@ -45,6 +47,8 @@ namespace ERP.Domain.Procurement
 
         public decimal TotalCost { get; set; }
 
+        public decimal TotalLandedCost { get; set; }
+
         public string Remarks { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -56,6 +60,8 @@ namespace ERP.Domain.Procurement
         public string UpdatedBy { get; set; } = string.Empty;
 
         public bool IsDeleted { get; set; }
+
+        public uint ConcurrencyVersion { get; set; }
 
         public List<VendorQuotationLine> Lines { get; set; } = new();
     }

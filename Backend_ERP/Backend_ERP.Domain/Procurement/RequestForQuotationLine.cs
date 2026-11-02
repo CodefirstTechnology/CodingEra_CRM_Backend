@@ -1,8 +1,12 @@
+using System.Collections.Generic;
+
 namespace ERP.Domain.Procurement
 {
     public class RequestForQuotationLine
     {
         public int Id { get; set; }
+
+        public int TenantId { get; set; } = 1;
 
         public int RequestForQuotationId { get; set; }
 
@@ -10,11 +14,7 @@ namespace ERP.Domain.Procurement
 
         public int? ItemId { get; set; }
 
-        public int? UomId { get; set; }
-
-        public int? PurchaseRequisitionLineId { get; set; }
-
-        public PurchaseRequisitionLine? PurchaseRequisitionLine { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
 
         public string ItemName { get; set; } = string.Empty;
 
@@ -25,5 +25,9 @@ namespace ERP.Domain.Procurement
         public string Uom { get; set; } = "PCS";
 
         public decimal? TargetUnitPrice { get; set; }
+
+        public string TechnicalSpecsJson { get; set; } = "{}";
+
+        public List<RFQItemRequisitionLine> ConsolidatedRequisitionLines { get; set; } = new();
     }
 }

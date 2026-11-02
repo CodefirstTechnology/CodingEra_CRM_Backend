@@ -4,9 +4,12 @@ namespace ERP.Domain.Procurement
     {
         Draft,
         Pending,
+        UnderEvaluation,
         Compared,
         Completed,
         Approved,
-        Awarded
+        Awarded,
+        Rejected,
+        Cancelled
     }
 }

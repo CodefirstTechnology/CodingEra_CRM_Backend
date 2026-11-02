@@ -6,6 +6,8 @@ namespace ERP.Domain.Procurement
     {
         public int Id { get; set; }
 
+        public int TenantId { get; set; } = 1;
+
         public int RequestForQuotationId { get; set; }
 
         public RequestForQuotation? RequestForQuotation { get; set; }
@@ -23,5 +25,11 @@ namespace ERP.Domain.Procurement
         public RFQVendorStatus Status { get; set; } = RFQVendorStatus.Pending;
 
         public DateTime? RespondedDate { get; set; }
+
+        public string AccessToken { get; set; } = string.Empty;
+
+        public DateTime? TokenExpiresAt { get; set; }
+
+        public string DeclineReason { get; set; } = string.Empty;
     }
 }

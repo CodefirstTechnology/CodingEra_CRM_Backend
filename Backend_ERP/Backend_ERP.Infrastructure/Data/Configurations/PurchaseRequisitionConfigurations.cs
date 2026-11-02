@@ -11,22 +11,31 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("purchase_requisitions");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasDefaultValue(1);
             builder.Property(x => x.PRNumber).HasMaxLength(64).IsRequired();
-            builder.HasIndex(x => x.PRNumber).IsUnique();
-
             builder.Property(x => x.Department).HasMaxLength(128).IsRequired();
+            builder.Property(x => x.DepartmentName).HasMaxLength(128).HasDefaultValue(string.Empty);
+            builder.Property(x => x.CostCenterCode).HasMaxLength(64).HasDefaultValue(string.Empty);
             builder.Property(x => x.Requestor).HasMaxLength(128).IsRequired();
+            builder.Property(x => x.RequestedByUserId).HasMaxLength(128).HasDefaultValue(string.Empty);
+            builder.Property(x => x.Purpose).HasMaxLength(1000).HasDefaultValue(string.Empty);
             builder.Property(x => x.Priority).HasConversion<string>().HasMaxLength(64).IsRequired();
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsRequired();
 
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.InternalNotes).HasMaxLength(2000);
-            builder.Property(x => x.TotalEstimatedAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.TotalEstimatedAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+            builder.Property(x => x.CurrentApprovalTier).HasDefaultValue(1);
+            builder.Property(x => x.ApprovalToken).HasMaxLength(256).HasDefaultValue(string.Empty);
             builder.Property(x => x.RFQNumber).HasMaxLength(64);
 
             builder.Property(x => x.CreatedBy).HasMaxLength(256);
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
 
+            builder.Property(x => x.ConcurrencyVersion).IsRowVersion();
+
+            builder.HasIndex(x => new { x.TenantId, x.PRNumber }).IsUnique().HasDatabaseName("ix_pr_tenant_number");
+            builder.HasIndex(x => new { x.TenantId, x.Status, x.RequisitionDate }).HasDatabaseName("ix_pr_tenant_status_date");
             builder.HasIndex(x => x.Department);
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.Priority);
@@ -50,14 +59,21 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("purchase_requisition_lines");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasDefaultValue(1);
+            builder.Property(x => x.ItemType).HasMaxLength(64).HasDefaultValue("Inventory");
+            builder.Property(x => x.ItemCode).HasMaxLength(64).HasDefaultValue(string.Empty);
             builder.Property(x => x.ItemName).HasMaxLength(256).IsRequired();
             builder.Property(x => x.Description).HasMaxLength(1000);
             builder.Property(x => x.Quantity).HasPrecision(18, 4).IsRequired();
+            builder.Property(x => x.SourcedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.OrderedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.Uom).HasMaxLength(64).HasDefaultValue("PCS");
             builder.Property(x => x.EstimatedPrice).HasPrecision(18, 4).HasDefaultValue(0m);
-            builder.Property(x => x.TotalAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.TotalAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+            builder.Property(x => x.LineStatus).HasConversion<string>().HasMaxLength(64).HasDefaultValue(PurchaseRequisitionLineStatus.PendingSourcing);
 
             builder.HasIndex(x => x.PurchaseRequisitionId);
+            builder.HasIndex(x => new { x.TenantId, x.LineStatus });
         }
     }
 

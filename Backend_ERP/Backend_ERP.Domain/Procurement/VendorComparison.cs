@@ -7,6 +7,8 @@ namespace ERP.Domain.Procurement
     {
         public int Id { get; set; }
 
+        public int TenantId { get; set; } = 1;
+
         public string ComparisonNumber { get; set; } = string.Empty;
 
         public int? RFQId { get; set; }
@@ -33,6 +35,18 @@ namespace ERP.Domain.Procurement
 
         public VendorComparisonStatus Status { get; set; } = VendorComparisonStatus.Pending;
 
+        public bool IsExecutiveOverride { get; set; } = false;
+
+        public string ExecutiveOverrideReasonCode { get; set; } = string.Empty;
+
+        public string ExecutiveOverrideJustification { get; set; } = string.Empty;
+
+        public bool IsSplitAward { get; set; } = false;
+
+        public string SplitAllocationJson { get; set; } = "[]";
+
+        public string EvaluatedByUserId { get; set; } = string.Empty;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public string CreatedBy { get; set; } = string.Empty;
@@ -42,6 +56,8 @@ namespace ERP.Domain.Procurement
         public string UpdatedBy { get; set; } = string.Empty;
 
         public bool IsDeleted { get; set; }
+
+        public uint ConcurrencyVersion { get; set; }
 
         public List<VendorComparisonEntry> Entries { get; set; } = new();
 

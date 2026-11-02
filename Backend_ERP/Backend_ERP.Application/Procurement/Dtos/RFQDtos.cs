@@ -126,6 +126,22 @@ namespace ERP.Application.Procurement.Dtos
 
         public int? ComparisonId { get; set; }
 
+        [JsonPropertyName("title")]
+        public string Title { get; set; } = string.Empty;
+
+        [JsonPropertyName("bidClosingDate")]
+        public DateTime? BidClosingDate { get; set; }
+
+        [JsonPropertyName("sourcingType")]
+        public string SourcingType { get; set; } = string.Empty;
+
+        [JsonPropertyName("isSealedBid")]
+        public bool IsSealedBid { get; set; }
+
+        public int TotalLines { get; set; }
+
+        public int TotalVendors { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         public string CreatedBy { get; set; } = string.Empty;

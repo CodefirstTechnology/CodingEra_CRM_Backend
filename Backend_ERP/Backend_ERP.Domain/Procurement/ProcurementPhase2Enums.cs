@@ -4,10 +4,15 @@ namespace ERP.Domain.Procurement
     {
         Draft,
         Submitted,
+        PendingApproval,
         Approved,
+        RfqIssued,
         ConvertedToRFQ,
+        PartiallyOrdered,
+        FullyOrdered,
         Closed,
-        Rejected
+        Rejected,
+        Cancelled
     }
 
     public enum PurchaseRequisitionPriority
@@ -18,12 +23,33 @@ namespace ERP.Domain.Procurement
         Urgent
     }
 
+    public enum PurchaseRequisitionLineStatus
+    {
+        PendingSourcing,
+        RfqIssued,
+        UnderEvaluation,
+        PartiallyOrdered,
+        FullyOrdered,
+        Closed,
+        Cancelled
+    }
+
+    public enum RFQSourcingType
+    {
+        SingleSource,
+        OpenCompetitive,
+        RestrictedAVL
+    }
+
     public enum RFQStatus
     {
         Draft,
+        Published,
         Sent,
+        SentToVendors,
         VendorResponsesReceived,
         ComparisonReady,
+        UnderComparison,
         Awarded,
         Closed,
         Cancelled
@@ -32,7 +58,10 @@ namespace ERP.Domain.Procurement
     public enum RFQVendorStatus
     {
         Pending,
+        Invited,
+        Acknowledged,
         Responded,
+        BidSubmitted,
         Declined
     }
 }

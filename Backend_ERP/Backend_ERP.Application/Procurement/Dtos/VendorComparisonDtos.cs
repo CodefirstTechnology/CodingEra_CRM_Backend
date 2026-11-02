@@ -47,6 +47,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("totalCost")]
         public decimal TotalCost { get; set; }
 
+        [JsonPropertyName("totalLandedCost")]
+        public decimal TotalLandedCost { get; set; }
+
         [JsonPropertyName("ranking")]
         public int Ranking { get; set; }
 
@@ -58,6 +61,27 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("recommendationScore")]
         public double RecommendationScore { get; set; }
+
+        [JsonPropertyName("landedCostScore")]
+        public double LandedCostScore { get; set; }
+
+        [JsonPropertyName("leadTimeScore")]
+        public double LeadTimeScore { get; set; }
+
+        [JsonPropertyName("qualityScore")]
+        public double QualityScore { get; set; }
+
+        [JsonPropertyName("paymentTermsScore")]
+        public double PaymentTermsScore { get; set; }
+
+        [JsonPropertyName("blendedMCDAScore")]
+        public double BlendedMCDAScore { get; set; }
+
+        [JsonPropertyName("isAwardee")]
+        public bool IsAwardee { get; set; }
+
+        [JsonPropertyName("awardedQuantityPercentage")]
+        public decimal AwardedQuantityPercentage { get; set; }
 
         [JsonPropertyName("remarks")]
         public string Remarks { get; set; } = string.Empty;
@@ -119,6 +143,12 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("purchaseOrderNumber")]
         public string PurchaseOrderNumber { get; set; } = string.Empty;
 
+        [JsonPropertyName("isExecutiveOverride")]
+        public bool IsExecutiveOverride { get; set; }
+
+        [JsonPropertyName("isSplitAward")]
+        public bool IsSplitAward { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         public string CreatedBy { get; set; } = string.Empty;
@@ -160,6 +190,24 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("purchaseOrderNumber")]
         public string PurchaseOrderNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("isExecutiveOverride")]
+        public bool IsExecutiveOverride { get; set; }
+
+        [JsonPropertyName("executiveOverrideReasonCode")]
+        public string ExecutiveOverrideReasonCode { get; set; } = string.Empty;
+
+        [JsonPropertyName("executiveOverrideJustification")]
+        public string ExecutiveOverrideJustification { get; set; } = string.Empty;
+
+        [JsonPropertyName("isSplitAward")]
+        public bool IsSplitAward { get; set; }
+
+        [JsonPropertyName("splitAllocationJson")]
+        public string SplitAllocationJson { get; set; } = "[]";
+
+        [JsonPropertyName("evaluatedByUserId")]
+        public string EvaluatedByUserId { get; set; } = string.Empty;
 
         public VendorComparisonStatus Status { get; set; }
 
@@ -235,15 +283,54 @@ namespace ERP.Application.Procurement.Dtos
 
         public string Remarks { get; set; } = string.Empty;
 
+        public bool IsExecutiveOverride { get; set; }
+
+        public string OverrideReasonCode { get; set; } = string.Empty;
+
+        public string OverrideJustification { get; set; } = string.Empty;
+
+        public string SingleSourceJustificationCode { get; set; } = string.Empty;
+
         public int? PurchaseOrderId { get; set; }
 
         public string PurchaseOrderNumber { get; set; } = string.Empty;
     }
 
+    public class VendorSplitAllocationItemDto
+    {
+        [JsonPropertyName("vendorId")]
+        public int VendorId { get; set; }
+
+        [JsonPropertyName("vendorName")]
+        public string VendorName { get; set; } = string.Empty;
+
+        [JsonPropertyName("awardedPercentage")]
+        public decimal AwardedPercentage { get; set; }
+    }
+
+    public class VendorSplitAwardRequestDto
+    {
+        [JsonPropertyName("allocations")]
+        public List<VendorSplitAllocationItemDto> Allocations { get; set; } = new();
+
+        [JsonPropertyName("remarks")]
+        public string Remarks { get; set; } = string.Empty;
+
+        [JsonPropertyName("isExecutiveOverride")]
+        public bool IsExecutiveOverride { get; set; }
+
+        [JsonPropertyName("overrideReasonCode")]
+        public string OverrideReasonCode { get; set; } = string.Empty;
+
+        [JsonPropertyName("overrideJustification")]
+        public string OverrideJustification { get; set; } = string.Empty;
+
+        [JsonPropertyName("singleSourceJustificationCode")]
+        public string SingleSourceJustificationCode { get; set; } = string.Empty;
+    }
+
     public class VendorComparisonStatusUpdateRequestDto
     {
-        public VendorComparisonStatus TargetStatus { get; set; }
-
-        public string Remarks { get; set; } = string.Empty;
+        public string? Remarks { get; set; }
     }
 }

@@ -6,6 +6,8 @@ namespace ERP.Domain.Procurement
     {
         public int Id { get; set; }
 
+        public int TenantId { get; set; } = 1;
+
         public int VendorComparisonId { get; set; }
 
         public VendorComparison? VendorComparison { get; set; }
@@ -38,6 +40,8 @@ namespace ERP.Domain.Procurement
 
         public decimal TotalCost { get; set; }
 
+        public decimal TotalLandedCost { get; set; }
+
         public int Ranking { get; set; }
 
         public bool IsLowestPrice { get; set; }
@@ -45,6 +49,20 @@ namespace ERP.Domain.Procurement
         public bool IsBestDelivery { get; set; }
 
         public double RecommendationScore { get; set; }
+
+        public double LandedCostScore { get; set; }
+
+        public double LeadTimeScore { get; set; }
+
+        public double QualityScore { get; set; }
+
+        public double PaymentTermsScore { get; set; }
+
+        public double BlendedMCDAScore { get; set; }
+
+        public bool IsAwardee { get; set; }
+
+        public decimal AwardedQuantityPercentage { get; set; }
 
         public string Remarks { get; set; } = string.Empty;
 

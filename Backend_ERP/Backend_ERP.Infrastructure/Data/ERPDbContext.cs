@@ -145,6 +145,8 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.RequestForQuotationLine> RequestForQuotationLines => Set<ERP.Domain.Procurement.RequestForQuotationLine>();
 
+        public DbSet<ERP.Domain.Procurement.RFQItemRequisitionLine> RFQItemRequisitionLines => Set<ERP.Domain.Procurement.RFQItemRequisitionLine>();
+
         public DbSet<ERP.Domain.Procurement.RequestForQuotationVendor> RequestForQuotationVendors => Set<ERP.Domain.Procurement.RequestForQuotationVendor>();
 
         public DbSet<ERP.Domain.Procurement.RequestForQuotationStatusHistory> RequestForQuotationStatusHistories => Set<ERP.Domain.Procurement.RequestForQuotationStatusHistory>();

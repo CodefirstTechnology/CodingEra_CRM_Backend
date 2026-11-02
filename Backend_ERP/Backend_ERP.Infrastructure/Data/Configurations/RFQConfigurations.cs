@@ -11,10 +11,12 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("request_for_quotations");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasDefaultValue(1);
             builder.Property(x => x.RFQNumber).HasMaxLength(64).IsRequired();
-            builder.HasIndex(x => x.RFQNumber).IsUnique();
-
+            builder.Property(x => x.Title).HasMaxLength(256).HasDefaultValue(string.Empty);
             builder.Property(x => x.PurchaseRequisitionNumber).HasMaxLength(64);
+            builder.Property(x => x.SourcingType).HasConversion<string>().HasMaxLength(64).HasDefaultValue(RFQSourcingType.OpenCompetitive);
+            builder.Property(x => x.IsSealedBid).HasDefaultValue(true);
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsRequired();
             builder.Property(x => x.DeliveryTerms).HasMaxLength(1000);
             builder.Property(x => x.PaymentTerms).HasMaxLength(1000);
@@ -23,6 +25,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.CreatedBy).HasMaxLength(256);
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
 
+            builder.Property(x => x.ConcurrencyVersion).IsRowVersion();
+
+            builder.HasIndex(x => new { x.TenantId, x.RFQNumber }).IsUnique().HasDatabaseName("ix_rfq_tenant_number");
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.PurchaseRequisitionId);
 
@@ -55,13 +60,46 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("rfq_lines");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasDefaultValue(1);
+            builder.Property(x => x.ItemCode).HasMaxLength(64).HasDefaultValue(string.Empty);
             builder.Property(x => x.ItemName).HasMaxLength(256).IsRequired();
             builder.Property(x => x.Description).HasMaxLength(1000);
             builder.Property(x => x.Quantity).HasPrecision(18, 4).IsRequired();
             builder.Property(x => x.Uom).HasMaxLength(64).HasDefaultValue("PCS");
             builder.Property(x => x.TargetUnitPrice).HasPrecision(18, 4);
+            builder.Property(x => x.TechnicalSpecsJson).HasColumnType("jsonb").HasDefaultValue("{}");
 
             builder.HasIndex(x => x.RequestForQuotationId);
+
+            builder.HasMany(x => x.ConsolidatedRequisitionLines)
+                .WithOne(x => x.RequestForQuotationLine)
+                .HasForeignKey(x => x.RequestForQuotationLineId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
+
+    public class RFQItemRequisitionLineConfiguration : IEntityTypeConfiguration<RFQItemRequisitionLine>
+    {
+        public void Configure(EntityTypeBuilder<RFQItemRequisitionLine> builder)
+        {
+            builder.ToTable("rfq_item_requisition_lines");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.TenantId).HasDefaultValue(1);
+            builder.Property(x => x.AllocatedQuantity).HasPrecision(18, 4).IsRequired();
+
+            builder.HasIndex(x => x.RequestForQuotationLineId);
+            builder.HasIndex(x => x.PurchaseRequisitionLineId);
+
+            builder.HasOne(x => x.RequestForQuotationLine)
+                .WithMany(x => x.ConsolidatedRequisitionLines)
+                .HasForeignKey(x => x.RequestForQuotationLineId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.PurchaseRequisitionLine)
+                .WithMany()
+                .HasForeignKey(x => x.PurchaseRequisitionLineId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 
@@ -72,13 +110,17 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("rfq_vendors");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasDefaultValue(1);
             builder.Property(x => x.VendorName).HasMaxLength(256);
             builder.Property(x => x.ContactEmail).HasMaxLength(256);
             builder.Property(x => x.ContactPhone).HasMaxLength(64);
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsRequired();
+            builder.Property(x => x.AccessToken).HasMaxLength(128).HasDefaultValue(string.Empty);
+            builder.Property(x => x.DeclineReason).HasMaxLength(1000).HasDefaultValue(string.Empty);
 
             builder.HasIndex(x => x.RequestForQuotationId);
             builder.HasIndex(x => x.VendorId);
+            builder.HasIndex(x => x.AccessToken);
 
             builder.HasOne(x => x.Vendor)
                 .WithMany()
