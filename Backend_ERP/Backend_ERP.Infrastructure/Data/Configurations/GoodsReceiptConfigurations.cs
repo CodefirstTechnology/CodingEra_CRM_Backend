@@ -123,6 +123,9 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.HasIndex(x => x.ItemId);
             builder.HasIndex(x => x.BatchNumber);
 
+            builder.Ignore(x => x.RawMaterial);
+            builder.Ignore(x => x.RawMaterialId);
+
             builder.HasOne(x => x.PurchaseOrderLine)
                 .WithMany()
                 .HasForeignKey(x => x.PurchaseOrderLineId)

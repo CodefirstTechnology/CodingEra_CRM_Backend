@@ -259,6 +259,12 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.VendorLedgerEntry> VendorLedgerEntries => Set<ERP.Domain.Procurement.VendorLedgerEntry>();
 
+        public DbSet<ERP.Domain.Procurement.VendorBillSettlement> VendorBillSettlements => Set<ERP.Domain.Procurement.VendorBillSettlement>();
+
+        public DbSet<ERP.Domain.Procurement.ProcurementWorkflowStageLog> ProcurementWorkflowStageLogs => Set<ERP.Domain.Procurement.ProcurementWorkflowStageLog>();
+
+        public DbSet<ERP.Domain.Procurement.ProcurementAuditLog> ProcurementAuditLogs => Set<ERP.Domain.Procurement.ProcurementAuditLog>();
+
         public DbSet<ERP.Application.Procurement.Dtos.VendorAgingSummaryDto> VendorAgingSummaries => Set<ERP.Application.Procurement.Dtos.VendorAgingSummaryDto>();
 
         // Procurement Reports & Audit Trail DbSets

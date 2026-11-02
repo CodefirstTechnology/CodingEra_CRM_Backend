@@ -158,6 +158,12 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Procurement.IProcurementAuditTrailService, ERP.Infrastructure.Procurement.ProcurementAuditTrailService>();
             services.AddScoped<ERP.Application.Procurement.IProcurementReportsService, ERP.Infrastructure.Procurement.ProcurementReportsService>();
 
+            services.AddScoped<ERP.Application.Procurement.IVendorPayablesLedgerEngine, ERP.Infrastructure.Procurement.VendorPayablesLedgerEngine>();
+            services.AddScoped<ERP.Application.Procurement.IAccountsPayableAgingService, ERP.Infrastructure.Procurement.AccountsPayableAgingService>();
+            services.AddScoped<ERP.Application.Procurement.IProcurementWorkflowSlaEngine, ERP.Infrastructure.Procurement.ProcurementWorkflowSlaEngine>();
+            services.AddScoped<ERP.Application.Procurement.IProcurementSpendAnalyticsService, ERP.Infrastructure.Procurement.ProcurementSpendAnalyticsService>();
+            services.AddScoped<ERP.Application.Procurement.IForensicAuditChainingEngine, ERP.Infrastructure.Procurement.ForensicAuditChainingEngine>();
+
             // Production Services
             services.AddScoped<ERP.Application.Production.IProductionService, ERP.Infrastructure.Production.ProductionService>();
             services.AddScoped<Backend_ERP.Infrastructure.Production.IAtomicProductionEntryHandler, Backend_ERP.Infrastructure.Production.AtomicProductionEntryHandler>();

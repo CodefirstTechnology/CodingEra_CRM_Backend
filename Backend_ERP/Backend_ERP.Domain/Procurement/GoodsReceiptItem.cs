@@ -16,6 +16,16 @@ namespace ERP.Domain.Procurement
 
         public int? ItemId { get; set; }
 
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public RawMaterial? RawMaterial { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public int? RawMaterialId
+        {
+            get => ItemId;
+            set => ItemId = value;
+        }
+
         public string ItemName { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;

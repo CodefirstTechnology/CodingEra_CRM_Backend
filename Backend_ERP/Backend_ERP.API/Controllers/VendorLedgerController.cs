@@ -14,11 +14,19 @@ namespace ERP.API.Controllers
     {
         private readonly IVendorLedgerService _ledgerService;
         private readonly IVendorPaymentService _paymentService;
+        private readonly IVendorPayablesLedgerEngine _payablesEngine;
+        private readonly IAccountsPayableAgingService _agingService;
 
-        public VendorLedgerController(IVendorLedgerService ledgerService, IVendorPaymentService paymentService)
+        public VendorLedgerController(
+            IVendorLedgerService ledgerService,
+            IVendorPaymentService paymentService,
+            IVendorPayablesLedgerEngine payablesEngine,
+            IAccountsPayableAgingService agingService)
         {
             _ledgerService = ledgerService;
             _paymentService = paymentService;
+            _payablesEngine = payablesEngine;
+            _agingService = agingService;
         }
 
         [HttpGet("statement/{vendorId:int}")]
@@ -39,6 +47,37 @@ namespace ERP.API.Controllers
         public async Task<ActionResult<List<VendorAgingSummaryDto>>> GetAgingSummary(CancellationToken cancellationToken = default)
         {
             var result = await _ledgerService.GetVendorAgingSummaryAsync(cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("aging-analysis")]
+        public async Task<ActionResult<AccountsPayableAgingGridDto>> GetDetailedAgingAnalysis(
+            [FromQuery] DateTime? asOfDate,
+            [FromQuery] int? vendorId,
+            CancellationToken cancellationToken = default)
+        {
+            var targetDate = asOfDate ?? DateTime.UtcNow;
+            var result = await _agingService.CalculateAgingScheduleAsync(targetDate, vendorId, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("settle-bills")]
+        public async Task<ActionResult<VendorBillSettlementResultDto>> SettleBills(
+            [FromBody] SettleBillRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _payablesEngine.SettleBillAsync(request, userId, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("auto-knockoff-fifo")]
+        public async Task<ActionResult<VendorBillSettlementResultDto>> AutoKnockOffFifo(
+            [FromBody] FifoKnockOffRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _payablesEngine.AutoKnockOffFifoAsync(request, userId, cancellationToken);
             return Ok(result);
         }
 

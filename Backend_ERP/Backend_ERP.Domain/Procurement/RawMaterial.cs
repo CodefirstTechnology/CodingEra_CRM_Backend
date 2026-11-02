@@ -8,6 +8,13 @@ namespace ERP.Domain.Procurement
 
         public string MaterialCode { get; set; } = string.Empty;
 
+        // Alias for ItemCode
+        public string ItemCode
+        {
+            get => MaterialCode;
+            set => MaterialCode = value;
+        }
+
         public string MaterialName { get; set; } = string.Empty;
 
         public string Category { get; set; } = string.Empty;
@@ -35,6 +42,20 @@ namespace ERP.Domain.Procurement
         public decimal ReorderLevel { get; set; }
 
         public decimal UnitCost { get; set; }
+
+        // Alias for StandardCost
+        public decimal StandardCost
+        {
+            get => UnitCost;
+            set => UnitCost = value;
+        }
+
+        // Alias for MovingWeightedAverageCost
+        public decimal MovingWeightedAverageCost
+        {
+            get => UnitCost;
+            set => UnitCost = value;
+        }
 
         public decimal CurrentValue { get; set; }
 

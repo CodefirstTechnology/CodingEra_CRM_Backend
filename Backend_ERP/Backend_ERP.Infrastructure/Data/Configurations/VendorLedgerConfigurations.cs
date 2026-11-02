@@ -59,14 +59,68 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.ToTable("vendor_ledger_entries");
             builder.HasKey(x => x.Id);
 
+            builder.Property(x => x.TenantId).HasMaxLength(64).IsRequired().HasDefaultValue("TENANT-DEFAULT");
+            builder.Property(x => x.EntryNumber).HasMaxLength(64).IsRequired().HasDefaultValue("");
             builder.Property(x => x.VoucherNumber).HasMaxLength(64).IsRequired();
-            builder.Property(x => x.EntryType).HasMaxLength(32).IsRequired();
-            builder.Property(x => x.ReferenceNumber).HasMaxLength(128);
+            builder.Property(x => x.VoucherType).HasMaxLength(32).IsRequired();
+            builder.Property(x => x.ReferenceDocType).HasMaxLength(32);
+            builder.Property(x => x.ReferenceDocNumber).HasMaxLength(128);
 
-            builder.Property(x => x.DebitAmount).HasPrecision(18, 4);
-            builder.Property(x => x.CreditAmount).HasPrecision(18, 4);
+            builder.Property(x => x.Currency).HasMaxLength(3).IsRequired().HasDefaultValue("INR");
+            builder.Property(x => x.ExchangeRate).HasPrecision(18, 6).HasDefaultValue(1.000000m);
+            builder.Property(x => x.ForeignDebitAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.ForeignCreditAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.DebitAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.CreditAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.RunningBalance).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.SettledAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.OutstandingAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.SettlementStatus).HasMaxLength(32).HasDefaultValue("Unsettled");
 
-            builder.HasIndex(x => new { x.VendorId, x.EntryDate, x.Id }).HasDatabaseName("idx_vendor_ledger_lookup");
+            builder.Property(x => x.RowVersion).IsRowVersion(); // xmin token in PostgreSQL
+
+            builder.HasOne(x => x.Vendor)
+                .WithMany()
+                .HasForeignKey(x => x.VendorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.PurchaseBill)
+                .WithMany()
+                .HasForeignKey(x => x.PurchaseBillId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasIndex(x => new { x.TenantId, x.VendorId, x.PostingDate, x.Id })
+                .HasDatabaseName("idx_vendor_ledger_vendor_date");
+
+            builder.HasIndex(x => new { x.TenantId, x.VendorId, x.SettlementStatus })
+                .HasDatabaseName("idx_vendor_ledger_unsettled");
+        }
+    }
+
+    public class VendorBillSettlementConfiguration : IEntityTypeConfiguration<VendorBillSettlement>
+    {
+        public void Configure(EntityTypeBuilder<VendorBillSettlement> builder)
+        {
+            builder.ToTable("vendor_bill_settlements");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.TenantId).HasMaxLength(64).IsRequired().HasDefaultValue("TENANT-DEFAULT");
+            builder.Property(x => x.AllocatedAmount).HasPrecision(18, 4);
+            builder.Property(x => x.RealizedFxGainLoss).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.AllocationNotes).HasMaxLength(256);
+
+            builder.HasOne(x => x.PurchaseBill)
+                .WithMany()
+                .HasForeignKey(x => x.PurchaseBillId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.PaymentVoucher)
+                .WithMany()
+                .HasForeignKey(x => x.PaymentVoucherId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasIndex(x => new { x.TenantId, x.PurchaseBillId, x.PaymentVoucherId })
+                .HasDatabaseName("idx_bill_settlement_lookup");
         }
     }
 

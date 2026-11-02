@@ -3746,6 +3746,79 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.ToTable("physical_verification_lines", (string)null);
                 });
 
+            modelBuilder.Entity("ERP.Domain.Procurement.ProcurementAuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("BlockIndex")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ChangedByUser")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("CurrentLogHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("NewValuesJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("OldValuesJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("PreviousLogHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("TENANT-DEFAULT");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserIpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "BlockIndex")
+                        .IsUnique()
+                        .HasDatabaseName("idx_procurement_audit_chain");
+
+                    b.HasIndex("TenantId", "EntityName", "EntityId", "Timestamp")
+                        .HasDatabaseName("idx_procurement_audit_entity");
+
+                    b.ToTable("procurement_audit_logs", (string)null);
+                });
+
             modelBuilder.Entity("ERP.Domain.Procurement.ProcurementAuditTrailEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -3806,6 +3879,81 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasIndex("Module");
 
                     b.ToTable("procurement_audit_trail_entries", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.ProcurementWorkflowStageLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ActionedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActionedByUserName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DepartmentName")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal?>("ElapsedBusinessHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<int>("EntityId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("IsSlaBreached")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StageName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("StageSequence")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("TargetSlaHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("TENANT-DEFAULT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "EntityType", "IsSlaBreached", "StartedAt")
+                        .HasDatabaseName("idx_procurement_stage_perf");
+
+                    b.ToTable("procurement_workflow_stage_logs", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Procurement.PurchaseBill", b =>
@@ -4216,6 +4364,8 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasIndex("GoodsReceiptItemId");
 
                     b.HasIndex("PurchaseBillId");
+
+                    b.HasIndex("PurchaseOrderLineId");
 
                     b.ToTable("purchase_bill_lines", (string)null);
                 });
@@ -7070,6 +7220,65 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.ToTable("vendor_bank_accounts", (string)null);
                 });
 
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorBillSettlement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AllocatedAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("AllocationNotes")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DebitNoteId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PaymentVoucherId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PurchaseBillId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("RealizedFxGainLoss")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<DateTime>("SettlementDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("TENANT-DEFAULT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentVoucherId");
+
+                    b.HasIndex("PurchaseBillId");
+
+                    b.HasIndex("TenantId", "PurchaseBillId", "PaymentVoucherId")
+                        .HasDatabaseName("idx_bill_settlement_lookup");
+
+                    b.ToTable("vendor_bill_settlements", (string)null);
+                });
+
             modelBuilder.Entity("ERP.Domain.Procurement.VendorComparison", b =>
                 {
                     b.Property<int>("Id")
@@ -7753,33 +7962,125 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<decimal>("CreditAmount")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("INR");
 
                     b.Property<decimal>("DebitAmount")
+                        .ValueGeneratedOnAdd()
                         .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<DateTime>("EntryDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("EntryNumber")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("EntryType")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("ExchangeRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasDefaultValue(1.000000m);
+
+                    b.Property<decimal>("ForeignCreditAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("ForeignDebitAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<string>("Narration")
                         .HasColumnType("text");
 
+                    b.Property<decimal>("OutstandingAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<DateTime>("PostingDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("PurchaseBillId")
                         .HasColumnType("integer");
+
+                    b.Property<int?>("ReferenceDocId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ReferenceDocNumber")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ReferenceDocType")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<int?>("ReferenceId")
                         .HasColumnType("integer");
 
                     b.Property<string>("ReferenceNumber")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("text");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<decimal>("RunningBalance")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("SettledAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("SettlementStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("Unsettled");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasDefaultValue("TENANT-DEFAULT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UpdatedByUserId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("VendorId")
                         .HasColumnType("integer");
@@ -7789,12 +8090,22 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("VoucherType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PurchaseBillId");
 
-                    b.HasIndex("VendorId", "EntryDate", "Id")
-                        .HasDatabaseName("idx_vendor_ledger_lookup");
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "VendorId", "SettlementStatus")
+                        .HasDatabaseName("idx_vendor_ledger_unsettled");
+
+                    b.HasIndex("TenantId", "VendorId", "PostingDate", "Id")
+                        .HasDatabaseName("idx_vendor_ledger_vendor_date");
 
                     b.ToTable("vendor_ledger_entries", (string)null);
                 });
@@ -15989,11 +16300,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ERP.Domain.Procurement.PurchaseOrderLine", "PurchaseOrderLine")
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderLineId");
+
                     b.Navigation("GoodsReceipt");
 
                     b.Navigation("GoodsReceiptItem");
 
                     b.Navigation("PurchaseBill");
+
+                    b.Navigation("PurchaseOrderLine");
                 });
 
             modelBuilder.Entity("ERP.Domain.Procurement.PurchaseOrder", b =>
@@ -16275,6 +16592,24 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Navigation("Vendor");
                 });
 
+            modelBuilder.Entity("ERP.Domain.Procurement.VendorBillSettlement", b =>
+                {
+                    b.HasOne("ERP.Domain.Procurement.VendorPayment", "PaymentVoucher")
+                        .WithMany()
+                        .HasForeignKey("PaymentVoucherId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("ERP.Domain.Procurement.PurchaseBill", "PurchaseBill")
+                        .WithMany()
+                        .HasForeignKey("PurchaseBillId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PaymentVoucher");
+
+                    b.Navigation("PurchaseBill");
+                });
+
             modelBuilder.Entity("ERP.Domain.Procurement.VendorComparison", b =>
                 {
                     b.HasOne("ERP.Domain.Procurement.RequestForQuotation", "RFQ")
@@ -16376,12 +16711,13 @@ namespace Backend_ERP.Infrastructure.Migrations
                 {
                     b.HasOne("ERP.Domain.Procurement.PurchaseBill", "PurchaseBill")
                         .WithMany()
-                        .HasForeignKey("PurchaseBillId");
+                        .HasForeignKey("PurchaseBillId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("ERP.Domain.Procurement.Vendor", "Vendor")
                         .WithMany()
                         .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("PurchaseBill");

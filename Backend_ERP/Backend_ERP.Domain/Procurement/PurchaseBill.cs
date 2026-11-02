@@ -11,7 +11,18 @@ namespace ERP.Domain.Procurement
 
         public string InvoiceNumber { get; set; } = string.Empty;
 
+        // Alias for VendorInvoiceNumber
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public string VendorInvoiceNumber
+        {
+            get => InvoiceNumber;
+            set => InvoiceNumber = value;
+        }
+
         public int VendorId { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public Vendor? Vendor { get; set; }
 
         public string VendorName { get; set; } = string.Empty;
 
@@ -32,6 +43,12 @@ namespace ERP.Domain.Procurement
 
         public string Currency { get; set; } = "INR";
 
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public decimal ExchangeRate { get; set; } = 1.0m;
+
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public int PaymentTermsDays { get; set; } = 30;
+
         public decimal SubTotal { get; set; }
 
         public decimal DiscountTotal { get; set; }
@@ -42,9 +59,25 @@ namespace ERP.Domain.Procurement
 
         public decimal GrandTotal { get; set; }
 
+        // Alias for TotalAmount
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public decimal TotalAmount
+        {
+            get => GrandTotal;
+            set => GrandTotal = value;
+        }
+
         public decimal PaidAmount { get; set; }
 
         public decimal BalanceAmount { get; set; }
+
+        // Alias for OutstandingAmount
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public decimal OutstandingAmount
+        {
+            get => BalanceAmount;
+            set => BalanceAmount = value;
+        }
 
         public string PaymentTerms { get; set; } = "Net 30 Days";
 

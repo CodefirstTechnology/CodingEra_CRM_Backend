@@ -11,6 +11,13 @@ namespace ERP.Domain.Procurement
 
         public string VendorCode { get; set; } = string.Empty;
 
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public string Code
+        {
+            get => VendorCode;
+            set => VendorCode = value;
+        }
+
         public string Name { get; set; } = string.Empty;
 
         public string LegalName { get; set; } = string.Empty;

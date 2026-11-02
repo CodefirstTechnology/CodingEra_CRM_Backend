@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,10 +13,46 @@ namespace ERP.API.Controllers
     public class ProcurementReportsController : ControllerBase
     {
         private readonly IProcurementReportsService _reportsService;
+        private readonly IProcurementWorkflowSlaEngine _workflowSlaEngine;
+        private readonly IAccountsPayableAgingService _agingService;
 
-        public ProcurementReportsController(IProcurementReportsService reportsService)
+        public ProcurementReportsController(
+            IProcurementReportsService reportsService,
+            IProcurementWorkflowSlaEngine workflowSlaEngine,
+            IAccountsPayableAgingService agingService)
         {
             _reportsService = reportsService;
+            _workflowSlaEngine = workflowSlaEngine;
+            _agingService = agingService;
+        }
+
+        [HttpGet("workflow-velocity")]
+        public async Task<ActionResult<WorkflowVelocityReportDto>> GetWorkflowVelocity(
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            CancellationToken cancellationToken = default)
+        {
+            var start = fromDate ?? DateTime.UtcNow.AddMonths(-1);
+            var end = toDate ?? DateTime.UtcNow;
+            var report = await _workflowSlaEngine.GetVelocityReportAsync(start, end, cancellationToken);
+            return Ok(report);
+        }
+
+        [HttpGet("department-bottlenecks")]
+        public async Task<ActionResult<List<DepartmentBottleneckScorecardDto>>> GetDepartmentBottlenecks(
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _workflowSlaEngine.GetDepartmentBottlenecksAsync(fromDate, toDate, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("msme-compliance")]
+        public async Task<ActionResult<List<MsmeComplianceAlertDto>>> GetMsmeCompliance(CancellationToken cancellationToken = default)
+        {
+            var alerts = await _agingService.GetMsmeSection43BAlertsAsync(cancellationToken);
+            return Ok(alerts);
         }
 
         [HttpGet("kpis")]

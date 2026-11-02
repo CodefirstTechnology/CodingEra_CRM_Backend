@@ -61,6 +61,13 @@ namespace ERP.Infrastructure.Data.Configurations
 
             builder.Property(x => x.RowVersion).IsRowVersion();
 
+            builder.Ignore(x => x.Vendor);
+            builder.Ignore(x => x.VendorInvoiceNumber);
+            builder.Ignore(x => x.ExchangeRate);
+            builder.Ignore(x => x.PaymentTermsDays);
+            builder.Ignore(x => x.TotalAmount);
+            builder.Ignore(x => x.OutstandingAmount);
+
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.PaymentStatus);
             builder.HasIndex(x => x.ThreeWayMatchStatus);
