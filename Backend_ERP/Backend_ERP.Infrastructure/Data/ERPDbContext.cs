@@ -179,6 +179,10 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.PurchaseOrderApprovalHistory> PurchaseOrderApprovalHistories => Set<ERP.Domain.Procurement.PurchaseOrderApprovalHistory>();
 
+        public DbSet<ERP.Domain.Procurement.PurchaseOrderApproval> PurchaseOrderApprovals => Set<ERP.Domain.Procurement.PurchaseOrderApproval>();
+
+        public DbSet<ERP.Domain.Procurement.PurchaseOrderAmendmentHistory> PurchaseOrderAmendmentHistories => Set<ERP.Domain.Procurement.PurchaseOrderAmendmentHistory>();
+
         public DbSet<ERP.Domain.Procurement.PurchaseOrderDocumentSequence> PurchaseOrderDocumentSequences => Set<ERP.Domain.Procurement.PurchaseOrderDocumentSequence>();
 
         public DbSet<ERP.Domain.Procurement.ApprovalRule> ApprovalRules => Set<ERP.Domain.Procurement.ApprovalRule>();

@@ -10,6 +10,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("vendorName")]
         public string VendorName { get; set; } = string.Empty;
 
+        [JsonPropertyName("vendorCode")]
+        public string VendorCode { get; set; } = string.Empty;
+
         [JsonPropertyName("vendorContact")]
         public string VendorContact { get; set; } = string.Empty;
 
@@ -27,6 +30,12 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("gstNumber")]
         public string GstNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("stateCode")]
+        public string StateCode { get; set; } = string.Empty;
+
+        [JsonPropertyName("pan")]
+        public string Pan { get; set; } = string.Empty;
     }
 
     public class PurchaseOrderLineDto
@@ -34,17 +43,44 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
 
+        [JsonPropertyName("lineNumber")]
+        public int LineNumber { get; set; }
+
+        [JsonPropertyName("itemType")]
+        public POItemType ItemType { get; set; } = POItemType.Goods;
+
+        [JsonPropertyName("itemCode")]
+        public string ItemCode { get; set; } = string.Empty;
+
         [JsonPropertyName("itemName")]
         public string ItemName { get; set; } = string.Empty;
 
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
+        [JsonPropertyName("hsnCode")]
+        public string HsnCode { get; set; } = string.Empty;
+
         [JsonPropertyName("quantity")]
         public decimal Quantity { get; set; }
 
+        [JsonPropertyName("receivedQuantity")]
+        public decimal ReceivedQuantity { get; set; }
+
+        [JsonPropertyName("rejectedQuantity")]
+        public decimal RejectedQuantity { get; set; }
+
+        [JsonPropertyName("invoicedQuantity")]
+        public decimal InvoicedQuantity { get; set; }
+
+        [JsonPropertyName("cancelledQuantity")]
+        public decimal CancelledQuantity { get; set; }
+
         [JsonPropertyName("unit")]
         public string Unit { get; set; } = "Nos";
+
+        [JsonPropertyName("baseUom")]
+        public string BaseUom { get; set; } = "Nos";
 
         [JsonPropertyName("rate")]
         public decimal Rate { get; set; }
@@ -52,11 +88,38 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("discount")]
         public decimal Discount { get; set; }
 
+        [JsonPropertyName("taxableAmount")]
+        public decimal TaxableAmount { get; set; }
+
+        [JsonPropertyName("gstRatePercentage")]
+        public decimal GstRatePercentage { get; set; } = 18m;
+
+        [JsonPropertyName("cgstAmount")]
+        public decimal CgstAmount { get; set; }
+
+        [JsonPropertyName("sgstAmount")]
+        public decimal SgstAmount { get; set; }
+
+        [JsonPropertyName("igstAmount")]
+        public decimal IgstAmount { get; set; }
+
         [JsonPropertyName("tax")]
         public decimal Tax { get; set; }
 
         [JsonPropertyName("amount")]
         public decimal Amount { get; set; }
+
+        [JsonPropertyName("overDeliveryTolerancePercent")]
+        public decimal OverDeliveryTolerancePercent { get; set; }
+
+        [JsonPropertyName("lineStatus")]
+        public PurchaseOrderLineStatus LineStatus { get; set; } = PurchaseOrderLineStatus.Pending;
+
+        [JsonPropertyName("expectedDeliveryDate")]
+        public DateTime? ExpectedDeliveryDate { get; set; }
+
+        [JsonPropertyName("deliveryScheduleJson")]
+        public string DeliveryScheduleJson { get; set; } = "[]";
     }
 
     public class PurchaseOrderHistoryDto
@@ -105,6 +168,9 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("remarks")]
         public string Remarks { get; set; } = string.Empty;
+
+        [JsonPropertyName("hmacSignatureToken")]
+        public string? HmacSignatureToken { get; set; }
     }
 
     public class PurchaseOrderListItemDto
@@ -115,8 +181,17 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("purchaseOrderNumber")]
         public string PurchaseOrderNumber { get; set; } = string.Empty;
 
+        [JsonPropertyName("revisionNumber")]
+        public int RevisionNumber { get; set; }
+
+        [JsonPropertyName("isCurrentRevision")]
+        public bool IsCurrentRevision { get; set; } = true;
+
         [JsonPropertyName("vendorName")]
         public string VendorName { get; set; } = string.Empty;
+
+        [JsonPropertyName("vendorCode")]
+        public string VendorCode { get; set; } = string.Empty;
 
         [JsonPropertyName("referenceNumber")]
         public string ReferenceNumber { get; set; } = string.Empty;
@@ -130,8 +205,20 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("amount")]
         public decimal Amount { get; set; }
 
+        [JsonPropertyName("currency")]
+        public string Currency { get; set; } = "INR";
+
         [JsonPropertyName("status")]
         public PurchaseOrderStatus Status { get; set; }
+
+        [JsonPropertyName("requiredApprovalTier")]
+        public PurchaseOrderApprovalTier RequiredApprovalTier { get; set; }
+
+        [JsonPropertyName("currentApprovalTier")]
+        public PurchaseOrderApprovalTier CurrentApprovalTier { get; set; }
+
+        [JsonPropertyName("isExceptionApproval")]
+        public bool IsExceptionApproval { get; set; }
 
         [JsonPropertyName("createdBy")]
         public string CreatedBy { get; set; } = string.Empty;
@@ -151,14 +238,38 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("id")]
         public int Id { get; set; }
 
+        [JsonPropertyName("tenantId")]
+        public int TenantId { get; set; } = 1;
+
         [JsonPropertyName("purchaseOrderNumber")]
         public string PurchaseOrderNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("revisionNumber")]
+        public int RevisionNumber { get; set; } = 0;
+
+        [JsonPropertyName("isCurrentRevision")]
+        public bool IsCurrentRevision { get; set; } = true;
+
+        [JsonPropertyName("parentPOId")]
+        public int? ParentPOId { get; set; }
+
+        [JsonPropertyName("supersededAt")]
+        public DateTime? SupersededAt { get; set; }
 
         [JsonPropertyName("referenceNumber")]
         public string ReferenceNumber { get; set; } = string.Empty;
 
         [JsonPropertyName("vendor")]
         public PurchaseOrderVendorDto Vendor { get; set; } = new();
+
+        [JsonPropertyName("vendorCode")]
+        public string VendorCode { get; set; } = string.Empty;
+
+        [JsonPropertyName("vendorGstin")]
+        public string VendorGstin { get; set; } = string.Empty;
+
+        [JsonPropertyName("vendorStateCode")]
+        public string VendorStateCode { get; set; } = string.Empty;
 
         [JsonPropertyName("buyerName")]
         public string BuyerName { get; set; } = string.Empty;
@@ -172,8 +283,14 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("expectedDeliveryDate")]
         public DateTime? ExpectedDeliveryDate { get; set; }
 
+        [JsonPropertyName("paymentTermsDays")]
+        public int PaymentTermsDays { get; set; } = 30;
+
         [JsonPropertyName("paymentTerms")]
         public string PaymentTerms { get; set; } = "Net 30";
+
+        [JsonPropertyName("incoterms")]
+        public string Incoterms { get; set; } = "FOR Destination";
 
         [JsonPropertyName("deliveryTerms")]
         public string DeliveryTerms { get; set; } = "Door Delivery";
@@ -190,8 +307,8 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("currency")]
         public string Currency { get; set; } = "INR";
 
-        [JsonPropertyName("lines")]
-        public List<PurchaseOrderLineDto> Lines { get; set; } = new();
+        [JsonPropertyName("exchangeRate")]
+        public decimal ExchangeRate { get; set; } = 1.000000m;
 
         [JsonPropertyName("subtotal")]
         public decimal Subtotal { get; set; }
@@ -199,17 +316,65 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("discountTotal")]
         public decimal DiscountTotal { get; set; }
 
+        [JsonPropertyName("totalCgstAmount")]
+        public decimal TotalCgstAmount { get; set; }
+
+        [JsonPropertyName("totalSgstAmount")]
+        public decimal TotalSgstAmount { get; set; }
+
+        [JsonPropertyName("totalIgstAmount")]
+        public decimal TotalIgstAmount { get; set; }
+
         [JsonPropertyName("taxTotal")]
         public decimal TaxTotal { get; set; }
+
+        [JsonPropertyName("freightAmount")]
+        public decimal FreightAmount { get; set; }
+
+        [JsonPropertyName("insuranceAmount")]
+        public decimal InsuranceAmount { get; set; }
 
         [JsonPropertyName("totalAmount")]
         public decimal TotalAmount { get; set; }
 
+        [JsonPropertyName("grandTotalBaseCurrency")]
+        public decimal GrandTotalBaseCurrency { get; set; }
+
         [JsonPropertyName("status")]
         public PurchaseOrderStatus Status { get; set; }
 
+        [JsonPropertyName("requiredApprovalTier")]
+        public PurchaseOrderApprovalTier RequiredApprovalTier { get; set; }
+
+        [JsonPropertyName("currentApprovalTier")]
+        public PurchaseOrderApprovalTier CurrentApprovalTier { get; set; }
+
+        [JsonPropertyName("isExceptionApproval")]
+        public bool IsExceptionApproval { get; set; }
+
+        [JsonPropertyName("exceptionReasonsJson")]
+        public string ExceptionReasonsJson { get; set; } = "[]";
+
+        [JsonPropertyName("approvalToken")]
+        public string? ApprovalToken { get; set; }
+
+        [JsonPropertyName("approvedByUserId")]
+        public string? ApprovedByUserId { get; set; }
+
+        [JsonPropertyName("approvedAt")]
+        public DateTime? ApprovedAt { get; set; }
+
+        [JsonPropertyName("amendmentReason")]
+        public string? AmendmentReason { get; set; }
+
+        [JsonPropertyName("amendmentType")]
+        public POAmendmentType? AmendmentType { get; set; }
+
         [JsonPropertyName("remarks")]
         public string Remarks { get; set; } = string.Empty;
+
+        [JsonPropertyName("lines")]
+        public List<PurchaseOrderLineDto> Lines { get; set; } = new();
 
         [JsonPropertyName("history")]
         public List<PurchaseOrderHistoryDto> History { get; set; } = new();
@@ -355,6 +520,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("purchaseOrderNumber")]
         public string PurchaseOrderNumber { get; set; } = string.Empty;
 
+        [JsonPropertyName("revisionNumber")]
+        public int RevisionNumber { get; set; }
+
         [JsonPropertyName("vendorName")]
         public string VendorName { get; set; } = string.Empty;
 
@@ -367,11 +535,23 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("amount")]
         public decimal Amount { get; set; }
 
+        [JsonPropertyName("currency")]
+        public string Currency { get; set; } = "INR";
+
         [JsonPropertyName("priority")]
         public PurchaseOrderPriority Priority { get; set; }
 
         [JsonPropertyName("status")]
         public PurchaseOrderStatus Status { get; set; }
+
+        [JsonPropertyName("requiredApprovalTier")]
+        public PurchaseOrderApprovalTier RequiredApprovalTier { get; set; }
+
+        [JsonPropertyName("currentApprovalTier")]
+        public PurchaseOrderApprovalTier CurrentApprovalTier { get; set; }
+
+        [JsonPropertyName("isExceptionApproval")]
+        public bool IsExceptionApproval { get; set; }
 
         [JsonPropertyName("approvalStatus")]
         public string ApprovalStatus { get; set; } = string.Empty;

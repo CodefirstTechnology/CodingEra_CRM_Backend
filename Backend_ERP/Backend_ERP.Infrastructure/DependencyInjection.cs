@@ -130,6 +130,8 @@ namespace ERP.Infrastructure
 
             // Procurement Phase 4 Purchase Order Services
             services.AddScoped<ERP.Infrastructure.Procurement.PurchaseOrderNumberingService>();
+            services.AddScoped<ERP.Application.Procurement.IPurchaseOrderApprovalEngine, ERP.Infrastructure.Procurement.PurchaseOrderApprovalEngine>();
+            services.AddScoped<ERP.Application.Procurement.IPurchaseOrderAmendmentService, ERP.Infrastructure.Procurement.PurchaseOrderAmendmentService>();
             services.AddScoped<ERP.Application.Procurement.IPurchaseOrderService, ERP.Infrastructure.Procurement.PurchaseOrderService>();
 
             // Procurement Phase 5 Goods Receipt (GRN) Services

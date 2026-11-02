@@ -14,10 +14,17 @@ namespace ERP.API.Controllers
     public class PurchaseOrdersController : ControllerBase
     {
         private readonly IPurchaseOrderService _poService;
+        private readonly IPurchaseOrderAmendmentService _amendmentService;
+        private readonly IPurchaseOrderApprovalEngine _approvalEngine;
 
-        public PurchaseOrdersController(IPurchaseOrderService poService)
+        public PurchaseOrdersController(
+            IPurchaseOrderService poService,
+            IPurchaseOrderAmendmentService amendmentService,
+            IPurchaseOrderApprovalEngine approvalEngine)
         {
             _poService = poService;
+            _amendmentService = amendmentService;
+            _approvalEngine = approvalEngine;
         }
 
         [HttpGet]
@@ -139,6 +146,55 @@ namespace ERP.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id, userId }, created);
         }
 
+        [HttpPost("direct")]
+        public async Task<ActionResult<PurchaseOrderDto>> CreateDirect(
+            [FromBody] DirectPOCreateRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            var created = await _poService.CreateDirectPOAsync(
+                request,
+                ResolveActingUser(userId),
+                cancellationToken);
+
+            return CreatedAtAction(nameof(GetById), new { id = created.Id, userId }, created);
+        }
+
+        [HttpPost("{id:int}/amend")]
+        public async Task<ActionResult<PurchaseOrderDto>> Amend(
+            int id,
+            [FromBody] POAmendmentRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            var newRevision = await _amendmentService.AmendPurchaseOrderAsync(
+                id,
+                request,
+                ResolveActingUser(userId),
+                cancellationToken);
+
+            var dto = await _poService.GetByIdAsync(newRevision.Id, cancellationToken);
+            return Ok(dto);
+        }
+
+        [HttpGet("{id:int}/revisions")]
+        public async Task<ActionResult<List<PurchaseOrderRevisionSummaryDto>>> GetRevisions(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            var revisions = await _amendmentService.GetRevisionHistoryAsync(id, cancellationToken);
+            return Ok(revisions);
+        }
+
+        [HttpGet("{id:int}/amendment-audit")]
+        public async Task<ActionResult<List<PurchaseOrderAmendmentDeltaDto>>> GetAmendmentAudit(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            var deltas = await _amendmentService.GetAmendmentAuditTrailAsync(id, cancellationToken);
+            return Ok(deltas);
+        }
+
         [HttpPut("{id:int}")]
         public async Task<ActionResult<PurchaseOrderDto>> Update(
             int id,
@@ -207,9 +263,8 @@ namespace ERP.API.Controllers
             [FromQuery] int? userId,
             CancellationToken cancellationToken)
         {
-            var updated = await _poService.UpdateStatusAsync(
+            var updated = await _poService.SubmitForApprovalAsync(
                 id,
-                new PurchaseOrderStatusUpdateRequestDto { Status = ERP.Domain.Procurement.PurchaseOrderStatus.Submitted, Remarks = request?.Remarks ?? "Submitted for approval." },
                 ResolveActingUser(userId),
                 cancellationToken);
 
@@ -316,6 +371,20 @@ namespace ERP.API.Controllers
             return Ok(updated);
         }
 
+        [HttpPost("{id:int}/sign-off")]
+        public async Task<ActionResult<POApprovalSignOffResultDto>> SignOffApproval(
+            int id,
+            [FromBody] POApprovalSignOffRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _approvalEngine.ProcessApprovalActionAsync(id, request, cancellationToken);
+            if (!result.IsSuccess)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+
         [HttpPost("{id:int}/reopen")]
         public async Task<ActionResult<PurchaseOrderDto>> Reopen(
             int id,
@@ -368,6 +437,27 @@ namespace ERP.API.Controllers
             _ = userId;
             var metrics = await _poService.GetApprovalMetricsAsync(new PurchaseOrderListQueryDto(), cancellationToken);
             return Ok(metrics);
+        }
+
+        [HttpGet("{id:int}/pdf")]
+        public async Task<IActionResult> GeneratePdf(int id, CancellationToken cancellationToken)
+        {
+            var po = await _poService.GetByIdAsync(id, cancellationToken);
+            if (po is null) return NotFound();
+
+            // Return JSON metadata representation or binary payload
+            return Ok(new
+            {
+                po.PurchaseOrderNumber,
+                po.RevisionNumber,
+                po.Status,
+                po.Vendor.VendorName,
+                po.TotalAmount,
+                po.Currency,
+                po.ApprovalToken,
+                DownloadUrl = $"/api/purchase-orders/{id}/download-pdf",
+                GeneratedAt = DateTime.UtcNow
+            });
         }
 
         private static string ResolveActingUser(int? userId) =>

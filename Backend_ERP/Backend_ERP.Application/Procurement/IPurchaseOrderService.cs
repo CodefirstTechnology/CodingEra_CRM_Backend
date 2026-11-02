@@ -14,11 +14,15 @@ namespace ERP.Application.Procurement
 
         Task<PurchaseOrderDto> CreateAsync(PurchaseOrderCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default);
 
+        Task<PurchaseOrderDto> CreateDirectPOAsync(DirectPOCreateRequestDto request, string actingUser, CancellationToken cancellationToken = default);
+
         Task<PurchaseOrderDto?> UpdateAsync(int id, PurchaseOrderUpdateRequestDto request, string actingUser, CancellationToken cancellationToken = default);
 
         Task<bool> DeleteAsync(int id, string actingUser, CancellationToken cancellationToken = default);
 
         Task<PurchaseOrderDto?> UpdateStatusAsync(int id, PurchaseOrderStatusUpdateRequestDto request, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<PurchaseOrderDto?> SubmitForApprovalAsync(int id, string actingUser, CancellationToken cancellationToken = default);
 
         Task<PurchaseOrderDto?> CancelAsync(int id, string remarks, string actingUser, CancellationToken cancellationToken = default);
 
