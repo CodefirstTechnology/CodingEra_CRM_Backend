@@ -100,6 +100,20 @@ namespace ERP.API.Controllers
             return Ok(gr);
         }
 
+        [HttpPost("gate-inward")]
+        public async Task<ActionResult<GoodsReceiptDto>> GateInward(
+            [FromBody] GateInwardRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            var created = await _grService.ProcessGateInwardAsync(
+                request,
+                ResolveActingUser(userId),
+                cancellationToken);
+
+            return CreatedAtAction(nameof(GetById), new { id = created.Id, userId }, created);
+        }
+
         [HttpPost]
         public async Task<ActionResult<GoodsReceiptDto>> Create(
             [FromBody] GoodsReceiptCreateRequestDto request,
@@ -152,6 +166,36 @@ namespace ERP.API.Controllers
             }
 
             return NoContent();
+        }
+
+        [HttpPost("{id:int}/qc-disposition")]
+        public async Task<ActionResult<GoodsReceiptDto>> QcDisposition(
+            int id,
+            [FromBody] QcDispositionRequestDto request,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            request.GoodsReceiptId = id;
+            var updated = await _grService.ProcessQcDispositionAsync(
+                request,
+                ResolveActingUser(userId),
+                cancellationToken);
+
+            return Ok(updated);
+        }
+
+        [HttpPost("{id:int}/post")]
+        public async Task<ActionResult<InventoryValuationResultDto>> PostToInventory(
+            int id,
+            [FromQuery] int? userId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _grService.PostToInventoryAsync(
+                id,
+                ResolveActingUser(userId),
+                cancellationToken);
+
+            return Ok(result);
         }
 
         [HttpPost("{id:int}/status")]

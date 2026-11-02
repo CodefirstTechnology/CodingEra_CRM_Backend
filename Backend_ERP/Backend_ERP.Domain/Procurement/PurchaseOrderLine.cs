@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ERP.Domain.Procurement
 {
@@ -41,6 +42,8 @@ namespace ERP.Domain.Procurement
         public decimal DiscountAmount { get; set; } = 0.00m;
         public decimal TaxableAmount { get; set; } = 0.00m;
         public decimal GstRatePercentage { get; set; } = 18.00m;
+        [NotMapped]
+        public decimal TaxPercentage { get => GstRatePercentage; set => GstRatePercentage = value; }
         public decimal CgstAmount { get; set; } = 0.00m;
         public decimal SgstAmount { get; set; } = 0.00m;
         public decimal IgstAmount { get; set; } = 0.00m;

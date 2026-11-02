@@ -13,6 +13,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("purchaseOrderLineId")]
         public int? PurchaseOrderLineId { get; set; }
 
+        [JsonPropertyName("goodsReceiptId")]
+        public int? GoodsReceiptId { get; set; }
+
         [JsonPropertyName("goodsReceiptItemId")]
         public int? GoodsReceiptItemId { get; set; }
 
@@ -42,6 +45,28 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("totalAmount")]
         public decimal TotalAmount { get; set; }
+
+        // 3-Way Match Line Discrepancies
+        [JsonPropertyName("poRate")]
+        public decimal PoRate { get; set; }
+
+        [JsonPropertyName("grnAcceptedQuantity")]
+        public decimal GrnAcceptedQuantity { get; set; }
+
+        [JsonPropertyName("rateVariance")]
+        public decimal RateVariance { get; set; }
+
+        [JsonPropertyName("quantityVariance")]
+        public decimal QuantityVariance { get; set; }
+
+        [JsonPropertyName("taxVariance")]
+        public decimal TaxVariance { get; set; }
+
+        [JsonPropertyName("lineMatchStatus")]
+        public ThreeWayMatchStatus LineMatchStatus { get; set; } = ThreeWayMatchStatus.Pending;
+
+        [JsonPropertyName("matchRemarks")]
+        public string? MatchRemarks { get; set; }
     }
 
     public class PurchaseBillHistoryDto
@@ -91,6 +116,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("grnNumber")]
         public string? GRNNumber { get; set; }
 
+        [JsonPropertyName("consolidatedGrnIds")]
+        public string? ConsolidatedGrnIds { get; set; }
+
         [JsonPropertyName("invoiceDate")]
         public DateTime InvoiceDate { get; set; }
 
@@ -118,6 +146,45 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("igstAmount")]
         public decimal IgstAmount { get; set; }
 
+        // 3-Way Match Attributes
+        [JsonPropertyName("threeWayMatchStatus")]
+        public ThreeWayMatchStatus ThreeWayMatchStatus { get; set; } = ThreeWayMatchStatus.Pending;
+
+        [JsonPropertyName("isThreeWayMatched")]
+        public bool IsThreeWayMatched { get; set; }
+
+        [JsonPropertyName("matchedAmount")]
+        public decimal MatchedAmount { get; set; }
+
+        [JsonPropertyName("varianceAmount")]
+        public decimal VarianceAmount { get; set; }
+
+        [JsonPropertyName("varianceOverrideReason")]
+        public string? VarianceOverrideReason { get; set; }
+
+        [JsonPropertyName("varianceOverriddenBy")]
+        public string? VarianceOverriddenBy { get; set; }
+
+        // Statutory MSME 43B(h) Countdown
+        [JsonPropertyName("isMsmeSubjectTo43B")]
+        public bool IsMsmeSubjectTo43B { get; set; }
+
+        [JsonPropertyName("msmeDueDate")]
+        public DateTime? MsmeDueDate { get; set; }
+
+        [JsonPropertyName("msmeAllowedDays")]
+        public int MsmeAllowedDays { get; set; } = 45;
+
+        // Statutory TDS Section 194Q
+        [JsonPropertyName("isTds194QApplicable")]
+        public bool IsTds194QApplicable { get; set; }
+
+        [JsonPropertyName("tds194QPercentage")]
+        public decimal Tds194QPercentage { get; set; }
+
+        [JsonPropertyName("tds194QAmount")]
+        public decimal Tds194QAmount { get; set; }
+
         [JsonPropertyName("tdsSection")]
         public string? TdsSection { get; set; }
 
@@ -126,6 +193,13 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("tdsAmount")]
         public decimal TdsAmount { get; set; }
+
+        // GSTR-2B
+        [JsonPropertyName("gstr2BStatus")]
+        public string? Gstr2BStatus { get; set; }
+
+        [JsonPropertyName("gstr2BRef")]
+        public string? Gstr2BRef { get; set; }
 
         [JsonPropertyName("varianceReason")]
         public string? VarianceReason { get; set; }
@@ -205,6 +279,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("grnNumber")]
         public string? GRNNumber { get; set; }
 
+        [JsonPropertyName("consolidatedGrnIds")]
+        public string? ConsolidatedGrnIds { get; set; }
+
         [JsonPropertyName("invoiceDate")]
         public DateTime InvoiceDate { get; set; } = DateTime.UtcNow;
 
@@ -249,6 +326,9 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("purchaseOrderLineId")]
         public int? PurchaseOrderLineId { get; set; }
+
+        [JsonPropertyName("goodsReceiptId")]
+        public int? GoodsReceiptId { get; set; }
 
         [JsonPropertyName("goodsReceiptItemId")]
         public int? GoodsReceiptItemId { get; set; }

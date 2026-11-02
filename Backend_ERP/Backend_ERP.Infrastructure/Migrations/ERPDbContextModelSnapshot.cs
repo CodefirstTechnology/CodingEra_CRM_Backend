@@ -2546,23 +2546,53 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("EWayBillNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("GRNNumber")
                         .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("GateInwardNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("GateInwardTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InspectionLotNumber")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsPostedToInventory")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LRNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<DateTime?>("PostedToInventoryAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("PurchaseOrderId")
                         .HasColumnType("integer");
 
                     b.Property<string>("PurchaseOrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("QualityStatus")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -2575,10 +2605,28 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("TotalAcceptedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TotalLandedCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("TransporterName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2587,6 +2635,10 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("VehicleNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("VendorId")
                         .HasColumnType("integer");
@@ -2606,10 +2658,24 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<int?>("WarehouseId")
                         .HasColumnType("integer");
 
+                    b.Property<decimal?>("WeighbridgeGrossWeight")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal?>("WeighbridgeNetWeight")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal?>("WeighbridgeTareWeight")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("GRNNumber")
                         .IsUnique();
+
+                    b.HasIndex("GateInwardNumber");
 
                     b.HasIndex("PurchaseOrderId");
 
@@ -2618,6 +2684,8 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasIndex("VendorId");
 
                     b.HasIndex("WarehouseId");
+
+                    b.HasIndex("PurchaseOrderId", "Status");
 
                     b.HasIndex("Status", "IsDeleted", "ReceiptDate");
 
@@ -2663,13 +2731,30 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasDefaultValue(0m);
 
+                    b.Property<string>("BatchNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("BilledQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("GoodsReceiptId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("HeatNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("ItemId")
                         .HasColumnType("integer");
@@ -2679,9 +2764,25 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<decimal>("LandedCostPerUnit")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("MtcNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<decimal>("OrderedQuantity")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("PoRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("PreviouslyReceivedQuantity")
                         .ValueGeneratedOnAdd()
@@ -2691,6 +2792,34 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.Property<int>("PurchaseOrderLineId")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("QcAcceptedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("QcDispositionNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("QcInspectedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("QcRejectedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("QcReworkQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("ReceivedQuantity")
                         .ValueGeneratedOnAdd()
@@ -2706,7 +2835,8 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.Property<string>("RejectionReasonCode")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<decimal>("RemainingQuantity")
                         .ValueGeneratedOnAdd()
@@ -2726,7 +2856,15 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasDefaultValue("Nos");
 
+                    b.Property<decimal>("ValuationAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.HasKey("Id");
+
+                    b.HasIndex("BatchNumber");
 
                     b.HasIndex("GoodsReceiptId");
 
@@ -3691,7 +3829,12 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("character varying(64)");
 
                     b.Property<decimal>("CgstAmount")
-                        .HasColumnType("numeric");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("ConsolidatedGrnIds")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -3724,8 +3867,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<string>("Gstr2BRef")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Gstr2BStatus")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<decimal>("IgstAmount")
-                        .HasColumnType("numeric");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<DateTime>("InvoiceDate")
                         .HasColumnType("timestamp with time zone");
@@ -3737,6 +3889,25 @@ namespace Backend_ERP.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsMsmeSubjectTo43B")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTds194QApplicable")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsThreeWayMatched")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("MatchedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int>("MsmeAllowedDays")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("MsmeDueDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("PaidAmount")
                         .HasPrecision(18, 4)
@@ -3774,8 +3945,15 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<decimal>("SgstAmount")
-                        .HasColumnType("numeric");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -3790,14 +3968,30 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<decimal>("Tds194QAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("Tds194QPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
                     b.Property<decimal>("TdsAmount")
-                        .HasColumnType("numeric");
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("TdsPercentage")
-                        .HasColumnType("numeric");
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
 
                     b.Property<string>("TdsSection")
-                        .HasColumnType("text");
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ThreeWayMatchStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -3807,8 +4001,24 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<decimal>("VarianceAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime?>("VarianceOverriddenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VarianceOverriddenBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("VarianceOverrideReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<string>("VarianceReason")
-                        .HasColumnType("text");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<int>("VendorId")
                         .HasColumnType("integer");
@@ -3830,6 +4040,16 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasIndex("PurchaseOrderId");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("ThreeWayMatchStatus");
+
+                    b.HasIndex("VendorId");
+
+                    b.HasIndex("IsMsmeSubjectTo43B", "DueDate", "PaymentStatus");
+
+                    b.HasIndex("PurchaseOrderId", "GRNId", "Status");
+
+                    b.HasIndex("VendorId", "Status", "DueDate");
 
                     b.ToTable("purchase_bills", (string)null);
                 });
@@ -3910,8 +4130,17 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<int?>("GoodsReceiptId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("GoodsReceiptItemId")
                         .HasColumnType("integer");
+
+                    b.Property<decimal>("GrnAcceptedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<int?>("ItemId")
                         .HasColumnType("integer");
@@ -3920,6 +4149,21 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("LineMatchStatus")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("MatchRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("PoRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<int>("PurchaseBillId")
                         .HasColumnType("integer");
@@ -3931,6 +4175,18 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
 
+                    b.Property<decimal>("QuantityVariance")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RateVariance")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("TaxAmount")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -3938,6 +4194,12 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.Property<decimal>("TaxPercent")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("TaxVariance")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 4)
@@ -3948,6 +4210,10 @@ namespace Backend_ERP.Infrastructure.Migrations
                         .HasColumnType("numeric(18,4)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GoodsReceiptId");
+
+                    b.HasIndex("GoodsReceiptItemId");
 
                     b.HasIndex("PurchaseBillId");
 
@@ -6305,6 +6571,93 @@ namespace Backend_ERP.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("test_certificates", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Procurement.ThreeWayMatchAuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BillNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("BillValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<string>("CheckType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DiscrepancyMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int?>("GoodsReceiptId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("GrnValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<bool>("IsWithinTolerance")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("OverriddenBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("OverrideReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal>("PoValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<int>("PurchaseBillId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PurchaseBillLineId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PurchaseOrderId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<decimal>("Variance")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<decimal>("VariancePercentage")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillNumber");
+
+                    b.HasIndex("PurchaseBillId", "CheckType", "CheckedAt");
+
+                    b.ToTable("three_way_match_audit_logs", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Procurement.Vendor", b =>
@@ -15620,11 +15973,25 @@ namespace Backend_ERP.Infrastructure.Migrations
 
             modelBuilder.Entity("ERP.Domain.Procurement.PurchaseBillLine", b =>
                 {
+                    b.HasOne("ERP.Domain.Procurement.GoodsReceipt", "GoodsReceipt")
+                        .WithMany()
+                        .HasForeignKey("GoodsReceiptId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ERP.Domain.Procurement.GoodsReceiptItem", "GoodsReceiptItem")
+                        .WithMany()
+                        .HasForeignKey("GoodsReceiptItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ERP.Domain.Procurement.PurchaseBill", "PurchaseBill")
                         .WithMany("Lines")
                         .HasForeignKey("PurchaseBillId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("GoodsReceipt");
+
+                    b.Navigation("GoodsReceiptItem");
 
                     b.Navigation("PurchaseBill");
                 });

@@ -29,5 +29,11 @@ namespace ERP.Application.Procurement
         Task<List<GoodsReceiptItemDto>> BuildDraftItemsForPurchaseOrderAsync(int purchaseOrderId, int? excludeGrnId = null, CancellationToken cancellationToken = default);
 
         Task<string> GetNextNumberAsync(CancellationToken cancellationToken = default);
+
+        Task<GoodsReceiptDto> ProcessGateInwardAsync(GateInwardRequestDto request, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<GoodsReceiptDto> ProcessQcDispositionAsync(QcDispositionRequestDto request, string actingUser, CancellationToken cancellationToken = default);
+
+        Task<InventoryValuationResultDto> PostToInventoryAsync(int goodsReceiptId, string actingUser, CancellationToken cancellationToken = default);
     }
 }

@@ -160,6 +160,8 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.Amount).HasPrecision(18, 2).HasDefaultValue(0m);
             builder.Property(x => x.IsItcEligible).HasDefaultValue(true);
 
+            builder.Ignore(x => x.TaxPercentage);
+
             // Logistics & JSONB
             builder.Property(x => x.DeliveryScheduleJson).HasColumnType("jsonb").HasDefaultValue("[]");
             builder.Property(x => x.LineStatus).HasConversion<string>().HasMaxLength(64).IsRequired();

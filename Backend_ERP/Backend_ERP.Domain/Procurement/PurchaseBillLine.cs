@@ -10,7 +10,15 @@ namespace ERP.Domain.Procurement
 
         public int? PurchaseOrderLineId { get; set; }
 
+        public PurchaseOrderLine? PurchaseOrderLine { get; set; }
+
+        public int? GoodsReceiptId { get; set; }
+
+        public GoodsReceipt? GoodsReceipt { get; set; }
+
         public int? GoodsReceiptItemId { get; set; }
+
+        public GoodsReceiptItem? GoodsReceiptItem { get; set; }
 
         public int? ItemId { get; set; }
 
@@ -29,5 +37,20 @@ namespace ERP.Domain.Procurement
         public decimal TaxAmount { get; set; }
 
         public decimal TotalAmount { get; set; }
+
+        // 3-Way Match Line Discrepancies
+        public decimal PoRate { get; set; }
+
+        public decimal GrnAcceptedQuantity { get; set; }
+
+        public decimal RateVariance { get; set; }
+
+        public decimal QuantityVariance { get; set; }
+
+        public decimal TaxVariance { get; set; }
+
+        public ThreeWayMatchStatus LineMatchStatus { get; set; } = ThreeWayMatchStatus.Pending;
+
+        public string? MatchRemarks { get; set; }
     }
 }

@@ -19,18 +19,41 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.WarehouseId);
             builder.Property(x => x.Warehouse).HasMaxLength(256).HasDefaultValue("Main Store — Sanand");
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(64).IsRequired();
+            builder.Property(x => x.QualityStatus).HasConversion<string>().HasMaxLength(64).IsRequired();
+
+            // Inward Gate Manifest & Logistics
+            builder.Property(x => x.GateInwardNumber).HasMaxLength(64);
+            builder.Property(x => x.VehicleNumber).HasMaxLength(64);
+            builder.Property(x => x.TransporterName).HasMaxLength(256);
+            builder.Property(x => x.LRNumber).HasMaxLength(64);
+            builder.Property(x => x.EWayBillNumber).HasMaxLength(64);
+            builder.Property(x => x.InspectionLotNumber).HasMaxLength(64);
+
+            // Weighbridge Weights
+            builder.Property(x => x.WeighbridgeGrossWeight).HasPrecision(18, 4);
+            builder.Property(x => x.WeighbridgeTareWeight).HasPrecision(18, 4);
+            builder.Property(x => x.WeighbridgeNetWeight).HasPrecision(18, 4);
+
+            // Totals
+            builder.Property(x => x.TotalAcceptedAmount).HasPrecision(18, 2);
+            builder.Property(x => x.TotalLandedCost).HasPrecision(18, 2);
+
             builder.Property(x => x.Remarks).HasMaxLength(2000);
             builder.Property(x => x.Notes).HasMaxLength(2000);
 
             builder.Property(x => x.CreatedBy).HasMaxLength(256);
             builder.Property(x => x.UpdatedBy).HasMaxLength(256);
 
+            builder.Property(x => x.RowVersion).IsRowVersion();
+
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.PurchaseOrderId);
             builder.HasIndex(x => x.VendorId);
             builder.HasIndex(x => x.WarehouseId);
+            builder.HasIndex(x => x.GateInwardNumber);
             builder.HasIndex(x => new { x.VendorId, x.Status, x.ReceiptDate });
             builder.HasIndex(x => new { x.Status, x.IsDeleted, x.ReceiptDate });
+            builder.HasIndex(x => new { x.PurchaseOrderId, x.Status });
 
             builder.HasOne(x => x.PurchaseOrder)
                 .WithMany()
@@ -71,11 +94,34 @@ namespace ERP.Infrastructure.Data.Configurations
             builder.Property(x => x.ReceivedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.AcceptedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
             builder.Property(x => x.RejectedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.RejectionReasonCode).HasMaxLength(64);
+
+            // Batch & Traceability
+            builder.Property(x => x.BatchNumber).HasMaxLength(64);
+            builder.Property(x => x.HeatNumber).HasMaxLength(64);
+            builder.Property(x => x.MtcNumber).HasMaxLength(64);
+
+            // Valuation & Rates
+            builder.Property(x => x.PoRate).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.LandedCostPerUnit).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.ValuationAmount).HasPrecision(18, 4).HasDefaultValue(0m);
+
+            // QC Disposition
+            builder.Property(x => x.QcInspectedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.QcAcceptedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.QcRejectedQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.QcReworkQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+            builder.Property(x => x.QcDispositionNotes).HasMaxLength(1000);
+
+            // Billed Quantity
+            builder.Property(x => x.BilledQuantity).HasPrecision(18, 4).HasDefaultValue(0m);
+
             builder.Property(x => x.Remarks).HasMaxLength(2000);
 
             builder.HasIndex(x => x.GoodsReceiptId);
             builder.HasIndex(x => x.PurchaseOrderLineId);
             builder.HasIndex(x => x.ItemId);
+            builder.HasIndex(x => x.BatchNumber);
 
             builder.HasOne(x => x.PurchaseOrderLine)
                 .WithMany()

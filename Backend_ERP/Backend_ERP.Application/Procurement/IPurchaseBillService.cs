@@ -20,5 +20,10 @@ namespace ERP.Application.Procurement
         Task<PurchaseBillDto?> VoidPurchaseBillAsync(int id, string remarks, string currentUser, CancellationToken cancellationToken = default);
         Task<PurchaseBillDto?> DuplicatePurchaseBillAsync(int id, string currentUser, CancellationToken cancellationToken = default);
         Task<PurchaseBillDashboardDto> GetPurchaseBillDashboardAsync(CancellationToken cancellationToken = default);
+
+        Task<PurchaseBillDto> BuildFromGrnsAsync(MultiGrnBillBuildRequestDto request, string currentUser, CancellationToken cancellationToken = default);
+        Task<bool> OverrideVarianceAsync(VarianceOverrideRequestDto request, string currentUser, CancellationToken cancellationToken = default);
+        Task<MsmeComplianceSummaryDto> GetMsmeComplianceSummaryAsync(CancellationToken cancellationToken = default);
+        Task<bool> ReconcileGstr2BAsync(Gstr2BReconcileDto request, string currentUser, CancellationToken cancellationToken = default);
     }
 }

@@ -23,9 +23,13 @@ namespace ERP.Domain.Procurement
     public enum PurchaseOrderApprovalTier
     {
         None = 0,
+        Tier1 = 1,
         Tier1_PlantManager = 1,
+        Tier2 = 2,
         Tier2_OperationsHead = 2,
+        Tier3 = 3,
         Tier3_VpSupplyChain = 3,
+        Tier4 = 4,
         Tier4_CfoMd = 4
     }
 
@@ -39,19 +43,21 @@ namespace ERP.Domain.Procurement
 
     public enum POItemType
     {
-        Inventory,
-        Consumable,
-        Service,
-        Asset
+        Inventory = 0,
+        Goods = 0,
+        Consumable = 1,
+        Service = 2,
+        Asset = 3
     }
 
     public enum PurchaseOrderLineStatus
     {
-        PendingReceipt,
-        PartiallyReceived,
-        FullyReceived,
-        Closed,
-        Cancelled
+        PendingReceipt = 0,
+        Pending = 0,
+        PartiallyReceived = 1,
+        FullyReceived = 2,
+        Closed = 3,
+        Cancelled = 4
     }
 
     public enum POAmendmentType

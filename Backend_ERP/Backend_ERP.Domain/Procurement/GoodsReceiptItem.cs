@@ -1,3 +1,5 @@
+using System;
+
 namespace ERP.Domain.Procurement
 {
     public class GoodsReceiptItem
@@ -33,6 +35,36 @@ namespace ERP.Domain.Procurement
         public decimal RejectedQuantity { get; set; }
 
         public string RejectionReasonCode { get; set; } = string.Empty;
+
+        // Industrial Batch & Traceability
+        public string? BatchNumber { get; set; }
+
+        public string? HeatNumber { get; set; }
+
+        public string? MtcNumber { get; set; }
+
+        public DateTime? ExpiryDate { get; set; }
+
+        // Valuation & Rates
+        public decimal PoRate { get; set; }
+
+        public decimal LandedCostPerUnit { get; set; }
+
+        public decimal ValuationAmount { get; set; }
+
+        // QC Disposition Buckets
+        public decimal QcInspectedQuantity { get; set; }
+
+        public decimal QcAcceptedQuantity { get; set; }
+
+        public decimal QcRejectedQuantity { get; set; }
+
+        public decimal QcReworkQuantity { get; set; }
+
+        public string? QcDispositionNotes { get; set; }
+
+        // Cumulative Billed Quantity
+        public decimal BilledQuantity { get; set; }
 
         public string Remarks { get; set; } = string.Empty;
     }

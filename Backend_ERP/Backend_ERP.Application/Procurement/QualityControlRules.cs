@@ -86,15 +86,12 @@ namespace ERP.Application.Procurement
                 return "Inspection quantities cannot be negative.";
             }
 
-            decimal totalSplit = accepted + rework + scrap + rtv;
-            if (totalSplit > 0 && Math.Abs(totalSplit - (accepted + rejected)) > 0.001m && rejected == 0)
-            {
-                // If rework/scrap/rtv are explicitly provided, check sum
-            }
+            decimal totalSplit = rework + scrap + rtv;
+            decimal totalDisposition = accepted + (totalSplit > 0 ? totalSplit : rejected);
 
-            if (accepted + rework + scrap + rtv > sampling + 0.0001m && sampling > 0)
+            if (totalDisposition > sampling + 0.0001m && sampling > 0)
             {
-                return "Total disposition quantities (Accepted + Rework + Scrap + RTV) cannot exceed sampling quantity.";
+                return "Total disposition quantities cannot exceed sampling quantity.";
             }
 
             return null;

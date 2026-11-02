@@ -251,6 +251,8 @@ namespace ERP.Infrastructure.Data
 
         public DbSet<ERP.Domain.Procurement.PurchaseBillDocumentSequence> PurchaseBillDocumentSequences => Set<ERP.Domain.Procurement.PurchaseBillDocumentSequence>();
 
+        public DbSet<ERP.Domain.Procurement.ThreeWayMatchAuditLog> ThreeWayMatchAuditLogs => Set<ERP.Domain.Procurement.ThreeWayMatchAuditLog>();
+
         public DbSet<ERP.Domain.Procurement.VendorPayment> VendorPayments => Set<ERP.Domain.Procurement.VendorPayment>();
 
         public DbSet<ERP.Domain.Procurement.VendorPaymentAllocation> VendorPaymentAllocations => Set<ERP.Domain.Procurement.VendorPaymentAllocation>();

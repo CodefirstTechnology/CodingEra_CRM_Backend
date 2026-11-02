@@ -135,6 +135,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Procurement.IPurchaseOrderService, ERP.Infrastructure.Procurement.PurchaseOrderService>();
 
             // Procurement Phase 5 Goods Receipt (GRN) Services
+            services.AddScoped<ERP.Application.Procurement.IInventoryValuationEngine, ERP.Infrastructure.Procurement.InventoryValuationEngine>();
             services.AddScoped<ERP.Infrastructure.Procurement.GoodsReceiptNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IGoodsReceiptService, ERP.Infrastructure.Procurement.GoodsReceiptService>();
 
@@ -147,6 +148,7 @@ namespace ERP.Infrastructure
             services.AddScoped<ERP.Application.Procurement.IStoreInventoryService, ERP.Infrastructure.Procurement.StoreInventoryService>();
 
             // Procurement Phase 8 Purchase Bills & 3-Way Matching Services
+            services.AddScoped<ERP.Application.Procurement.IThreeWayMatchingEngine, ERP.Infrastructure.Procurement.ThreeWayMatchingEngine>();
             services.AddScoped<ERP.Infrastructure.Procurement.PurchaseBillNumberingService>();
             services.AddScoped<ERP.Application.Procurement.IPurchaseBillService, ERP.Infrastructure.Procurement.PurchaseBillService>();
             services.AddScoped<ERP.Application.Procurement.IVendorLedgerService, ERP.Infrastructure.Procurement.VendorLedgerService>();

@@ -50,6 +50,13 @@ namespace ERP.API.Controllers
             return Ok(await _billService.GetPurchaseBillDashboardAsync(cancellationToken));
         }
 
+        [HttpGet("msme-compliance")]
+        public async Task<ActionResult<MsmeComplianceSummaryDto>> GetMsmeCompliance([FromQuery] int? userId, CancellationToken cancellationToken = default)
+        {
+            _ = userId;
+            return Ok(await _billService.GetMsmeComplianceSummaryAsync(cancellationToken));
+        }
+
         [HttpGet("{id:int}")]
         public async Task<ActionResult<PurchaseBillDto>> GetPurchaseBillById(int id, [FromQuery] int? userId, CancellationToken cancellationToken = default)
         {
@@ -63,6 +70,13 @@ namespace ERP.API.Controllers
         {
             var result = await _billService.Validate3WayMatchAsync(request, cancellationToken);
             return Ok(result);
+        }
+
+        [HttpPost("build-from-grns")]
+        public async Task<ActionResult<PurchaseBillDto>> BuildFromGrns([FromBody] MultiGrnBillBuildRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
+        {
+            var created = await _billService.BuildFromGrnsAsync(request, ResolveUser(userId), cancellationToken);
+            return CreatedAtAction(nameof(GetPurchaseBillById), new { id = created.Id, userId }, created);
         }
 
         [HttpPost]
@@ -84,6 +98,22 @@ namespace ERP.API.Controllers
         {
             var ok = await _billService.DeletePurchaseBillAsync(id, ResolveUser(userId), cancellationToken);
             return ok ? NoContent() : NotFound();
+        }
+
+        [HttpPost("{id:int}/override-variance")]
+        public async Task<ActionResult> OverrideVariance(int id, [FromBody] VarianceOverrideRequestDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
+        {
+            request.BillId = id;
+            var success = await _billService.OverrideVarianceAsync(request, ResolveUser(userId), cancellationToken);
+            return success ? Ok(new { message = "Managerial variance override authorized." }) : BadRequest("Could not override variance.");
+        }
+
+        [HttpPost("{id:int}/reconcile-gstr2b")]
+        public async Task<ActionResult> ReconcileGstr2B(int id, [FromBody] Gstr2BReconcileDto request, [FromQuery] int? userId, CancellationToken cancellationToken = default)
+        {
+            request.BillId = id;
+            var success = await _billService.ReconcileGstr2BAsync(request, ResolveUser(userId), cancellationToken);
+            return success ? Ok(new { message = "GSTR-2B ITC status updated." }) : NotFound();
         }
 
         [HttpPost("{id:int}/approve")]

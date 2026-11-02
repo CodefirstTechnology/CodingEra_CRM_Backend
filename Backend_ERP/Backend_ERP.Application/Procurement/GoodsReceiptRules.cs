@@ -13,9 +13,12 @@ namespace ERP.Application.Procurement
 
             return current switch
             {
-                GoodsReceiptStatus.Draft => target is GoodsReceiptStatus.Submitted or GoodsReceiptStatus.Completed or GoodsReceiptStatus.Cancelled,
-                GoodsReceiptStatus.Submitted => target is GoodsReceiptStatus.Completed or GoodsReceiptStatus.Cancelled,
-                GoodsReceiptStatus.Completed => false,
+                GoodsReceiptStatus.Draft => target is GoodsReceiptStatus.Submitted or GoodsReceiptStatus.Quarantined or GoodsReceiptStatus.Completed or GoodsReceiptStatus.Cancelled,
+                GoodsReceiptStatus.Submitted => target is GoodsReceiptStatus.Quarantined or GoodsReceiptStatus.QcCompleted or GoodsReceiptStatus.Completed or GoodsReceiptStatus.Posted or GoodsReceiptStatus.Cancelled,
+                GoodsReceiptStatus.Quarantined => target is GoodsReceiptStatus.QcCompleted or GoodsReceiptStatus.Completed or GoodsReceiptStatus.Cancelled,
+                GoodsReceiptStatus.QcCompleted => target is GoodsReceiptStatus.Completed or GoodsReceiptStatus.Posted or GoodsReceiptStatus.Cancelled,
+                GoodsReceiptStatus.Completed => target is GoodsReceiptStatus.Posted,
+                GoodsReceiptStatus.Posted => false,
                 GoodsReceiptStatus.Cancelled => false,
                 _ => false
             };
@@ -37,17 +40,16 @@ namespace ERP.Application.Procurement
                 var recv = Math.Max(0, item.ReceivedQuantity);
                 var rej = Math.Max(0, item.RejectedQuantity);
 
-                if (recv > item.RemainingQuantity + 0.0001m)
+                decimal tolerancePct = item.PurchaseOrderLine?.OverDeliveryTolerancePercent ?? 2.0m;
+                decimal allowedLimit = Math.Round(item.RemainingQuantity * (1m + (tolerancePct / 100m)), 4);
+
+                if (recv > allowedLimit + 0.0001m)
                 {
-                    return $"Received quantity for \"{item.ItemName}\" exceeds remaining ({item.RemainingQuantity}).";
+                    return $"Received quantity for \"{item.ItemName}\" exceeds remaining ({item.RemainingQuantity}) plus allowed tolerance ({tolerancePct}%).";
                 }
-                if (rej > item.RemainingQuantity + 0.0001m)
+                if (rej > allowedLimit + 0.0001m)
                 {
                     return $"Rejected quantity for \"{item.ItemName}\" exceeds remaining ({item.RemainingQuantity}).";
-                }
-                if (recv + rej > item.RemainingQuantity + 0.0001m)
-                {
-                    return $"Received + rejected for \"{item.ItemName}\" exceeds remaining ({item.RemainingQuantity}).";
                 }
                 if (recv > 0) anyReceived = true;
             }

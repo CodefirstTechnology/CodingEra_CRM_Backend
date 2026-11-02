@@ -13,6 +13,9 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("purchaseOrderLineId")]
         public string PurchaseOrderLineId { get; set; } = string.Empty;
 
+        [JsonPropertyName("itemId")]
+        public int? ItemId { get; set; }
+
         [JsonPropertyName("itemName")]
         public string ItemName { get; set; } = string.Empty;
 
@@ -34,8 +37,57 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("receivedQuantity")]
         public decimal ReceivedQuantity { get; set; }
 
+        [JsonPropertyName("acceptedQuantity")]
+        public decimal AcceptedQuantity { get; set; }
+
         [JsonPropertyName("rejectedQuantity")]
         public decimal RejectedQuantity { get; set; }
+
+        [JsonPropertyName("rejectionReasonCode")]
+        public string RejectionReasonCode { get; set; } = string.Empty;
+
+        // Traceability & Batching
+        [JsonPropertyName("batchNumber")]
+        public string? BatchNumber { get; set; }
+
+        [JsonPropertyName("heatNumber")]
+        public string? HeatNumber { get; set; }
+
+        [JsonPropertyName("mtcNumber")]
+        public string? MtcNumber { get; set; }
+
+        [JsonPropertyName("expiryDate")]
+        public DateTime? ExpiryDate { get; set; }
+
+        // Valuation & Rates
+        [JsonPropertyName("poRate")]
+        public decimal PoRate { get; set; }
+
+        [JsonPropertyName("landedCostPerUnit")]
+        public decimal LandedCostPerUnit { get; set; }
+
+        [JsonPropertyName("valuationAmount")]
+        public decimal ValuationAmount { get; set; }
+
+        // QC Disposition
+        [JsonPropertyName("qcInspectedQuantity")]
+        public decimal QcInspectedQuantity { get; set; }
+
+        [JsonPropertyName("qcAcceptedQuantity")]
+        public decimal QcAcceptedQuantity { get; set; }
+
+        [JsonPropertyName("qcRejectedQuantity")]
+        public decimal QcRejectedQuantity { get; set; }
+
+        [JsonPropertyName("qcReworkQuantity")]
+        public decimal QcReworkQuantity { get; set; }
+
+        [JsonPropertyName("qcDispositionNotes")]
+        public string? QcDispositionNotes { get; set; }
+
+        // Billing
+        [JsonPropertyName("billedQuantity")]
+        public decimal BilledQuantity { get; set; }
 
         [JsonPropertyName("remarks")]
         public string Remarks { get; set; } = string.Empty;
@@ -106,8 +158,20 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("status")]
         public GoodsReceiptStatus Status { get; set; }
 
+        [JsonPropertyName("qualityStatus")]
+        public QualityInspectionStatus QualityStatus { get; set; }
+
         [JsonPropertyName("receivedPercent")]
         public decimal ReceivedPercent { get; set; }
+
+        [JsonPropertyName("isPostedToInventory")]
+        public bool IsPostedToInventory { get; set; }
+
+        [JsonPropertyName("totalAcceptedAmount")]
+        public decimal TotalAcceptedAmount { get; set; }
+
+        [JsonPropertyName("vehicleNumber")]
+        public string? VehicleNumber { get; set; }
 
         [JsonPropertyName("createdBy")]
         public string CreatedBy { get; set; } = string.Empty;
@@ -127,17 +191,71 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("purchaseOrderNumber")]
         public string PurchaseOrderNumber { get; set; } = string.Empty;
 
+        [JsonPropertyName("vendorId")]
+        public int? VendorId { get; set; }
+
         [JsonPropertyName("vendorName")]
         public string VendorName { get; set; } = string.Empty;
 
         [JsonPropertyName("receiptDate")]
         public DateTime ReceiptDate { get; set; }
 
+        [JsonPropertyName("warehouseId")]
+        public int? WarehouseId { get; set; }
+
         [JsonPropertyName("warehouse")]
         public string Warehouse { get; set; } = "Main Store — Sanand";
 
         [JsonPropertyName("status")]
         public GoodsReceiptStatus Status { get; set; }
+
+        // Gate Manifest & Logistics
+        [JsonPropertyName("gateInwardNumber")]
+        public string? GateInwardNumber { get; set; }
+
+        [JsonPropertyName("gateInwardTime")]
+        public DateTime? GateInwardTime { get; set; }
+
+        [JsonPropertyName("vehicleNumber")]
+        public string? VehicleNumber { get; set; }
+
+        [JsonPropertyName("transporterName")]
+        public string? TransporterName { get; set; }
+
+        [JsonPropertyName("lrNumber")]
+        public string? LRNumber { get; set; }
+
+        [JsonPropertyName("eWayBillNumber")]
+        public string? EWayBillNumber { get; set; }
+
+        // Weighbridge
+        [JsonPropertyName("weighbridgeGrossWeight")]
+        public decimal? WeighbridgeGrossWeight { get; set; }
+
+        [JsonPropertyName("weighbridgeTareWeight")]
+        public decimal? WeighbridgeTareWeight { get; set; }
+
+        [JsonPropertyName("weighbridgeNetWeight")]
+        public decimal? WeighbridgeNetWeight { get; set; }
+
+        // QC & Valuation
+        [JsonPropertyName("inspectionLotNumber")]
+        public string? InspectionLotNumber { get; set; }
+
+        [JsonPropertyName("qualityStatus")]
+        public QualityInspectionStatus QualityStatus { get; set; } = QualityInspectionStatus.Pending;
+
+        [JsonPropertyName("totalAcceptedAmount")]
+        public decimal TotalAcceptedAmount { get; set; }
+
+        [JsonPropertyName("totalLandedCost")]
+        public decimal TotalLandedCost { get; set; }
+
+        [JsonPropertyName("isPostedToInventory")]
+        public bool IsPostedToInventory { get; set; }
+
+        [JsonPropertyName("postedToInventoryAt")]
+        public DateTime? PostedToInventoryAt { get; set; }
 
         [JsonPropertyName("remarks")]
         public string Remarks { get; set; } = string.Empty;
@@ -178,6 +296,28 @@ namespace ERP.Application.Procurement.Dtos
         [JsonPropertyName("warehouse")]
         public string Warehouse { get; set; } = "Main Store — Sanand";
 
+        // Gate Manifest & Logistics
+        [JsonPropertyName("gateInwardNumber")]
+        public string? GateInwardNumber { get; set; }
+
+        [JsonPropertyName("vehicleNumber")]
+        public string? VehicleNumber { get; set; }
+
+        [JsonPropertyName("transporterName")]
+        public string? TransporterName { get; set; }
+
+        [JsonPropertyName("lrNumber")]
+        public string? LRNumber { get; set; }
+
+        [JsonPropertyName("eWayBillNumber")]
+        public string? EWayBillNumber { get; set; }
+
+        [JsonPropertyName("weighbridgeGrossWeight")]
+        public decimal? WeighbridgeGrossWeight { get; set; }
+
+        [JsonPropertyName("weighbridgeTareWeight")]
+        public decimal? WeighbridgeTareWeight { get; set; }
+
         [JsonPropertyName("notes")]
         public string? Notes { get; set; }
 
@@ -198,6 +338,24 @@ namespace ERP.Application.Procurement.Dtos
 
         [JsonPropertyName("warehouse")]
         public string Warehouse { get; set; } = string.Empty;
+
+        [JsonPropertyName("vehicleNumber")]
+        public string? VehicleNumber { get; set; }
+
+        [JsonPropertyName("transporterName")]
+        public string? TransporterName { get; set; }
+
+        [JsonPropertyName("lrNumber")]
+        public string? LRNumber { get; set; }
+
+        [JsonPropertyName("eWayBillNumber")]
+        public string? EWayBillNumber { get; set; }
+
+        [JsonPropertyName("weighbridgeGrossWeight")]
+        public decimal? WeighbridgeGrossWeight { get; set; }
+
+        [JsonPropertyName("weighbridgeTareWeight")]
+        public decimal? WeighbridgeTareWeight { get; set; }
 
         [JsonPropertyName("notes")]
         public string? Notes { get; set; }

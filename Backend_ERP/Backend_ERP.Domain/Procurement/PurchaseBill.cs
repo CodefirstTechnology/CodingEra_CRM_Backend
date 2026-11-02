@@ -23,6 +23,9 @@ namespace ERP.Domain.Procurement
 
         public string? GRNNumber { get; set; }
 
+        // Multi-GRN Consolidation
+        public string? ConsolidatedGrnIds { get; set; }
+
         public DateTime InvoiceDate { get; set; } = DateTime.UtcNow;
 
         public DateTime DueDate { get; set; } = DateTime.UtcNow.AddDays(30);
@@ -49,17 +52,52 @@ namespace ERP.Domain.Procurement
 
         public PurchaseBillStatus Status { get; set; } = PurchaseBillStatus.Draft;
 
+        // 3-Way Matching Engine Attributes
+        public ThreeWayMatchStatus ThreeWayMatchStatus { get; set; } = ThreeWayMatchStatus.Pending;
+
+        public bool IsThreeWayMatched { get; set; }
+
+        public decimal MatchedAmount { get; set; }
+
+        public decimal VarianceAmount { get; set; }
+
+        public string? VarianceOverrideReason { get; set; }
+
+        public string? VarianceOverriddenBy { get; set; }
+
+        public DateTime? VarianceOverriddenAt { get; set; }
+
+        // GST Breakup
         public decimal CgstAmount { get; set; }
 
         public decimal SgstAmount { get; set; }
 
         public decimal IgstAmount { get; set; }
 
+        // Statutory MSME 43B(h) Countdown
+        public bool IsMsmeSubjectTo43B { get; set; }
+
+        public DateTime? MsmeDueDate { get; set; }
+
+        public int MsmeAllowedDays { get; set; } = 45;
+
+        // Statutory TDS Section 194Q
+        public bool IsTds194QApplicable { get; set; }
+
+        public decimal Tds194QPercentage { get; set; } = 0.10m;
+
+        public decimal Tds194QAmount { get; set; }
+
         public string? TdsSection { get; set; }
 
         public decimal TdsPercentage { get; set; }
 
         public decimal TdsAmount { get; set; }
+
+        // GSTR-2B ITC Matching
+        public string? Gstr2BStatus { get; set; } = "Pending";
+
+        public string? Gstr2BRef { get; set; }
 
         public string? VarianceReason { get; set; }
 
@@ -70,6 +108,8 @@ namespace ERP.Domain.Procurement
         public string Remarks { get; set; } = string.Empty;
 
         public int AttachmentsCount { get; set; }
+
+        public uint RowVersion { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
